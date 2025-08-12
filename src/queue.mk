@@ -1,20 +1,27 @@
-# Use PROJECT_ROOT if available, else define
 ifndef PROJECT_ROOT
 PROJECT_ROOT = C:/Users/KEREM/Desktop/code/C_codes
 endif
 
-QUEUE_SRC_DIR = $(PROJECT_ROOT)/queue/src
-QUEUE_BIN_DIR = $(PROJECT_ROOT)/queue/bin
-QUEUE_INCLUDE_DIR = $(PROJECT_ROOT)/queue/include
+QUEUE_CC := gcc
+QUEUE_CFLAGS := -Wall -Wextra -MMD -MP
 
-# Create bin directory if missing
+QUEUE_SRC_DIR := $(PROJECT_ROOT)/queue/src
+QUEUE_BIN_DIR := $(PROJECT_ROOT)/queue/bin
+QUEUE_INCLUDE_DIR := $(PROJECT_ROOT)/queue/include
+
+QUEUE_SRC_FILES := $(wildcard $(QUEUE_SRC_DIR)/*.c)
+QUEUE_OBJ_FILES := $(patsubst $(QUEUE_SRC_DIR)/%.c,$(QUEUE_BIN_DIR)/%.o,$(QUEUE_SRC_FILES))
+QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
+
+# Static library
+$(QUEUE_BIN_DIR)/libqueue.a: $(QUEUE_OBJ_FILES)
+	ar rcs $@ $<
+
+$(QUEUE_BIN_DIR)/%.o: $(QUEUE_SRC_DIR)/%.c | $(QUEUE_BIN_DIR)
+	$(QUEUE_CC) $(QUEUE_CFLAGS) -I$(QUEUE_INCLUDE_DIR) -c $< -o $@
+
+# Create bin directory
 $(QUEUE_BIN_DIR):
 	@mkdir -p $@
 
-# Static library
-$(QUEUE_BIN_DIR)/libqueue.a: $(QUEUE_BIN_DIR)/queue.o
-	ar rcs $@ $<
-
-# Object file with directory dependency
-$(QUEUE_BIN_DIR)/queue.o: $(QUEUE_SRC_DIR)/queue.c | $(QUEUE_BIN_DIR)
-	$(CC) $(CFLAGS) -I$(QUEUE_INCLUDE_DIR) -c $< -o $@
+-include $(QUEUE_DEP_FILES)
