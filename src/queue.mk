@@ -3,7 +3,7 @@ PROJECT_ROOT = C:/Users/KEREM/Desktop/code/C_codes
 endif
 
 QUEUE_CC := gcc
-QUEUE_CFLAGS := -Wall -Wextra -MMD -MP
+QUEUE_CFLAGS := -Wall -Wextra -O2 -MMD -MP
 
 QUEUE_SRC_DIR := $(PROJECT_ROOT)/queue/src
 QUEUE_BIN_DIR := $(PROJECT_ROOT)/queue/bin
