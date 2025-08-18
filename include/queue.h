@@ -24,7 +24,7 @@ struct Queue
 int init_q(struct Queue* q, size_t _obj_size);
 // enqueue an item, returns either EXIT_SUCCESS OR EXIT_FAILURE
 int enqueue(struct Queue* q, const void* _new);
-// dequeue a item, returns either item or NULL
+// dequeue an item, returns either item or NULL, you should free item since ownership is yours
 void* dequeue(struct Queue* q);
 // peek an item, returns either item or NULL
 void* peek_q(const struct Queue* q);
