@@ -64,12 +64,21 @@ void* peek_q(const struct Queue* q)
     RETURN(LOG("%s succeeded", __func__), q->contents[q->front]);
 }
 
-void free_q(struct Queue* q)
+void print_q(const struct Queue* q, void (*handler) (void* item))
 {
     for (size_t i = q->front; i != q->rear; i = (i + 1) % q->capacity)
-        free(q->contents[i]);
-    free(q->contents);
-    q->contents = NULL;
-    q->capacity = q->front = q->rear = q->size = 0;
-    LOG("%s succeeded", __func__);
+        handler(q->contents[i]);
+}
+
+void free_q(struct Queue* q)
+{
+    if (q->contents)
+    {
+        for (size_t i = q->front; i != q->rear; i = (i + 1) % q->capacity)
+            free(q->contents[i]);
+        free(q->contents);
+        q->contents = NULL;
+        q->capacity = q->front = q->rear = q->size = 0;
+        LOG("%s succeeded", __func__);
+    }
 }

@@ -28,6 +28,8 @@ int enqueue(struct Queue* q, const void* _new);
 void* dequeue(struct Queue* q);
 // peek an item, returns either item or NULL
 void* peek_q(const struct Queue* q);
+// print queue by given handler defined by the user according to item type they enqueue
+void print_q(const struct Queue* q, void (*handler) (void* item));
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
 void free_q(struct Queue* q);
 
