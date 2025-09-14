@@ -1,6 +1,7 @@
 #ifndef STACK_H
 #define STACK_H
 
+#include "../../debug/include/debug.h"
 #include <stddef.h>
 #include <stdbool.h>
 

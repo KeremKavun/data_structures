@@ -1,11 +1,8 @@
 #include "../include/stack.h"
-#include "../../utils/include/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-//#define DEBUG
-#include "../../debug/include/debug.h"
+#include <errno.h>
 
 int init_st(struct Stack* st, size_t _obj_size)
 {
@@ -14,9 +11,11 @@ int init_st(struct Stack* st, size_t _obj_size)
     st->obj_size = _obj_size;
     st->contents = malloc(sizeof(void*) * st->capacity);
     if (!st->contents)
-        RETURN(LOG("Allocation failure"), EXIT_FAILURE);
-    else
-        RETURN(LOG("%s succeeded", __func__), EXIT_SUCCESS);
+    {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
+    return 0;
 }
 
 int push(struct Stack* st, const void* _new)
@@ -25,32 +24,38 @@ int push(struct Stack* st, const void* _new)
     {
         void** new_contents = realloc(st->contents, sizeof(void*) * st->capacity * 2);
         if (!new_contents)
-            RETURN(LOG("Allocation failure"), EXIT_FAILURE);
+        {
+            LOG(LIB_LVL, CERROR, "Allocation failure");
+            return 1;
+        }
         st->contents = new_contents;
         st->capacity *= 2;
     }
     st->contents[st->top] = malloc(st->obj_size);
     if (!st->contents[st->top])
-        RETURN(LOG("Allocation failure"), EXIT_FAILURE);
+    {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
     memcpy(st->contents[st->top], _new, st->obj_size);
     st->top++;
-    RETURN(LOG("%s succeeded", __func__), EXIT_SUCCESS);
+    return 0;
 }
 
 void* pop(struct Stack* st)
 {
     if (is_st_empty(st))
-        RETURN(LOG("Stack underflow"), NULL);
+        return NULL;
     st->top--; 
     void* item = st->contents[st->top];
-    RETURN(LOG("%s succeeded", __func__), item);
+    return item;
 }
 
 void* peek_st(const struct Stack* st)
 {
     if (is_st_empty(st))
-        RETURN(LOG("Stack underflow"), NULL);
-    RETURN(LOG("%s succeeded", __func__), st->contents[st->top - 1]);
+        return NULL;
+    return st->contents[st->top - 1];
 }
 
 void free_st(struct Stack* st)
@@ -61,6 +66,5 @@ void free_st(struct Stack* st)
     st->contents = NULL;
     st->capacity = 2;
     st->top= 0;
-    LOG("%s succeeded", __func__);
 }
 

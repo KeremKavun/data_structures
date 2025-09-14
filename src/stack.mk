@@ -3,7 +3,7 @@ PROJECT_ROOT = C:/Users/KEREM/Desktop/code/C_codes
 endif
 
 STACK_CC := gcc
-STACK_CFLAGS := -Wall -Wextra -MMD -MP
+STACK_CFLAGS := -Wall -Wextra -O2 -MMD -MP
 
 STACK_SRC_DIR := $(PROJECT_ROOT)/stack/src
 STACK_BIN_DIR := $(PROJECT_ROOT)/stack/bin
