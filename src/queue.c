@@ -1,11 +1,8 @@
 #include "../include/queue.h"
-#include "../../utils/include/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-//#define DEBUG
-#include "../../debug/include/debug.h"
+#include <errno.h>
 
 int init_q(struct Queue* q, size_t _obj_size)
 {
@@ -16,9 +13,11 @@ int init_q(struct Queue* q, size_t _obj_size)
     q->obj_size = _obj_size;
     q->contents = malloc(sizeof(void*) * q->capacity);
     if (!q->contents)
-        RETURN(LOG("Allocation failure"), EXIT_FAILURE);
-    else
-        RETURN(LOG("%s succeeded", __func__), EXIT_SUCCESS);
+    {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
+    return 0;
 }
 
 int enqueue(struct Queue* q, const void* _new)
@@ -27,7 +26,10 @@ int enqueue(struct Queue* q, const void* _new)
     {
         void** new_contents = malloc(sizeof(void*) * q->capacity * 2);
         if (!new_contents)
-            RETURN(LOG("Allocation failure"), EXIT_FAILURE);
+        {
+            LOG(LIB_LVL, CERROR, "Allocation failure");
+            return 1;
+        }
         
         for (size_t i = 0; i < size_q(q); ++i)
             new_contents[i] = q->contents[(q->front + i) % q->capacity];
@@ -40,28 +42,31 @@ int enqueue(struct Queue* q, const void* _new)
     }
     q->contents[q->rear] = malloc(q->obj_size);
     if (!q->contents[q->rear])
-        RETURN(LOG("Allocation failure"), EXIT_FAILURE);
+    {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
     memcpy(q->contents[q->rear], _new, q->obj_size);
     q->rear = (q->rear + 1) % q->capacity;
     q->size++;
-    RETURN(LOG("%s succeeded", __func__), EXIT_SUCCESS);
+    return 0;
 }
 
 void* dequeue(struct Queue* q)
 {
     if (is_q_empty(q))
-        RETURN(NULL);
+        return NULL;
     void* item = q->contents[q->front];
     q->front = (q->front + 1) % q->capacity;
     q->size--;
-    RETURN(LOG("%s succeeded", __func__), item); 
+    return item;
 }
 
 void* peek_q(const struct Queue* q)
 {
     if (is_q_empty(q))
-        RETURN(LOG("Queue underflow"), NULL);
-    RETURN(LOG("%s succeeded", __func__), q->contents[q->front]);
+        return NULL;
+    return q->contents[q->front];
 }
 
 void print_q(const struct Queue* q, void (*handler) (void* item))
@@ -79,6 +84,5 @@ void free_q(struct Queue* q)
         free(q->contents);
         q->contents = NULL;
         q->capacity = q->front = q->rear = q->size = 0;
-        LOG("%s succeeded", __func__);
     }
 }

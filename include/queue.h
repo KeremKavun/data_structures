@@ -1,6 +1,7 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
+#include "../../debug/include/debug.h"
 #include <stddef.h>
 #include <stdbool.h>
 
