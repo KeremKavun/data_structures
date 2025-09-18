@@ -13,18 +13,11 @@
 
 // Init item, returns 0 if it succeeds, 1 otherwise
 // Leaves object's state the same as before the function call in case of failure
-static int init_item(struct ht_item* item, const void* _key, size_t _key_size, const void* _value, size_t _value_size);
-// Set either key or value, set_key and set_value wrap this, returns 0 if it succeeds, 1 otherwise
-// Dont pass variables that would cause UB because they are passed into memcpy without sanitization
-// Will introduce realloc for resetting objects later
-// Leaves object's state the same as before the function call in case of failure, provided by init_item
-static int set_field(void** _dest, size_t* _dest_size, const void* _src, size_t _src_size);
-// Set key, returns 0 if it succeeds, 1 otherwise
-// Leaves object's state the same as before the function call in case of failure, provided by set_field
-static int set_key(struct ht_item* item, const void* _key, size_t _key_size);
-// Set value, returns 0 if it succeeds, 1 otherwise
-// Leaves object's state the same as before the function call in case of failure, provided by set_field
-static int set_value(struct ht_item* item, const void* _value, size_t _value_size);
+static void init_item(struct ht_item* item, void* key, void* value);
+static void set_key(struct ht_item* item, void* key);
+static void set_value(struct ht_item* item, void* value);
+static const void* get_key(struct ht_item* item);
+static const void* get_value(struct ht_item* item);
 // Free ht_item key value pair and set it to zero
 static void free_item(struct ht_item* item);
 // Returns 1 if the item is null (never assigned something), 0 otherwise
@@ -51,11 +44,17 @@ static void* deleted;
 static FILE* db;
 static int initialized;
 
+struct ht_item
+{
+   void* key;
+   void* value;
+};
+
 struct hash_table* init_ht
 (
     struct hash_table* ht,
-    size_t (*_hash) (const void* _key, size_t _capacity, size_t _attempts),
-    int (*_cmp_key) (const void* _obj1, const void* _obj2)
+    size_t (*hash) (const void* key, size_t capacity, size_t attempts),
+    int (*cmp_key) (const void* obj1, const void* obj2)
 )
 {
     // *** static db call *** //
@@ -75,14 +74,14 @@ struct hash_table* init_ht
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
         return NULL;
     }
-    ht->hash = _hash;
-    ht->cmp_key = _cmp_key;
+    ht->hash = hash;
+    ht->cmp_key = cmp_key;
     return ht;
 }
 
-int insert_ht(struct hash_table* ht, const void* _key, size_t _key_size, const void* _value, size_t _value_size)
+int insert_ht(struct hash_table* ht, void* key, void* value)
 {
-    if (ht == NULL || _key == NULL || _value == NULL)
+    if (ht == NULL || key == NULL || value == NULL)
     {
         LOG(LIB_LVL, CERROR, "Invalid argument(s)");
         return 1;
@@ -99,7 +98,7 @@ int insert_ht(struct hash_table* ht, const void* _key, size_t _key_size, const v
     }
 
     int attempts = 0;
-    int index = ht->hash(_key, ht->capacity, attempts);
+    int index = ht->hash(key, ht->capacity, attempts);
     struct ht_item* curr_item = &ht->items[index];
     struct ht_item* first_deleted = NULL;
     while (!is_null(curr_item))
@@ -109,58 +108,57 @@ int insert_ht(struct hash_table* ht, const void* _key, size_t _key_size, const v
             if (!first_deleted)
                 first_deleted = curr_item;
         }
-        else if (ht->cmp_key(curr_item->key, _key) == 0)
-            return set_value(curr_item, _value, _value_size);
+        else if (ht->cmp_key(get_key(curr_item), key) == 0)
+        {
+            set_value(curr_item, value);
+            return 0;
+        }
         attempts++;
-        index = ht->hash(_key, ht->capacity, attempts);
+        index = ht->hash(key, ht->capacity, attempts);
         curr_item = &ht->items[index];
     }
 
-    if (init_item((first_deleted) ? first_deleted : curr_item, _key, _key_size, _value, _value_size) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "init_item failed");
-        return 1;
-    }
+    init_item((first_deleted) ? first_deleted : curr_item, key, value);
     ht->size++;
     return 0;
 }
 
-void* search_ht(struct hash_table* ht, const void* _key)
+void* search_ht(struct hash_table* ht, const void* key)
 {
-    if (ht == NULL || _key == NULL)
+    if (ht == NULL || key == NULL)
     {
         LOG(LIB_LVL, CERROR, "Invalid argument(s)");
         return NULL;
     }
 
     int attempts = 0;
-    int index = ht->hash(_key, ht->capacity, attempts);
+    int index = ht->hash(key, ht->capacity, attempts);
     struct ht_item* curr_item = &ht->items[index];
     while (!is_null(curr_item))
     {
-        if (!is_deleted(curr_item) && ht->cmp_key(curr_item->key, _key) == 0)
+        if (!is_deleted(curr_item) && ht->cmp_key(get_key(curr_item), key) == 0)
             return curr_item->value;
         attempts++;
-        index = ht->hash(_key, ht->capacity, attempts);
+        index = ht->hash(key, ht->capacity, attempts);
         curr_item = &ht->items[index];
     }
     return NULL; // Key not found
 }
 
-int delete_ht(struct hash_table* ht, const void* _key)
+int delete_ht(struct hash_table* ht, const void* key)
 {
-    if (ht == NULL || _key == NULL)
+    if (ht == NULL || key == NULL)
     {
         LOG(LIB_LVL, CERROR, "Invalid argument(s)");
         return 1;
     }
 
     int attempts = 0;
-    int index = ht->hash(_key, ht->capacity, attempts);
+    int index = ht->hash(key, ht->capacity, attempts);
     struct ht_item* curr_item = &ht->items[index];
     while (!is_null(curr_item))
     {
-        if (!is_deleted(curr_item) && ht->cmp_key(curr_item->key, _key) == 0)
+        if (!is_deleted(curr_item) && ht->cmp_key(get_key(curr_item), key) == 0)
         {
             const float load = (float) ht->size / ht->capacity;
             if (load < DOWN_LOAD_RATIO)
@@ -184,7 +182,7 @@ int delete_ht(struct hash_table* ht, const void* _key)
             return 0;
         }
         attempts++;
-        index = ht->hash(_key, ht->capacity, attempts);
+        index = ht->hash(key, ht->capacity, attempts);
         curr_item = &ht->items[index];
     }
 
@@ -192,11 +190,24 @@ int delete_ht(struct hash_table* ht, const void* _key)
     return 1;
 }
 
-void free_ht(struct hash_table* ht)
+void walk_ht(struct hash_table* ht, void (*exec) (void* key, void* value, va_list argptr), ...)
 {
     for (size_t i = 0; i < ht->capacity; i++)
-        if (!is_null(&ht->items[i]) && !is_deleted(&ht->items[i])) // added HT_DELETED_ITEM check
-            free_item(&ht->items[i]);
+    {
+        if (!is_null(&ht->items[i]) && !is_deleted(&ht->items[i]))
+        {
+            va_list argptr;
+            va_start(argptr, exec);
+            exec(ht->items[i].key, ht->items[i].value, argptr);
+            va_end(argptr);
+        }
+    }
+}
+
+void free_ht(struct hash_table* ht, void (*deallocator) (void* key, void* value, va_list argptr))
+{
+    if (deallocator)
+        walk_ht(ht, deallocator);
     free(ht->items);
     // set everything to zero
     memset(ht, 0, sizeof(*ht));
@@ -220,59 +231,36 @@ static int init_size_ht(struct hash_table* ht, size_t _prime_index)
     return 0;
 }
 
-static int init_item(struct ht_item* item, const void* _key, size_t _key_size, const void* _value, size_t _value_size)
+static void init_item(struct ht_item* item, void* key, void* value)
 {
-    struct ht_item old_item = *item;
-    if (set_key(item, _key, _key_size) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "set_key failed");
-        return 1;
-    }
-    if (set_value(item, _value, _value_size) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "set_value failed");
-        free(item->key);
-        *item = old_item;
-        return 1;
-    }
-
-    return 0;
+    set_key(item, key);
+    set_value(item, value);
 }
 
-static int set_field(void** _dest, size_t* _dest_size, const void* _src, size_t _src_size)
+static inline void set_key(struct ht_item* item, void* key)
 {
-    void* new_field = malloc(_src_size);
-    if (!new_field)
-    {
-        LOG(LIB_LVL, CERROR, "Allocation failure");
-        return 1;
-    }
-
-    memcpy(new_field, _src, _src_size);
-    free(*_dest);
-    *_dest = new_field;
-    *_dest_size = _src_size;
-    return 0;
+    item->key = key;
 }
 
-static int set_key(struct ht_item* item, const void* _key, size_t _key_size)
+static inline void set_value(struct ht_item* item, void* value)
 {
-    return set_field(&item->key, &item->key_size, _key, _key_size);
+    item->value = value;
 }
 
-static int set_value(struct ht_item* item, const void* _value, size_t _value_size)
+static inline const void* get_key(struct ht_item* item)
 {
-    return set_field(&item->value, &item->value_size, _value, _value_size);
+    return item->key;
+}
+
+static inline const void* get_value(struct ht_item* item)
+{
+    return item->value;
 }
 
 static void free_item(struct ht_item* item)
 {
-    free(item->key);
-    free(item->value);
-    item->key = &deleted;
-    item->value = &deleted;
-    item->key_size = 0;
-    item->value_size = 0;
+    set_key(item, &deleted);
+    set_value(item, &deleted);
 }
 
 static int is_null(struct ht_item* item)
@@ -283,7 +271,7 @@ static int is_null(struct ht_item* item)
 
 static inline int is_deleted(struct ht_item* item)
 {
-    return (item->key == &deleted && item->value == &deleted);
+    return (get_key(item) == &deleted && get_value(item) == &deleted);
 }
 
 static int resize(struct hash_table* ht, size_t new_prime_index)
@@ -311,12 +299,12 @@ static int resize(struct hash_table* ht, size_t new_prime_index)
         if (!is_null(curr_item) && !is_deleted(curr_item))
         {
             int attempts = 0;
-            int index = ht->hash(curr_item->key, ht->capacity, attempts);
+            int index = ht->hash(get_key(curr_item), ht->capacity, attempts);
             struct ht_item* curr_slot = &ht->items[index];
             while (!is_null(curr_slot))
             {
                 attempts++;
-                index = ht->hash(curr_item->key, ht->capacity, attempts);
+                index = ht->hash(get_key(curr_item), ht->capacity, attempts);
                 curr_slot = &ht->items[index];
             }
             *curr_slot = *curr_item;
@@ -336,3 +324,30 @@ static int resize_down(struct hash_table* ht)
 {
     return resize(ht, ht->prime_index / 2);
 }
+
+// *** Considerations *** //
+
+/*
+
+// Set either key or value, set_key and set_value wrap this, returns 0 if it succeeds, 1 otherwise
+// Dont pass variables that would cause UB because they are passed into memcpy without sanitization
+// Will introduce realloc for resetting objects later
+// Leaves object's state the same as before the function call in case of failure, provided by init_item
+
+static int set_field(void** _dest, size_t* _dest_size, const void* _src, size_t _src_size)
+{
+    void* new_field = malloc(_src_size);
+    if (!new_field)
+    {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
+
+    memcpy(new_field, _src, _src_size);
+    free(*_dest);
+    *_dest = new_field;
+    *_dest_size = _src_size;
+    return 0;
+}
+
+*/

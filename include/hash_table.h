@@ -3,14 +3,9 @@
 
 #include "../../debug/include/debug.h"
 #include <stddef.h>
+#include <stdarg.h>
 
-struct ht_item
-{
-   void* key;
-   void* value;
-   size_t key_size;
-   size_t value_size;
-};
+struct ht_item;
 
 struct hash_table
 {
@@ -18,24 +13,27 @@ struct hash_table
    size_t prime_index;
    size_t capacity;
    size_t size;
-   size_t (*hash) (const void* _key, size_t _capacity, size_t _attempts);
-   int (*cmp_key) (const void* _obj1, const void* _obj2);
+   size_t (*hash) (const void* key, size_t capacity, size_t attempts);
+   int (*cmp_key) (const void* obj1, const void* obj2);
 };
 
 struct hash_table* init_ht
 (
    struct hash_table* ht,
-   size_t (*_hash) (const void* _key, size_t _capacity, size_t _attempts),
-   int (*_cmp_key) (const void* _obj1, const void* _obj2)
+   size_t (*hash) (const void* key, size_t capacity, size_t attempts),
+   int (*cmp_key) (const void* obj1, const void* obj2)
 );
 // Inserts new item into hash table, returns 0 if it succedds, 1 otherwise
-int insert_ht(struct hash_table* ht, const void* _key, size_t _key_size, const void* _value, size_t _value_size);
+int insert_ht(struct hash_table* ht, void* key, void* value);
 // Searches given key, returns void* value if it succedds, NULL otherwise
-void* search_ht(struct hash_table* ht, const void* _key);
+void* search_ht(struct hash_table* ht, const void* key);
 // Deletes given key, returns 0 if it succedds, 1 otherwise
-int delete_ht(struct hash_table* ht, const void* _key);
-// Frees contents of the hash_table
-void free_ht(struct hash_table* ht);
+int delete_ht(struct hash_table* ht, const void* key);
+// Walks through hash_table and executes given function ptr on objects' pointers stored in the hash_table
+void walk_ht(struct hash_table* ht, void (*exec) (void* key, void* value, va_list argptr), ...);
+// Frees contents of the hash_table, but it shouldnt be used if a key or value is allocated in the heap and
+// pointer to that space is stored only here, otherwise you will lose the pointer and never able to free the resource
+void free_ht(struct hash_table* ht, void (*deallocator) (void* key, void* value, va_list argptr));
 
 #endif // HASH_TABLE_H
 
