@@ -5,9 +5,11 @@
 #include <stdio.h>
 #include <math.h>
 
-#define BASE_PRIME_INDEX 16
+#define BASE_PRIME 53
 #define UP_LOAD_RATIO 0.7
 #define DOWN_LOAD_RATIO 0.1
+#define FACTOR_UP 2
+#define FACTOR_DOWN 0.5
 
 // ht_item helpers
 
@@ -29,10 +31,10 @@ static int is_deleted(struct ht_item* item);
 
 // init_ht helper. Inits size and memory realted attributes.
 // Leaves object's state the same as before the function call in case of failure
-static int init_size_ht(struct hash_table* ht, size_t _prime_index);
+static int init_size_ht(struct hash_table* ht, size_t capacity);
 // Resize hash_table, returns 0 if it succeeds, 1 otherwise
 // Leaves object's state the same as before the function call in case of failure, provided by init_size_ht
-static int resize(struct hash_table* ht, size_t new_prime_index);
+static int resize(struct hash_table* ht, float factor);
 // Increase hash_table size, returns 0 if it succeeds, 1 otherwise
 // Leaves object's state the same as before the function call in case of failure, provided by init_size_ht
 static int resize_up(struct hash_table* ht);
@@ -69,7 +71,7 @@ struct hash_table* init_ht
         initialized++;
     }
     // ****** //
-    if (init_size_ht(ht, BASE_PRIME_INDEX) != 0)
+    if (init_size_ht(ht, BASE_PRIME) != 0)
     {
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
         return NULL;
@@ -190,24 +192,17 @@ int delete_ht(struct hash_table* ht, const void* key)
     return 1;
 }
 
-void walk_ht(struct hash_table* ht, void (*exec) (void* key, void* value, va_list argptr), ...)
+void walk_ht(struct hash_table* ht, void* userdata, void (*exec) (void* key, void* value, void* userdata))
 {
     for (size_t i = 0; i < ht->capacity; i++)
-    {
         if (!is_null(&ht->items[i]) && !is_deleted(&ht->items[i]))
-        {
-            va_list argptr;
-            va_start(argptr, exec);
-            exec(ht->items[i].key, ht->items[i].value, argptr);
-            va_end(argptr);
-        }
-    }
+            exec(ht->items[i].key, ht->items[i].value, userdata);
 }
 
-void free_ht(struct hash_table* ht, void (*deallocator) (void* key, void* value, va_list argptr))
+void free_ht(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata))
 {
     if (deallocator)
-        walk_ht(ht, deallocator);
+        walk_ht(ht, userdata, deallocator);
     free(ht->items);
     // set everything to zero
     memset(ht, 0, sizeof(*ht));
@@ -215,9 +210,9 @@ void free_ht(struct hash_table* ht, void (*deallocator) (void* key, void* value,
 
 // *** Helper functions *** //
 
-static int init_size_ht(struct hash_table* ht, size_t _prime_index)
+static int init_size_ht(struct hash_table* ht, size_t capacity)
 {
-    prime_t _capacity = nthprime(db, _prime_index); // will make "noexcept"
+    prime_t _capacity = nthprime(db, capacity); // will make "noexcept"
     struct ht_item* _items = calloc(_capacity, sizeof(struct ht_item));
     if (!_items)
     {
@@ -225,7 +220,6 @@ static int init_size_ht(struct hash_table* ht, size_t _prime_index)
         return 1;
     }
     ht->items = _items;
-    ht->prime_index = _prime_index;
     ht->capacity = _capacity;
     ht->size = 0;
     return 0;
@@ -274,18 +268,12 @@ static inline int is_deleted(struct ht_item* item)
     return (get_key(item) == &deleted && get_value(item) == &deleted);
 }
 
-static int resize(struct hash_table* ht, size_t new_prime_index)
+static int resize(struct hash_table* ht, float factor)
 {
-    if (new_prime_index <= BASE_PRIME_INDEX)
-    {
-        LOG(LIB_LVL, CINFO, "Didnt resize down the hash table since it has minimum size defined by the implementation, returning success");
-        return 0;
-    }
-
     struct ht_item* old_items = ht->items;
     size_t old_capacity = ht->capacity;
 
-    if (init_size_ht(ht, new_prime_index) != 0)
+    if (init_size_ht(ht, nthprime(db, (long) (pi(db, old_capacity)) * factor)) != 0)
     {
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
         return 1;
@@ -317,12 +305,12 @@ static int resize(struct hash_table* ht, size_t new_prime_index)
 
 static int resize_up(struct hash_table* ht)
 {
-    return resize(ht, ht->prime_index * 2);
+    return resize(ht, FACTOR_UP);
 }
 
 static int resize_down(struct hash_table* ht)
 {
-    return resize(ht, ht->prime_index / 2);
+    return resize(ht, FACTOR_DOWN);
 }
 
 // *** Considerations *** //

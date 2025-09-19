@@ -3,14 +3,12 @@
 
 #include "../../debug/include/debug.h"
 #include <stddef.h>
-#include <stdarg.h>
 
 struct ht_item;
 
 struct hash_table
 {
    struct ht_item* items;
-   size_t prime_index;
    size_t capacity;
    size_t size;
    size_t (*hash) (const void* key, size_t capacity, size_t attempts);
@@ -30,10 +28,10 @@ void* search_ht(struct hash_table* ht, const void* key);
 // Deletes given key, returns 0 if it succedds, 1 otherwise
 int delete_ht(struct hash_table* ht, const void* key);
 // Walks through hash_table and executes given function ptr on objects' pointers stored in the hash_table
-void walk_ht(struct hash_table* ht, void (*exec) (void* key, void* value, va_list argptr), ...);
+void walk_ht(struct hash_table* ht, void* userdata, void (*exec) (void* key, void* value, void* userdata));
 // Frees contents of the hash_table, but it shouldnt be used if a key or value is allocated in the heap and
 // pointer to that space is stored only here, otherwise you will lose the pointer and never able to free the resource
-void free_ht(struct hash_table* ht, void (*deallocator) (void* key, void* value, va_list argptr));
+void free_ht(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata));
 
 #endif // HASH_TABLE_H
 
