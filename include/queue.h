@@ -1,6 +1,10 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "../../debug/include/debug.h"
 #include <stddef.h>
 
@@ -20,17 +24,21 @@ struct queue
     size_t obj_size;
 };
 
-// init queue, returns either EXIT_SUCCESS OR EXIT_FAILURE
+// init queue, returns 0 if it succeeds, 1 otherwise
 int init_q(struct queue* q, size_t obj_size);
-// enqueue an item, returns either EXIT_SUCCESS OR EXIT_FAILURE
+// enqueue an item, returns 0 if it succeeds, 1 otherwise
 int enqueue(struct queue* q, const void* new);
-// dequeue an item, returns either item or NULL, you should free item since ownership is yours
+// dequeue an item, returns either item or NULL
 void* dequeue(struct queue* q);
 // peek an item, returns either item or NULL
 void* peek_q(const struct queue* q);
-// print queue by given handler defined by the user according to item type they enqueue
+// walk queue by given handler defined by the user according to item type they enqueue
 void walk_q(const struct queue* q, void* userdata, void (*handler) (void* item, void* userdata));
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
 void free_q(struct queue* q, void* userdata, void (*deallocator) (void* item, void* userdata));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // QUEUE_H
