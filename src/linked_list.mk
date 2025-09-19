@@ -1,0 +1,26 @@
+ifndef PROJECT_ROOT
+PROJECT_ROOT := C:/Users/KEREM/Desktop/code/C_codes
+endif
+
+LINKED_LIST_CC := gcc
+LINKED_LIST_CFLAGS := -Wall -Wextra -O2 -MMD -MP
+
+LINKED_LIST_SRC_DIR := $(PROJECT_ROOT)/linked_list/src
+LINKED_LIST_BIN_DIR := $(PROJECT_ROOT)/linked_list/bin
+LINKED_LIST_INCLUDE_DIR := $(PROJECT_ROOT)/linked_list/include
+
+LINKED_LIST_SRC_FILES := $(wildcard $(LINKED_LIST_SRC_DIR)/*.c)
+LINKED_LIST_OBJ_FILES := $(patsubst $(LINKED_LIST_SRC_DIR)/%.c,$(LINKED_LIST_BIN_DIR)/%.o,$(LINKED_LIST_SRC_FILES))
+LINKED_LIST_DEP_FILES := $(LINKED_LIST_OBJ_FILES:.o=.d)
+
+$(LINKED_LIST_BIN_DIR)/liblinkedlist.a: $(LINKED_LIST_OBJ_FILES)
+	ar rcs $@ $<
+
+$(LINKED_LIST_BIN_DIR)/%.o: $(LINKED_LIST_SRC_DIR)/%.c | $(LINKED_LIST_BIN_DIR)
+	$(LINKED_LIST_CC) $(LINKED_LIST_CFLAGS) -I$(LINKED_LIST_INCLUDE_DIR) -c $< -o $@
+
+# Create bin directory
+$(LINKED_LIST_BIN_DIR):
+	@mkdir -p $@
+
+-include $(LINKED_LIST_DEP_FILES)
