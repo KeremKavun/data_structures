@@ -3,35 +3,34 @@
 
 #include "../../debug/include/debug.h"
 #include <stddef.h>
-#include <stdbool.h>
 
-// replace with 'size' attribute of given struct Queue*
+// replace with 'size' attribute of given struct queue*
 #define size_q(q) ((q)->size)
-// replace with bool indicating whether given struct Queue* is empty or not
+// replace with bool indicating whether given struct queue* is empty or not
 #define is_q_empty(q) (((q)->size == 0))
 
-// struct Queue, 48 bytes in stack plus dynamically allocated 'contents' array at the heap
-struct Queue
+// struct queue, 48 bytes in stack plus dynamically allocated 'contents' array at the heap
+struct queue
 {
+    char* contents;
     size_t capacity;
     size_t size;
     size_t front;
     size_t rear;
     size_t obj_size;
-    void** contents;
 };
 
 // init queue, returns either EXIT_SUCCESS OR EXIT_FAILURE
-int init_q(struct Queue* q, size_t _obj_size);
+int init_q(struct queue* q, size_t obj_size);
 // enqueue an item, returns either EXIT_SUCCESS OR EXIT_FAILURE
-int enqueue(struct Queue* q, const void* _new);
+int enqueue(struct queue* q, const void* new);
 // dequeue an item, returns either item or NULL, you should free item since ownership is yours
-void* dequeue(struct Queue* q);
+void* dequeue(struct queue* q);
 // peek an item, returns either item or NULL
-void* peek_q(const struct Queue* q);
+void* peek_q(const struct queue* q);
 // print queue by given handler defined by the user according to item type they enqueue
-void print_q(const struct Queue* q, void (*handler) (void* item));
+void walk_q(const struct queue* q, void* userdata, void (*handler) (void* item, void* userdata));
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
-void free_q(struct Queue* q);
+void free_q(struct queue* q, void* userdata, void (*deallocator) (void* item, void* userdata));
 
 #endif // QUEUE_H
