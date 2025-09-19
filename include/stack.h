@@ -1,6 +1,10 @@
 #ifndef STACK_H
 #define STACK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "../../debug/include/debug.h"
 #include <stddef.h>
 #include <stdbool.h>
@@ -28,5 +32,9 @@ void* peek_st(const struct Stack* st);
 void walk_st(const struct Stack* st, void* userdata, void (*handler) (void* item, void* userdata));
 // free stack contents (freeing stack itself, if dynamically allocated, is on you)
 void free_st(struct Stack* st, void* userdata, void (*deallocator) (void* item, void* userdata));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // STACK_H
