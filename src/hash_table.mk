@@ -1,5 +1,5 @@
 ifndef PROJECT_ROOT
-PROJECT_ROOT = C:/Users/KEREM/Desktop/code/C_codes
+PROJECT_ROOT := C:/Users/KEREM/Desktop/code/C_codes
 endif
 
 HASH_TABLE_CC := gcc
@@ -13,9 +13,9 @@ HASH_TABLE_SRC_FILES := $(wildcard $(HASH_TABLE_SRC_DIR)/*.c)
 HASH_TABLE_OBJ_FILES := $(patsubst $(HASH_TABLE_SRC_DIR)/%.c,$(HASH_TABLE_BIN_DIR)/%.o,$(HASH_TABLE_SRC_FILES))
 HASH_TABLE_DEP_FILES := $(HASH_TABLE_OBJ_FILES:.o=.d)
 
-# Static library
-$(HASH_TABLE_BIN_DIR)/libhashtable.a: $(HASH_TABLE_OBJ_FILES)
-	ar rcs $@ $<
+.SECONDEXPANSION:
+$(HASH_TABLE_BIN_DIR)/libhashtable.a: $(HASH_TABLE_OBJ_FILES) $$(PRIME_BIN_DIR)/libprime.a
+	ar rcs $@ $^
 
 $(HASH_TABLE_BIN_DIR)/%.o: $(HASH_TABLE_SRC_DIR)/%.c | $(HASH_TABLE_BIN_DIR)
 	$(HASH_TABLE_CC) $(HASH_TABLE_CFLAGS) -I$(HASH_TABLE_INCLUDE_DIR) -c $< -o $@
@@ -25,3 +25,4 @@ $(HASH_TABLE_BIN_DIR):
 	@mkdir -p $@
 
 -include $(HASH_TABLE_DEP_FILES)
+include C:\Users\KEREM\Desktop\code\C_codes\prime\src\prime.mk

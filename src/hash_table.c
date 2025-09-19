@@ -43,8 +43,6 @@ static int resize_up(struct hash_table* ht);
 static int resize_down(struct hash_table* ht);
 
 static void* deleted;
-static FILE* db;
-static int initialized;
 
 struct ht_item
 {
@@ -59,18 +57,6 @@ struct hash_table* init_ht
     int (*cmp_key) (const void* obj1, const void* obj2)
 )
 {
-    // *** static db call *** //
-    if (!db)
-    {
-        db = dbopen();
-        if (!db)
-        {
-            LOG(LIB_LVL, CWARNING, "dbopen failed, cannot access prime database");
-            return NULL;
-        }
-        initialized++;
-    }
-    // ****** //
     if (init_size_ht(ht, BASE_PRIME) != 0)
     {
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
@@ -162,25 +148,22 @@ int delete_ht(struct hash_table* ht, const void* key)
     {
         if (!is_deleted(curr_item) && ht->cmp_key(get_key(curr_item), key) == 0)
         {
+            // save current because possible resize will invalidate curr_item
+            struct ht_item copy_curr = *curr_item;
+
+            free_item(curr_item);
+            ht->size--;
+
             const float load = (float) ht->size / ht->capacity;
             if (load < DOWN_LOAD_RATIO)
             {
                 if (resize_down(ht) != 0)
                 {
                     LOG(LIB_LVL, CERROR, "Could not resize the hash_table down");
+                    *curr_item = copy_curr;
                     return 1;
                 }
             }
-
-            free_item(curr_item);
-            ht->size--;
-
-            // ******************************************************************************************** //
-            initialized--;
-            if (initialized == 0)
-                dbclose(db);
-            // ******************************************************************************************** //
-
             return 0;
         }
         attempts++;
@@ -212,15 +195,20 @@ void free_ht(struct hash_table* ht, void* userdata, void (*deallocator) (void* k
 
 static int init_size_ht(struct hash_table* ht, size_t capacity)
 {
-    prime_t _capacity = nthprime(db, capacity); // will make "noexcept"
-    struct ht_item* _items = calloc(_capacity, sizeof(struct ht_item));
+    FILE* db = dbborrow();
+    if (!db)
+    {
+        LOG(LIB_LVL, CWARNING, "dbborrow failed, cannot access prime database");
+        return 1;
+    }
+    struct ht_item* _items = calloc(capacity, sizeof(struct ht_item));
     if (!_items)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
     ht->items = _items;
-    ht->capacity = _capacity;
+    ht->capacity = capacity;
     ht->size = 0;
     return 0;
 }
@@ -270,6 +258,20 @@ static inline int is_deleted(struct ht_item* item)
 
 static int resize(struct hash_table* ht, float factor)
 {
+    FILE* db = dbborrow();
+    if (!db)
+    {
+        LOG(LIB_LVL, CWARNING, "dbborrow failed, cannot access prime database");
+        return 1;
+    }
+
+    size_t new_capacity = nthprime(db, (long) (pi(db, ht->capacity)) * factor);
+    if (new_capacity <= BASE_PRIME)
+    {
+        LOG(LIB_LVL, CINFO, "Didnt resize down the hash table since it has minimum size defined by the implementation, returning success");
+        return 0;
+    }
+
     struct ht_item* old_items = ht->items;
     size_t old_capacity = ht->capacity;
 

@@ -1,6 +1,10 @@
 #ifndef HASH_TABLE_H
 #define HASH_TABLE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "../../debug/include/debug.h"
 #include <stddef.h>
 
@@ -32,6 +36,10 @@ void walk_ht(struct hash_table* ht, void* userdata, void (*exec) (void* key, voi
 // Frees contents of the hash_table, but it shouldnt be used if a key or value is allocated in the heap and
 // pointer to that space is stored only here, otherwise you will lose the pointer and never able to free the resource
 void free_ht(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // HASH_TABLE_H
 
