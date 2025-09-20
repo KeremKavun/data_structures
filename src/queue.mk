@@ -15,7 +15,7 @@ QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
 
 # Static library
 $(QUEUE_BIN_DIR)/libqueue.a: $(QUEUE_OBJ_FILES)
-	ar rcs $@ $<
+	ar rcs $@ $^
 
 $(QUEUE_BIN_DIR)/%.o: $(QUEUE_SRC_DIR)/%.c | $(QUEUE_BIN_DIR)
 	$(QUEUE_CC) $(QUEUE_CFLAGS) -I$(QUEUE_INCLUDE_DIR) -c $< -o $@

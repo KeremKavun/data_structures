@@ -25,17 +25,18 @@ struct queue
 };
 
 // init queue, returns 0 if it succeeds, 1 otherwise
-int init_q(struct queue* q, size_t obj_size);
+int queue_init(struct queue* q, size_t obj_size);
 // enqueue an item, returns 0 if it succeeds, 1 otherwise
 int enqueue(struct queue* q, const void* new);
-// dequeue an item, returns either item or NULL
-void* dequeue(struct queue* q);
-// peek an item, returns either item or NULL
-void* peek_q(const struct queue* q);
+// dequeue an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
+int dequeue(struct queue* q, void* result);
+// peek an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
+int queue_peek(const struct queue* q, void* result);
 // walk queue by given handler defined by the user according to item type they enqueue
-void walk_q(const struct queue* q, void* userdata, void (*handler) (void* item, void* userdata));
+void queue_walk(const struct queue* q, void* userdata, void (*handler) (void* item, void* userdata));
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
-void free_q(struct queue* q, void* userdata, void (*deallocator) (void* item, void* userdata));
+// if you dont store pointers to dynamic allocated objects, this function with a deallocator might be dangerous !!!
+void queue_free(struct queue* q, void* userdata, void (*deallocator) (void* item, void* userdata));
 
 #ifdef __cplusplus
 }
