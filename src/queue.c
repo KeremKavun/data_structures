@@ -11,6 +11,7 @@
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
 static size_t char_index(size_t ind, size_t obj_size);
+static int queue_realloc(struct queue* q);
 
 int queue_init(struct queue* q, size_t obj_size)
 {
@@ -28,27 +29,27 @@ int queue_init(struct queue* q, size_t obj_size)
     return 0;
 }
 
-int enqueue(struct queue* q, const void* new)
+int enqueue(struct queue* q, const void* new, void (*copy) (const void* new, void* queue_item))
 {
-    if (q->capacity == size_q(q))
+    if (queue_realloc(q) != 0)
     {
-        char* new_contents = malloc(sizeof(char) * q->obj_size * q->capacity * 2);
-        if (!new_contents)
-        {
-            LOG(LIB_LVL, CERROR, "Allocation failure");
-            return 1;
-        }
-        
-        for (size_t i = 0; i < size_q(q); ++i)
-            memcpy(&new_contents[char_index(i, q->obj_size)], &q->contents[char_index((q->front + i) % q->capacity, q->obj_size)], q->obj_size);
-        
-        free(q->contents);
-        q->contents = new_contents;
-        q->capacity *= 2;
-        q->front = 0;
-        q->rear = q->size;
+        LOG(LIB_LVL, CERROR, "queue_realloc failed");
+        return 1;
     }
-    memcpy((void*) &q->contents[char_index(q->rear, q->obj_size)], new, q->obj_size);
+    copy(new, (void*) &q->contents[char_index(q->rear, q->obj_size)]);
+    q->rear = (q->rear + 1) % q->capacity;
+    q->size++;
+    return 0;
+}
+
+int emplace_enqueue(struct queue* q, void (*init) (void* item))
+{
+    if (queue_realloc(q) != 0)
+    {
+        LOG(LIB_LVL, CERROR, "queue_realloc failed");
+        return 1;
+    }
+    init((void*) &q->contents[char_index(q->rear, q->obj_size)]);
     q->rear = (q->rear + 1) % q->capacity;
     q->size++;
     return 0;
@@ -92,4 +93,27 @@ void queue_free(struct queue* q, void* userdata, void (*deallocator) (void* item
 static inline size_t char_index(size_t ind, size_t obj_size)
 {
     return ind * obj_size;
+}
+
+static int queue_realloc(struct queue* q)
+{
+    if (q->capacity == size_q(q))
+    {
+        char* new_contents = malloc(sizeof(char) * q->obj_size * q->capacity * 2);
+        if (!new_contents)
+        {
+            LOG(LIB_LVL, CERROR, "Allocation failure");
+            return 1;
+        }
+        
+        for (size_t i = 0; i < size_q(q); ++i)
+            memcpy(&new_contents[char_index(i, q->obj_size)], &q->contents[char_index((q->front + i) % q->capacity, q->obj_size)], q->obj_size);
+        
+        free(q->contents);
+        q->contents = new_contents;
+        q->capacity *= 2;
+        q->front = 0;
+        q->rear = q->size;
+    }
+    return 0;
 }

@@ -26,8 +26,11 @@ struct queue
 
 // init queue, returns 0 if it succeeds, 1 otherwise
 int queue_init(struct queue* q, size_t obj_size);
-// enqueue an item, returns 0 if it succeeds, 1 otherwise
-int enqueue(struct queue* q, const void* new);
+// enqueue an item by copying, returns 0 if it succeeds, 1 otherwise
+int enqueue(struct queue* q, const void* new, void (*copy) (const void* new, void* queue_item));
+// enqueue an item by initializing the object in place, queue will own the object 
+// must be careful if the given object stores pointers to the objects in the heap, you must provide a deallocator in this case
+int emplace_enqueue(struct queue* q, void (*init) (void* item));
 // dequeue an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
 int dequeue(struct queue* q, void* result);
 // peek an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
