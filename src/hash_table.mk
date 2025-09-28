@@ -1,5 +1,5 @@
 ifndef PROJECT_ROOT
-PROJECT_ROOT := C:/Users/KEREM/Desktop/code/C_codes
+  $(error PROJECT_ROOT (Directory to put every C source files) is not defined. Please set it as an environment variable.)
 endif
 
 HASH_TABLE_CC := gcc
