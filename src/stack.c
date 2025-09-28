@@ -11,6 +11,7 @@
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
 static size_t char_index(size_t ind, size_t obj_size);
+static int stack_realloc(struct stack* st);
 
 int stack_init(struct stack* st, size_t obj_size)
 {
@@ -28,18 +29,24 @@ int stack_init(struct stack* st, size_t obj_size)
 
 int push(struct stack* st, const void* new)
 {
-    if (st->capacity == size_st(st))
+    if (stack_realloc(st) != 0)
     {
-        char* new_contents = realloc(st->contents, sizeof(char) * st->obj_size * st->capacity * 2);
-        if (!new_contents)
-        {
-            LOG(LIB_LVL, CERROR, "Allocation failure");
-            return 1;
-        }
-        st->contents = new_contents;
-        st->capacity *= 2;
+        LOG(LIB_LVL, CERROR, "stack_realloc failed");
+        return 1;
     }
     memcpy((void*) &st->contents[char_index(st->top, st->obj_size)], new, st->obj_size);
+    st->top++;
+    return 0;
+}
+
+int emplace_push(struct stack* st, void (*init) (void* item))
+{
+    if (stack_realloc(st) != 0)
+    {
+        LOG(LIB_LVL, CERROR, "stack_realloc failed");
+        return 1;
+    }
+    init((void*) &st->contents[char_index(st->top, st->obj_size)]);
     st->top++;
     return 0;
 }
@@ -81,4 +88,20 @@ void stack_free(struct stack* st, void* userdata, void (*deallocator) (void* ite
 static inline size_t char_index(size_t ind, size_t obj_size)
 {
     return ind * obj_size;
+}
+
+static int stack_realloc(struct stack* st)
+{
+    if (st->capacity == size_st(st))
+    {
+        char* new_contents = realloc(st->contents, sizeof(char) * st->obj_size * st->capacity * 2);
+        if (!new_contents)
+        {
+            LOG(LIB_LVL, CERROR, "Allocation failure");
+            return 1;
+        }
+        st->contents = new_contents;
+        st->capacity *= 2;
+    }
+    return 0;
 }

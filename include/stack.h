@@ -21,8 +21,11 @@ struct stack
 
 // init stack, returns 0 if it succeeds, 1 otherwise
 int stack_init(struct stack* st, size_t obj_size);
-// push an item, returns 0 if it succeeds, 1 otherwise
+// push an item by copying, returns 0 if it succeeds, 1 otherwise
 int push(struct stack* st, const void* new);
+// push an item by initializing the object in place, stack will own the object (must be careful if the given object stores pointers to the objects in the heap)
+// you must provide a deallocator in this case
+int emplace_push(struct stack* st, void (*init) (void* item));
 // pop an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
 int pop(struct stack* st, void* result);
 // peek an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
