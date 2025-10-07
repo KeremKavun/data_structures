@@ -19,8 +19,15 @@ struct linked_list
     size_t size;
 };
 
+// Init list_item
+void list_item_init(struct list_item* li, void* data);
+
 // Init linked_list
 void list_init(struct linked_list* ll);
+// Push an item at front
+void list_push_front(struct linked_list* ll, struct list_item* new_item);
+// Push an item at back
+void list_push_back(struct linked_list* ll, struct list_item* new_item);
 // Insert a list_item you own(!!) after pos
 void list_insert(struct linked_list* ll, struct list_item* pos, struct list_item* new_item);
 // Remove a list_item
