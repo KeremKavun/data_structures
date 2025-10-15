@@ -27,14 +27,14 @@ int stack_init(struct stack* st, size_t obj_size)
     return 0;
 }
 
-int push(struct stack* st, const void* new)
+int push(struct stack* st, const void* new, void (*copy) (const void* new, void* queue_item))
 {
     if (stack_realloc(st) != 0)
     {
         LOG(LIB_LVL, CERROR, "stack_realloc failed");
         return 1;
     }
-    memcpy((void*) &st->contents[char_index(st->top, st->obj_size)], new, st->obj_size);
+    copy(new, (void*) &st->contents[char_index(st->top, st->obj_size)]);
     st->top++;
     return 0;
 }
