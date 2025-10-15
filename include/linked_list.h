@@ -1,7 +1,9 @@
 #ifndef LINKED_LIST
 #define LINKED_LIST
 
-#define size_ll(ll) ((ll)->size)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stddef.h>
 
@@ -37,5 +39,9 @@ struct list_item* list_find(struct linked_list* ll, void* data, int (*cmp) (cons
 // Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
 // where the object allocated (stack or heap?). Deallocator runs on every data member of the list_item
 void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LINKED_LIST
