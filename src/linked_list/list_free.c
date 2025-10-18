@@ -1,5 +1,5 @@
-#include "../include/linked_list.h"
-#include "../../debug/include/debug.h"
+#include "../../include/linked_list.h"
+#include "../../../debug/include/debug.h"
 #include <stdlib.h>
 
 void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata))

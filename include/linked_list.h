@@ -5,15 +5,10 @@
 extern "C" {
 #endif
 
+#include "list_item.h"
 #include <stddef.h>
 
 #define size_ll(ll) ((ll)->size)
-
-struct list_item
-{
-    void* data;
-    struct list_item* next;
-};
 
 struct linked_list
 {
@@ -21,24 +16,35 @@ struct linked_list
     size_t size;
 };
 
-// Init list_item
-void list_item_init(struct list_item* li, void* data);
-
 // Init linked_list
 void list_init(struct linked_list* ll);
-// Push an item at front
-void list_push_front(struct linked_list* ll, struct list_item* new_item);
-// Push an item at back
-void list_push_back(struct linked_list* ll, struct list_item* new_item);
-// Insert a list_item you own(!!) after pos
+// Insert a list_item you own(!!) at pos
 void list_insert(struct linked_list* ll, struct list_item* pos, struct list_item* new_item);
-// Remove a list_item
-void list_remove(struct linked_list* ll, struct list_item* li);
+// Insert an item at front
+void list_insert_front(struct linked_list* ll, struct list_item* new_item);
+// Isert an item at back
+void list_insert_back(struct linked_list* ll, struct list_item* new_item);
+// Insert a list_item you own(!!) after pos
+struct list_item* list_remove(struct linked_list* ll, struct list_item** li);
+// Remove front
+struct list_item* list_remove_front(struct linked_list* ll);
+// Remove back
+struct list_item* list_remove_back(struct linked_list* ll);
+// Get head
+struct list_item** list_head(struct linked_list* ll);
+// Get tail
+struct list_item** list_tail(struct linked_list* ll);
 // Find the first list_item with the specific data
-struct list_item* list_find(struct linked_list* ll, void* data, int (*cmp) (const void* data, const void* li_data));
+struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (struct list_item* item, void* data));
 // Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
 // where the object allocated (stack or heap?). Deallocator runs on every data member of the list_item
 void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata));
+// Returns 1 if the list is empty, 0 otherwise
+int list_empty(struct linked_list* ll);
+// Returns size of the list
+size_t list_size(struct linked_list* ll);
+// Traverses the list
+void list_walk(struct linked_list* ll, void* userdata, int (*handler) (struct list_item* item, void* userdata));
 
 #ifdef __cplusplus
 }
