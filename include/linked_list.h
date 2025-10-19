@@ -5,16 +5,23 @@
 extern "C" {
 #endif
 
-#include "list_item.h"
 #include <stddef.h>
 
-#define size_ll(ll) ((ll)->size)
+// list_item struct
+struct list_item
+{
+    struct list_item* next;
+    void* data;
+};
 
 struct linked_list
 {
     struct list_item* head;
     size_t size;
 };
+
+// Init list_item
+void list_item_init(struct list_item* li, void* data);
 
 // Init linked_list
 void list_init(struct linked_list* ll);
@@ -32,19 +39,21 @@ struct list_item* list_remove_front(struct linked_list* ll);
 struct list_item* list_remove_back(struct linked_list* ll);
 // Get head
 struct list_item** list_head(struct linked_list* ll);
-// Get tail
+// Get tail (returns address of the next pointer of the last node)
 struct list_item** list_tail(struct linked_list* ll);
 // Find the first list_item with the specific data
 struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (struct list_item* item, void* data));
-// Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
-// where the object allocated (stack or heap?). Deallocator runs on every data member of the list_item
-void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata));
 // Returns 1 if the list is empty, 0 otherwise
 int list_empty(struct linked_list* ll);
 // Returns size of the list
 size_t list_size(struct linked_list* ll);
 // Traverses the list
-void list_walk(struct linked_list* ll, void* userdata, int (*handler) (struct list_item* item, void* userdata));
+void list_walk(struct linked_list* ll, void* userdata, void (*handler) (struct list_item* item, void* userdata));
+// Reverses the list
+void list_reverse(struct linked_list* ll);
+// Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
+// where the object allocated (stack or heap?). Deallocator runs on every data member of the list_item
+void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata));
 
 #ifdef __cplusplus
 }

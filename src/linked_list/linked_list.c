@@ -3,9 +3,11 @@
 
 void list_item_init(struct list_item* li, void* data)
 {
-    li->data = data;
     li->next = NULL;
+    li->data = data;
 }
+
+
 
 void list_init(struct linked_list* ll)
 {
@@ -25,17 +27,19 @@ void list_insert(struct linked_list* ll, struct list_item* pos, struct list_item
 
 void list_insert_front(struct linked_list* ll, struct list_item* new_item)
 {
-    new_item->next = ll->head;
-    ll->head = new_item;
+    struct list_item** head = list_head(ll);
+    new_item->next = *head;
+    *head = new_item;
     ll->size++;
 }
 
 void list_insert_back(struct linked_list* ll, struct list_item* new_item)
 {
-    struct list_item** curr = &ll->head;
-    while (*curr)
-        curr = &(*curr)->next;
-    *curr = new_item;
+    struct list_item** tail = list_tail(ll);
+    if (*tail)
+        (*tail)->next = new_item;
+    else
+        *tail = new_item;
     ll->size++;
 }
 
@@ -54,7 +58,7 @@ struct list_item* list_remove_front(struct linked_list* ll)
 
 struct list_item* list_remove_back(struct linked_list* ll)
 {
-    list_remove(ll, list_tail(ll));
+    return list_remove(ll, list_tail(ll));
 }
 
 struct list_item** list_head(struct linked_list* ll)
@@ -65,7 +69,7 @@ struct list_item** list_head(struct linked_list* ll)
 struct list_item** list_tail(struct linked_list* ll)
 {
     struct list_item** curr = &ll->head;
-    while (*curr != NULL && (*curr)->next != NULL)
+    while (*curr && (*curr)->next)
         curr = &(*curr)->next;
     return curr;
 }
@@ -73,7 +77,7 @@ struct list_item** list_tail(struct linked_list* ll)
 struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (struct list_item* item, void* data))
 {
     struct list_item** target = &ll->head;
-    while (*target && cmp(data, (*target)->data) != 0)
+    while (*target && cmp(*target, data) != 0)
         target = &(*target)->next;
     return target;
 }
@@ -88,7 +92,7 @@ size_t list_size(struct linked_list* ll)
     return ll->size;
 }
 
-void list_walk(struct linked_list* ll, void* userdata, int (*handler) (struct list_item* item, void* userdata))
+void list_walk(struct linked_list* ll, void* userdata, void (*handler) (struct list_item* item, void* userdata))
 {
     struct list_item** item = &ll->head;
     while (*item)
@@ -96,4 +100,18 @@ void list_walk(struct linked_list* ll, void* userdata, int (*handler) (struct li
         handler(*item, userdata);
         item = &(*item)->next;
     }
+}
+
+void list_reverse(struct linked_list* ll)
+{
+    struct list_item* prev = NULL;
+    struct list_item* curr = ll->head;
+    while (curr)
+    {
+        struct list_item* next = curr->next;
+        curr->next = prev;
+        prev = curr;
+        curr = next;
+    }
+    ll->head = prev; // Update head to new first element
 }
