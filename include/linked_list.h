@@ -22,11 +22,15 @@ struct linked_list
 
 // Init list_item
 void list_item_init(struct list_item* li, void* data);
+// Get pointer to pointer that points to next element, which can be used for insert or remove methods
+struct list_item** list_item_next(struct list_item* li);
+// Get the data from list_item
+void* list_item_data(struct list_item* li);
 
 // Init linked_list
 void list_init(struct linked_list* ll);
 // Insert a list_item you own(!!) at pos
-void list_insert(struct linked_list* ll, struct list_item* pos, struct list_item* new_item);
+void list_insert(struct linked_list* ll, struct list_item** pos, struct list_item* new_item);
 // Insert an item at front
 void list_insert_front(struct linked_list* ll, struct list_item* new_item);
 // Isert an item at back

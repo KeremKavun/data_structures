@@ -23,39 +23,45 @@ struct dbly_linked_list
 };
 
 // Init dbly_list_item
-void dbly_list_item_init(struct dbly_list_item* li, void* data);
+void dbly_list_item_init(struct dbly_list_item* dli, void* data);
+// Get pointer that points to previous element, which can be used for insert or remove methods
+struct dbly_list_item* dbly_list_item_prev(struct dbly_list_item* dli);
+// Get pointer that points to next element, which can be used for insert or remove methods
+struct dbly_list_item* dbly_list_item_next(struct dbly_list_item* dli);
+// Get the data from list_item
+void* dbly_list_item_data(struct dbly_list_item* dli);
 
 // Init linked_list
-void dbly_list_init(struct dbly_linked_list* ll);
+void dbly_list_init(struct dbly_linked_list* dll);
 // Insert a dbly_list_item you own(!!) at pos
-void dbly_list_insert(struct dbly_linked_list* ll, struct dbly_list_item* pos, struct dbly_list_item* new_item);
+void dbly_list_insert(struct dbly_linked_list* dll, struct dbly_list_item* pos, struct dbly_list_item* new_item);
 // Insert an item at front
-void dbly_list_insert_front(struct dbly_linked_list* ll, struct dbly_list_item* new_item);
+void dbly_list_insert_front(struct dbly_linked_list* dll, struct dbly_list_item* new_item);
 // Isert an item at back
-void dbly_list_insert_back(struct dbly_linked_list* ll, struct dbly_list_item* new_item);
+void dbly_list_insert_back(struct dbly_linked_list* dll, struct dbly_list_item* new_item);
 // Insert a dbly_list_item you own(!!) after pos
-struct dbly_list_item* dbly_list_remove(struct dbly_linked_list* ll, struct dbly_list_item** li);
+struct dbly_list_item* dbly_list_remove(struct dbly_linked_list* dll, struct dbly_list_item* dli);
 // Remove front
-struct dbly_list_item* dbly_list_remove_front(struct dbly_linked_list* ll);
+struct dbly_list_item* dbly_list_remove_front(struct dbly_linked_list* dll);
 // Remove back
-struct dbly_list_item* dbly_list_remove_back(struct dbly_linked_list* ll);
+struct dbly_list_item* dbly_list_remove_back(struct dbly_linked_list* dll);
 // Get head
-struct dbly_list_item** dbly_list_head(struct dbly_linked_list* ll);
+struct dbly_list_item* dbly_list_head(struct dbly_linked_list* dll);
 // Get tail (returns address of the next pointer of the last node)
-struct dbly_list_item** dbly_list_tail(struct dbly_linked_list* ll);
+struct dbly_list_item* dbly_list_tail(struct dbly_linked_list* dll);
 // Find the first dbly_list_item with the specific data
-struct dbly_list_item** dbly_list_find(struct dbly_linked_list* ll, void* data, int (*cmp) (struct dbly_list_item* item, void* data));
+struct dbly_list_item* dbly_list_find(struct dbly_linked_list* dll, void* data, int (*cmp) (struct dbly_list_item* item, void* data));
 // Returns 1 if the list is empty, 0 otherwise
-int dbly_list_empty(struct dbly_linked_list* ll);
+int dbly_list_empty(struct dbly_linked_list* dll);
 // Returns size of the list
-size_t dbly_list_size(struct dbly_linked_list* ll);
+size_t dbly_list_size(struct dbly_linked_list* dll);
 // Traverses the list
-void dbly_list_walk(struct dbly_linked_list* ll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata));
+void dbly_list_walk(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata));
 // Reverses the list
-void dbly_list_reverse(struct dbly_linked_list* ll);
+void dbly_list_reverse(struct dbly_linked_list* dll);
 // Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
 // where the object allocated (stack or heap?). Deallocator runs on every data member of the dbly_list_item
-void dbly_list_free(struct dbly_linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata));
+void dbly_list_free(struct dbly_linked_list* dll, void* userdata, void (*deallocator) (void* data, void* userdata));
 
 #ifdef __cplusplus
 }

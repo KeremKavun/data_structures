@@ -1,13 +1,25 @@
 #include "../../include/linked_list.h"
 #include "../../../debug/include/debug.h"
 
+// *** list_item implementation *** //
+
 void list_item_init(struct list_item* li, void* data)
 {
     li->next = NULL;
     li->data = data;
 }
 
+struct list_item** list_item_next(struct list_item* li)
+{
+    return &li->next;
+}
 
+void* list_item_data(struct list_item* li)
+{
+    return li->data;
+}
+
+// *** linked_list implementation *** //
 
 void list_init(struct linked_list* ll)
 {
@@ -15,13 +27,11 @@ void list_init(struct linked_list* ll)
     ll->size = 0;
 }
 
-void list_insert(struct linked_list* ll, struct list_item* pos, struct list_item* new_item)
+void list_insert(struct linked_list* ll, struct list_item** pos, struct list_item* new_item)
 {
-    struct list_item** curr = &ll->head;
-    while ((*curr)->next != pos)
-        curr = &(*curr)->next;
-    pos->next = (*curr)->next;
-    (*curr)->next = new_item;
+    struct list_item* curr_item = *pos;
+    *pos = new_item;
+    new_item->next = curr_item;
     ll->size++;
 }
 
@@ -46,7 +56,10 @@ void list_insert_back(struct linked_list* ll, struct list_item* new_item)
 struct list_item* list_remove(struct linked_list* ll, struct list_item** li)
 {
     struct list_item* del = *li;
+    if (!del)
+        return NULL;
     *li = del->next;
+    del->next = NULL;
     ll->size--;
     return del;
 }
