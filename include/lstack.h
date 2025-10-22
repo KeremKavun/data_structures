@@ -6,22 +6,21 @@ extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
-#include "../../linked_lists/include/dbly_linked_list.h"
 #include <stddef.h>
 
 struct lstack
 {
-    struct dbly_linked_list contents;
+    struct dbly_linked_list* contents;
 };
 
 // init bstack, returns 0 if it succeeds, 1 otherwise
 int lstack_init(struct lstack* ls);
 // push an item, returns 0 if it succeeds, 1 otherwise
-int lpush(struct lstack* ls, const void* new_item, size_t obj_size);
+int lpush(struct lstack* ls, void* new_item);
 // pop an item, returns either item or NULL
 void* lpop(struct lstack* ls);
 // peek an item, returns either item or NULL
-void* lstack_peek(const struct lstack* ls);
+void* lstack_peek(struct lstack* ls);
 // Returns 1 if the lstack is empty, 0 otherwise
 int lstack_empty(const struct lstack* ls);
 // Returns the size of the lstack
