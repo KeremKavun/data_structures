@@ -1,5 +1,6 @@
-#include "../../include/linked_list.h"
-#include "../../../debug/include/debug.h"
+#include "../include/linked_list.h"
+#include "../../debug/include/debug.h"
+#include <stdlib.h>
 
 // *** list_item implementation *** //
 
@@ -87,7 +88,7 @@ struct list_item** list_tail(struct linked_list* ll)
     return curr;
 }
 
-struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (struct list_item* item, void* data))
+struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (void* item, void* data))
 {
     struct list_item** target = &ll->head;
     while (*target && cmp(*target, data) != 0)
@@ -95,17 +96,17 @@ struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (str
     return target;
 }
 
-int list_empty(struct linked_list* ll)
+int list_empty(const struct linked_list* ll)
 {
     return ll->head == NULL;
 }
 
-size_t list_size(struct linked_list* ll)
+size_t list_size(const struct linked_list* ll)
 {
     return ll->size;
 }
 
-void list_walk(struct linked_list* ll, void* userdata, void (*handler) (struct list_item* item, void* userdata))
+void list_walk(struct linked_list* ll, void* userdata, void (*handler) (void* item, void* userdata))
 {
     struct list_item** item = &ll->head;
     while (*item)
@@ -126,5 +127,20 @@ void list_reverse(struct linked_list* ll)
         prev = curr;
         curr = next;
     }
-    ll->head = prev; // Update head to new first element
+    ll->head = prev;
+}
+
+void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata))
+{
+    struct list_item* curr = ll->head;
+    while (curr)
+    {
+        struct list_item* del_item = curr;
+        curr = del_item->next;
+        if (deallocator)
+            deallocator(del_item->data, userdata);
+        free(del_item);
+    }
+    ll->head = NULL;
+    ll->size = 0;
 }

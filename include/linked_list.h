@@ -46,13 +46,13 @@ struct list_item** list_head(struct linked_list* ll);
 // Get tail (returns address of the next pointer of the last node)
 struct list_item** list_tail(struct linked_list* ll);
 // Find the first list_item with the specific data
-struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (struct list_item* item, void* data));
+struct list_item** list_find(struct linked_list* ll, void* data, int (*cmp) (void* item, void* data));
 // Returns 1 if the list is empty, 0 otherwise
-int list_empty(struct linked_list* ll);
+int list_empty(const struct linked_list* ll);
 // Returns size of the list
-size_t list_size(struct linked_list* ll);
+size_t list_size(const struct linked_list* ll);
 // Traverses the list
-void list_walk(struct linked_list* ll, void* userdata, void (*handler) (struct list_item* item, void* userdata));
+void list_walk(struct linked_list* ll, void* userdata, void (*handler) (void* item, void* userdata));
 // Reverses the list
 void list_reverse(struct linked_list* ll);
 // Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and

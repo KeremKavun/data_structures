@@ -1,20 +1,20 @@
-#include "../../include/dbly_linked_list.h"
-#include "../../../debug/include/debug.h"
+#include "../include/dbly_linked_list.h"
+#include "../../debug/include/debug.h"
+#include <stdlib.h>
 
 static struct dbly_list_item* dbly_list_find_helper
 (
     struct dbly_list_item* entry,
     struct dbly_list_item* (*it) (struct dbly_list_item* dli),
     void* userdata,
-    int (*cmp) (struct dbly_list_item* item, void* data)
+    int (*cmp) (void* item, void* data)
 );
-
 static void dbly_list_walk_helper
 (
     struct dbly_list_item* entry,
     struct dbly_list_item* (*it) (struct dbly_list_item* dli),
     void* userdata,
-    void (*handler) (struct dbly_list_item* item, void* data)
+    void (*handler) (void* item, void* data)
 );
 
 // *** dbly_list_item implementation *** //
@@ -147,32 +147,32 @@ struct dbly_list_item* dbly_list_tail(struct dbly_linked_list* dll)
     return dll->tail;
 }
 
-struct dbly_list_item* dbly_list_find_front(struct dbly_linked_list* dll, void* userdata, int (*cmp) (struct dbly_list_item* item, void* data))
+struct dbly_list_item* dbly_list_find_front(struct dbly_linked_list* dll, void* userdata, int (*cmp) (void* item, void* data))
 {
     return dbly_list_find_helper(dll->head, dbly_list_item_next, userdata, cmp);
 }
 
-struct dbly_list_item* dbly_list_find_back(struct dbly_linked_list* dll, void* userdata, int (*cmp) (struct dbly_list_item* item, void* data))
+struct dbly_list_item* dbly_list_find_back(struct dbly_linked_list* dll, void* userdata, int (*cmp) (void* item, void* data))
 {
     return dbly_list_find_helper(dll->tail, dbly_list_item_prev, userdata, cmp);
 }
 
-int dbly_list_empty(struct dbly_linked_list* dll)
+int dbly_list_empty(const struct dbly_linked_list* dll)
 {
     return (dll->size == 0);
 }
 
-size_t dbly_list_size(struct dbly_linked_list* dll)
+size_t dbly_list_size(const struct dbly_linked_list* dll)
 {
     return dll->size;
 }
 
-void dbly_list_walk_front(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata))
+void dbly_list_walk_front(struct dbly_linked_list* dll, void* userdata, void (*handler) (void* item, void* userdata))
 {
     dbly_list_walk_helper(dll->head, dbly_list_item_next, userdata, handler);
 }
 
-void dbly_list_walk_back(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata))
+void dbly_list_walk_back(struct dbly_linked_list* dll, void* userdata, void (*handler) (void* item, void* userdata))
 {
     dbly_list_walk_helper(dll->tail, dbly_list_item_prev, userdata, handler);
 }
@@ -192,6 +192,21 @@ void dbly_list_reverse(struct dbly_linked_list* dll)
     dll->tail = temp;
 }
 
+void dbly_list_free(struct dbly_linked_list* dll, void* userdata, void (*deallocator) (void* data, void* userdata))
+{
+    struct dbly_list_item* curr = dll->head;
+    while (curr)
+    {
+        struct dbly_list_item* del_item = curr;
+        if (deallocator)
+            deallocator(del_item->data, userdata);
+        curr = del_item->next;
+        free(del_item);
+    }
+    dll->head = dll->tail = NULL;
+    dll->size = 0;
+}
+
 // *** Helper functions *** //
 
 static struct dbly_list_item* dbly_list_find_helper
@@ -199,11 +214,12 @@ static struct dbly_list_item* dbly_list_find_helper
     struct dbly_list_item* entry,
     struct dbly_list_item* (*it) (struct dbly_list_item* dli),
     void* data,
-    int (*cmp) (struct dbly_list_item* item, void* data)
+    int (*cmp) (void* item, void* data)
 )
 {
-    while (entry) {
-        if (cmp(entry, data))
+    while (entry)
+    {
+        if (cmp(entry->data, data))
             return entry;
         entry = it(entry);
     }
@@ -215,12 +231,13 @@ static void dbly_list_walk_helper
     struct dbly_list_item* entry,
     struct dbly_list_item* (*it) (struct dbly_list_item* dli),
     void* userdata,
-    void (*handler) (struct dbly_list_item* item, void* data)
+    void (*handler) (void* item, void* data)
 )
 {
     while (entry)
     {
-        handler(entry, userdata);
+        void* old_data = entry->data;
         entry = it(entry);
+        handler(old_data, userdata);
     }
 }
