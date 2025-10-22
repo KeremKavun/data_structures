@@ -49,14 +49,18 @@ struct dbly_list_item* dbly_list_remove_back(struct dbly_linked_list* dll);
 struct dbly_list_item* dbly_list_head(struct dbly_linked_list* dll);
 // Get tail (returns address of the next pointer of the last node)
 struct dbly_list_item* dbly_list_tail(struct dbly_linked_list* dll);
-// Find the first dbly_list_item with the specific data
-struct dbly_list_item* dbly_list_find(struct dbly_linked_list* dll, void* data, int (*cmp) (struct dbly_list_item* item, void* data));
+// Find the first dbly_list_item with the specific data, beginning to search at the head
+struct dbly_list_item* dbly_list_find_front(struct dbly_linked_list* dll, void* userdata, int (*cmp) (struct dbly_list_item* item, void* data));
+// Find the first dbly_list_item with the specific data, beginning to search at the tail
+struct dbly_list_item* dbly_list_find_back(struct dbly_linked_list* dll, void* userdata, int (*cmp) (struct dbly_list_item* item, void* data));
 // Returns 1 if the list is empty, 0 otherwise
 int dbly_list_empty(struct dbly_linked_list* dll);
 // Returns size of the list
 size_t dbly_list_size(struct dbly_linked_list* dll);
-// Traverses the list
-void dbly_list_walk(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata));
+// Traverses the list, beginning at the head
+void dbly_list_walk_front(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata));
+// Traverses the list, beginning from the tail
+void dbly_list_walk_back(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata));
 // Reverses the list
 void dbly_list_reverse(struct dbly_linked_list* dll);
 // Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and

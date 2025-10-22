@@ -1,6 +1,24 @@
 #include "../../include/dbly_linked_list.h"
 #include "../../../debug/include/debug.h"
 
+static struct dbly_list_item* dbly_list_find_helper
+(
+    struct dbly_linked_list* dll,
+    struct dbly_list_item* entry,
+    struct dbly_list_item* (*it) (struct dbly_list_item* dli),
+    void* userdata,
+    int (*cmp) (struct dbly_list_item* item, void* data)
+);
+
+static struct dbly_list_item* dbly_list_walk_helper
+(
+    struct dbly_linked_list* dll,
+    struct dbly_list_item* entry,
+    struct dbly_list_item* (*it) (struct dbly_list_item* dli),
+    void* userdata,
+    void (*handler) (struct dbly_list_item* item, void* data)
+);
+
 // *** dbly_list_item implementation *** //
 
 void dbly_list_item_init(struct dbly_list_item* dli, void* data)
@@ -34,60 +52,57 @@ void dbly_list_init(struct dbly_linked_list* dll)
     dll->size = 0;
 }
 
-/* Insert before the pointer-to-item 'pos' (pos is a pointer to a struct dbly_list_item*). */
 void dbly_list_insert(struct dbly_linked_list* dll, struct dbly_list_item* pos, struct dbly_list_item* new_item)
 {
-    new_item->next = pos;
-    new_item->prev = (pos ? pos->prev : NULL);
-
-    if (pos)
-    {
-        if (pos->prev)
-            pos->prev->next = new_item;
-        else
-            dll->head = new_item;
-        pos->prev = new_item;
-    }
+    if (pos == dll->head)
+        dbly_list_insert_front(dll, new_item);
+    else if (pos == NULL)
+        dbly_list_insert_back(dll, new_item);
     else
     {
+        new_item->next = pos;
+        new_item->prev = pos->prev;
 
+        if (pos->prev)
+            pos->prev->next = new_item;
+        pos->prev = new_item;
+        dll->size++;
     }
-
-    dll->size++;
 }
 
 void dbly_list_insert_front(struct dbly_linked_list* dll, struct dbly_list_item* new_item)
 {
-    struct dbly_list_item** head = dbly_list_head(dll);
     new_item->prev = NULL;
-    new_item->next = *head;
 
-    if (*head)
-        (*head)->prev = new_item;
+    if (dll->head)
+    {
+        dll->head->prev = new_item;
+        new_item->next = dll->head;
+    }
     else
     {
-        *head = new_item;
-        if (dll->tail == NULL)
-            dll->tail = new_item;
+        dll->tail = new_item;
+        new_item->next = NULL;
     }
+    dll->head = new_item;
     dll->size++;
 }
 
 void dbly_list_insert_back(struct dbly_linked_list* dll, struct dbly_list_item* new_item)
 {
-    struct dbly_list_item** tail = dbly_list_tail(dll);
     new_item->next = NULL;
-    if (*tail) {
-        (*tail)->next = new_item;
-        new_item->prev = *tail;
-        *tail = new_item;
-    } else {
-        *tail = new_item;
-        new_item->prev = NULL;
-        if (dll->head == NULL)
-            dll->head = new_item;
+
+    if (dll->tail)
+    {
+        dll->tail->next = new_item;
+        new_item->prev = dll->tail;
     }
-    dll->tail = *tail;
+    else
+    {
+        dll->head = new_item;
+        new_item->prev = NULL;
+    }
+    dll->tail = new_item;
     dll->size++;
 }
 
@@ -112,37 +127,36 @@ struct dbly_list_item* dbly_list_remove(struct dbly_linked_list* dll, struct dbl
 
 struct dbly_list_item* dbly_list_remove_front(struct dbly_linked_list* dll)
 {
-    struct dbly_list_item* head = *dbly_list_head(dll);
-    if (!head) return NULL;
-    return dbly_list_remove(dll, head);
+    if (!dll->head)
+        return NULL;
+    return dbly_list_remove(dll, dll->head);
 }
 
 struct dbly_list_item* dbly_list_remove_back(struct dbly_linked_list* dll)
 {
-    struct dbly_list_item* tail = *dbly_list_tail(dll);
-    if (!tail) return NULL;
-    return dbly_list_remove(dll, tail);
+    if (!dll->tail)
+        return NULL;
+    return dbly_list_remove(dll, dll->tail);
 }
 
-struct dbly_list_item** dbly_list_head(struct dbly_linked_list* dll)
+struct dbly_list_item* dbly_list_head(struct dbly_linked_list* dll)
 {
-    return &dll->head;
+    return dll->head;
 }
 
-struct dbly_list_item** dbly_list_tail(struct dbly_linked_list* dll)
+struct dbly_list_item* dbly_list_tail(struct dbly_linked_list* dll)
 {
-    return &dll->tail;
+    return dll->tail;
 }
 
-struct dbly_list_item** dbly_list_find(struct dbly_linked_list* dll, void* data, int (*cmp) (struct dbly_list_item* item, void* data))
+struct dbly_list_item* dbly_list_find_front(struct dbly_linked_list* dll, void* userdata, int (*cmp) (struct dbly_list_item* item, void* data))
 {
-    struct dbly_list_item** cur = &dll->head;
-    while (*cur) {
-        if (cmp(*cur, data))
-            return cur;
-        cur = &(*cur)->next;
-    }
-    return NULL;
+    return dbly_list_find_helper(dll, dll->head, dbly_list_item_next, userdata, cmp);
+}
+
+struct dbly_list_item* dbly_list_find_back(struct dbly_linked_list* dll, void* userdata, int (*cmp) (struct dbly_list_item* item, void* data))
+{
+    return dbly_list_find_helper(dll, dll->tail, dbly_list_item_prev, userdata, cmp);
 }
 
 int dbly_list_empty(struct dbly_linked_list* dll)
@@ -155,29 +169,62 @@ size_t dbly_list_size(struct dbly_linked_list* dll)
     return dll->size;
 }
 
-void dbly_list_walk(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata))
+void dbly_list_walk_front(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata))
 {
-    struct dbly_list_item* it = dll->head;
-    while (it) {
-        handler(it, userdata);
-        it = it->next;
-    }
+    return dbly_list_walk_helper(dll, dll->head, dbly_list_item_next, userdata, handler);
+}
+
+void dbly_list_walk_back(struct dbly_linked_list* dll, void* userdata, void (*handler) (struct dbly_list_item* item, void* userdata))
+{
+    return dbly_list_walk_helper(dll, dll->tail, dbly_list_item_prev, userdata, handler);
 }
 
 void dbly_list_reverse(struct dbly_linked_list* dll)
 {
     struct dbly_list_item* curr = dll->head;
-    struct dbly_list_item* tmp = NULL;
-
-    while (curr) {
-        tmp = curr->prev;
-        curr->prev = curr->next;
-        curr->next = tmp;
-        curr = curr->prev;
+    while (curr)
+    {
+        struct dbly_list_item* next = curr->next;
+        curr->next = curr->prev;
+        curr->prev = next;
+        curr = next;
     }
-
-    /* swap head and tail */
-    tmp = dll->head;
+    struct dbly_list_item* temp = dll->head;
     dll->head = dll->tail;
-    dll->tail = tmp;
+    dll->tail = temp;
+}
+
+// *** Helper functions *** //
+
+static struct dbly_list_item* dbly_list_find_helper
+(
+    struct dbly_linked_list* dll,
+    struct dbly_list_item* entry,
+    struct dbly_list_item* (*it) (struct dbly_list_item* dli),
+    void* data,
+    int (*cmp) (struct dbly_list_item* item, void* data)
+)
+{
+    while (entry) {
+        if (cmp(entry, data))
+            return entry;
+        entry = it(entry);
+    }
+    return NULL;
+}
+
+static struct dbly_list_item* dbly_list_walk_helper
+(
+    struct dbly_linked_list* dll,
+    struct dbly_list_item* entry,
+    struct dbly_list_item* (*it) (struct dbly_list_item* dli),
+    void* userdata,
+    void (*handler) (struct dbly_list_item* item, void* data)
+)
+{
+    while (entry)
+    {
+        handler(it, userdata);
+        entry = it(entry);
+    }
 }
