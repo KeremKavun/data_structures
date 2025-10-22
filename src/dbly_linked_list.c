@@ -14,8 +14,11 @@ static void dbly_list_walk_helper
     struct dbly_list_item* entry,
     struct dbly_list_item* (*it) (struct dbly_list_item* dli),
     void* userdata,
-    void (*handler) (void* item, void* data)
+    void (*data_handler) (void* data, void* userdata),
+    void (*item_handler) (struct dbly_list_item* item)
 );
+static void free_list_item(struct dbly_list_item* item);
+static void exchange_ptrs(struct dbly_list_item* item);
 
 // *** dbly_list_item implementation *** //
 
@@ -149,12 +152,12 @@ struct dbly_list_item* dbly_list_tail(struct dbly_linked_list* dll)
 
 struct dbly_list_item* dbly_list_find_front(struct dbly_linked_list* dll, void* userdata, int (*cmp) (void* item, void* data))
 {
-    return dbly_list_find_helper(dll->head, dbly_list_item_next, userdata, cmp);
+    return dbly_list_find_helper(dbly_list_head(dll), dbly_list_item_next, userdata, cmp);
 }
 
 struct dbly_list_item* dbly_list_find_back(struct dbly_linked_list* dll, void* userdata, int (*cmp) (void* item, void* data))
 {
-    return dbly_list_find_helper(dll->tail, dbly_list_item_prev, userdata, cmp);
+    return dbly_list_find_helper(dbly_list_tail(dll), dbly_list_item_prev, userdata, cmp);
 }
 
 int dbly_list_empty(const struct dbly_linked_list* dll)
@@ -169,24 +172,17 @@ size_t dbly_list_size(const struct dbly_linked_list* dll)
 
 void dbly_list_walk_front(struct dbly_linked_list* dll, void* userdata, void (*handler) (void* item, void* userdata))
 {
-    dbly_list_walk_helper(dll->head, dbly_list_item_next, userdata, handler);
+    dbly_list_walk_helper(dbly_list_head(dll), dbly_list_item_next, userdata, handler, NULL);
 }
 
 void dbly_list_walk_back(struct dbly_linked_list* dll, void* userdata, void (*handler) (void* item, void* userdata))
 {
-    dbly_list_walk_helper(dll->tail, dbly_list_item_prev, userdata, handler);
+    dbly_list_walk_helper(dbly_list_tail(dll), dbly_list_item_prev, userdata, handler, NULL);
 }
 
 void dbly_list_reverse(struct dbly_linked_list* dll)
 {
-    struct dbly_list_item* curr = dll->head;
-    while (curr)
-    {
-        struct dbly_list_item* next = curr->next;
-        curr->next = curr->prev;
-        curr->prev = next;
-        curr = next;
-    }
+    dbly_list_walk_helper(dbly_list_head(dll), dbly_list_item_next, NULL, NULL, exchange_ptrs);
     struct dbly_list_item* temp = dll->head;
     dll->head = dll->tail;
     dll->tail = temp;
@@ -194,15 +190,7 @@ void dbly_list_reverse(struct dbly_linked_list* dll)
 
 void dbly_list_free(struct dbly_linked_list* dll, void* userdata, void (*deallocator) (void* data, void* userdata))
 {
-    struct dbly_list_item* curr = dll->head;
-    while (curr)
-    {
-        struct dbly_list_item* del_item = curr;
-        if (deallocator)
-            deallocator(del_item->data, userdata);
-        curr = del_item->next;
-        free(del_item);
-    }
+    dbly_list_walk_helper(dbly_list_head(dll), dbly_list_item_next, userdata, deallocator, free_list_item);
     dll->head = dll->tail = NULL;
     dll->size = 0;
 }
@@ -231,13 +219,30 @@ static void dbly_list_walk_helper
     struct dbly_list_item* entry,
     struct dbly_list_item* (*it) (struct dbly_list_item* dli),
     void* userdata,
-    void (*handler) (void* item, void* data)
+    void (*data_handler) (void* data, void* userdata),
+    void (*item_handler) (struct dbly_list_item* item)
 )
 {
     while (entry)
     {
+        struct dbly_list_item* old_item = entry;
         void* old_data = entry->data;
         entry = it(entry);
-        handler(old_data, userdata);
+        if (data_handler)
+            data_handler(old_data, userdata);
+        if (item_handler)
+            item_handler(old_item);
     }
+}
+
+static void free_list_item(struct dbly_list_item* item)
+{
+    free(item);
+}
+
+static void exchange_ptrs(struct dbly_list_item* item)
+{
+    struct dbly_list_item* next = item->next;
+    item->next = item->prev;
+    item->prev = next;
 }
