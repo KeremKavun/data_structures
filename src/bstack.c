@@ -1,4 +1,4 @@
-#include "../include/stack.h"
+#include "../include/bstack.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,9 +11,9 @@
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
 static size_t char_index(size_t ind, size_t obj_size);
-static int stack_realloc(struct stack* st);
+static int stack_realloc(struct bstack* st);
 
-int stack_init(struct stack* st, size_t obj_size)
+int bstack_init(struct bstack* st, size_t obj_size)
 {
     st->contents = malloc(sizeof(char) * obj_size * INITIAL_CAPACITY);
     if (!st->contents)
@@ -27,19 +27,19 @@ int stack_init(struct stack* st, size_t obj_size)
     return 0;
 }
 
-int push(struct stack* st, const void* new, void (*copy) (const void* new, void* queue_item))
+int bpush(struct bstack* st, const void* new_item, void (*copy) (const void* new_item, void* queue_item))
 {
     if (stack_realloc(st) != 0)
     {
         LOG(LIB_LVL, CERROR, "stack_realloc failed");
         return 1;
     }
-    copy(new, (void*) &st->contents[char_index(st->top, st->obj_size)]);
+    copy(new_item, (void*) &st->contents[char_index(st->top, st->obj_size)]);
     st->top++;
     return 0;
 }
 
-int emplace_push(struct stack* st, void (*init) (void* item))
+int emplace_bpush(struct bstack* st, void (*init) (void* item))
 {
     if (stack_realloc(st) != 0)
     {
@@ -51,33 +51,43 @@ int emplace_push(struct stack* st, void (*init) (void* item))
     return 0;
 }
 
-int pop(struct stack* st, void* result)
+int bpop(struct bstack* st, void* result)
 {
-    if (is_st_empty(st))
+    if (bstack_empty(st))
         return 1;
     st->top--; 
     memcpy(result, &st->contents[char_index(st->top, st->obj_size)], st->obj_size);
     return 0;
 }
 
-int stack_peek(const struct stack* st, void* result)
+int bstack_peek(const struct bstack* st, void* result)
 {
-    if (is_st_empty(st))
+    if (bstack_empty(st))
         return 1;
     memcpy(result, &st->contents[char_index(st->top - 1, st->obj_size)], st->obj_size);
     return 0;
 }
 
-void stack_walk(struct stack* st, void* userdata, void (*handler) (void* item, void* userdata))
+int bstack_empty(const struct bstack* st)
 {
-    for (size_t i = 0; i < size_st(st); i++)
+    return st->top == 0;
+}
+
+size_t bstack_size(const struct bstack* st)
+{
+    return st->top;
+}
+
+void bstack_walk(struct bstack* st, void* userdata, void (*handler) (void* item, void* userdata))
+{
+    for (size_t i = 0; i < bstack_size(st); i++)
         handler((void*) &st->contents[char_index(i, st->obj_size)], userdata);
 }
 
-void stack_free(struct stack* st, void* userdata, void (*deallocator) (void* item, void* userdata))
+void bstack_free(struct bstack* st, void* userdata, void (*deallocator) (void* item, void* userdata))
 {
     if (deallocator)
-        stack_walk(st, userdata, deallocator);
+        bstack_walk(st, userdata, deallocator);
     free(st->contents);
     st->contents = NULL;
     st->capacity = 2; st->top= 0;
@@ -90,9 +100,9 @@ static inline size_t char_index(size_t ind, size_t obj_size)
     return ind * obj_size;
 }
 
-static int stack_realloc(struct stack* st)
+static int stack_realloc(struct bstack* st)
 {
-    if (st->capacity == size_st(st))
+    if (st->capacity == bstack_size(st))
     {
         char* new_contents = realloc(st->contents, sizeof(char) * st->obj_size * st->capacity * 2);
         if (!new_contents)
