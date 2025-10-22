@@ -14,7 +14,7 @@ STACK_OBJ_FILES := $(patsubst $(STACK_SRC_DIR)/%.c,$(STACK_BIN_DIR)/%.o,$(STACK_
 STACK_DEP_FILES := $(STACK_OBJ_FILES:.o=.d)
 
 # Static library
-$(STACK_BIN_DIR)/libstack.a: $(STACK_OBJ_FILES)
+$(STACK_BIN_DIR)/libstacks.a: $(STACK_OBJ_FILES)
 	ar rcs $@ $^
 
 $(STACK_BIN_DIR)/%.o: $(STACK_SRC_DIR)/%.c | $(STACK_BIN_DIR)

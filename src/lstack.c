@@ -46,7 +46,7 @@ void* lpop(struct lstack* ls)
     return data;
 }
 
-void* lstack_peek(struct lstack* ls)
+void* ltop(struct lstack* ls)
 {
     struct dbly_list_item* peek = dbly_list_tail(ls->contents);
     return peek ? peek->data : NULL;
@@ -69,6 +69,8 @@ void lstack_walk(struct lstack* ls, void* userdata, void (*handler) (void* item,
 
 void lstack_free(struct lstack* ls, void* userdata, void (*deallocator) (void* item, void* userdata))
 {
-    dbly_list_free(ls->contents, userdata, deallocator);
+    void* data;
+    while ((data = lpop(ls)))
+        deallocator(data, userdata);
     free(ls->contents);
 }

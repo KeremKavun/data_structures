@@ -28,7 +28,7 @@ int emplace_bpush(struct bstack* st, void (*init) (void* item));
 // pop an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
 int bpop(struct bstack* st, void* result);
 // peek an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
-int bstack_peek(const struct bstack* st, void* result);
+int btop(const struct bstack* st, void* result);
 // Returns 1 if the bstack is empty, 0 otherwise
 int bstack_empty(const struct bstack* st);
 // Returns the size of the bstack

@@ -60,7 +60,7 @@ int bpop(struct bstack* st, void* result)
     return 0;
 }
 
-int bstack_peek(const struct bstack* st, void* result)
+int btop(const struct bstack* st, void* result)
 {
     if (bstack_empty(st))
         return 1;
@@ -80,8 +80,8 @@ size_t bstack_size(const struct bstack* st)
 
 void bstack_walk(struct bstack* st, void* userdata, void (*handler) (void* item, void* userdata))
 {
-    for (size_t i = 0; i < bstack_size(st); i++)
-        handler((void*) &st->contents[char_index(i, st->obj_size)], userdata);
+    for (size_t i = bstack_size(st); i-- > 0; )
+        handler((void*)&st->contents[char_index(i, st->obj_size)], userdata);
 }
 
 void bstack_free(struct bstack* st, void* userdata, void (*deallocator) (void* item, void* userdata))
