@@ -5,10 +5,6 @@
 #include <string.h>
 #include <errno.h>
 
-#define INITIAL_CAPACITY 16
-
-static void default_deallocator(void* item, void* userdata);
-
 int lstack_init(struct lstack* ls)
 {
     struct dbly_linked_list* contents = malloc(sizeof(struct dbly_linked_list));
@@ -73,4 +69,6 @@ void lstack_free(struct lstack* ls, void* userdata, void (*deallocator) (void* i
     while ((data = lpop(ls)))
         deallocator(data, userdata);
     free(ls->contents);
+    ls->contents->head = ls->contents->tail = NULL;
+    ls->contents->size = 0;
 }

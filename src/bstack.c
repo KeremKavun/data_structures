@@ -6,91 +6,92 @@
 
 #define INITIAL_CAPACITY 16
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
-// queue implementation with fixed size types and internal char* buffer (no dynamic allocation and void**)                                  //
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
-
 static size_t char_index(size_t ind, size_t obj_size);
-static int stack_realloc(struct bstack* st);
+static int stack_realloc(struct bstack* bs);
 
-int bstack_init(struct bstack* st, size_t obj_size)
+int bstack_init(struct bstack* bs, size_t obj_size)
 {
-    st->contents = malloc(sizeof(char) * obj_size * INITIAL_CAPACITY);
-    if (!st->contents)
+    bs->contents = malloc(sizeof(char) * obj_size * INITIAL_CAPACITY);
+    if (!bs->contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
-    st->capacity = INITIAL_CAPACITY;
-    st->top= 0;
-    st->obj_size = obj_size;
+    bs->capacity = INITIAL_CAPACITY;
+    bs->size= 0;
+    bs->obj_size = obj_size;
     return 0;
 }
 
-int bpush(struct bstack* st, const void* new_item, void (*copy) (const void* new_item, void* queue_item))
+int bpush(struct bstack* bs, const void* new_item, void (*copy) (const void* new_item, void* queue_item))
 {
-    if (stack_realloc(st) != 0)
+    if (stack_realloc(bs) != 0)
     {
         LOG(LIB_LVL, CERROR, "stack_realloc failed");
         return 1;
     }
-    copy(new_item, (void*) &st->contents[char_index(st->top, st->obj_size)]);
-    st->top++;
+    copy(new_item, (void*) &bs->contents[char_index(bstack_size(bs), bs->obj_size)]);
+    bs->size++;
     return 0;
 }
 
-int emplace_bpush(struct bstack* st, void (*init) (void* item))
+int emplace_bpush(struct bstack* bs, void (*init) (void* item))
 {
-    if (stack_realloc(st) != 0)
+    if (stack_realloc(bs) != 0)
     {
         LOG(LIB_LVL, CERROR, "stack_realloc failed");
         return 1;
     }
-    init((void*) &st->contents[char_index(st->top, st->obj_size)]);
-    st->top++;
+    init((void*) &bs->contents[char_index(bstack_size(bs), bs->obj_size)]);
+    bs->size++;
     return 0;
 }
 
-int bpop(struct bstack* st, void* result)
+int bpop(struct bstack* bs, void* result)
 {
-    if (bstack_empty(st))
+    if (bstack_empty(bs))
         return 1;
-    st->top--; 
-    memcpy(result, &st->contents[char_index(st->top, st->obj_size)], st->obj_size);
+    bs->size--; 
+    memcpy(result, &bs->contents[char_index(bstack_size(bs), bs->obj_size)], bs->obj_size);
     return 0;
 }
 
-int btop(const struct bstack* st, void* result)
+int btop(const struct bstack* bs, void* result)
 {
-    if (bstack_empty(st))
+    if (bstack_empty(bs))
         return 1;
-    memcpy(result, &st->contents[char_index(st->top - 1, st->obj_size)], st->obj_size);
+    memcpy(result, &bs->contents[char_index(bstack_size(bs) - 1, bs->obj_size)], bs->obj_size);
     return 0;
 }
 
-int bstack_empty(const struct bstack* st)
+int bstack_empty(const struct bstack* bs)
 {
-    return st->top == 0;
+    return bs->size == 0;
 }
 
-size_t bstack_size(const struct bstack* st)
+size_t bstack_size(const struct bstack* bs)
 {
-    return st->top;
+    return bs->size;
 }
 
-void bstack_walk(struct bstack* st, void* userdata, void (*handler) (void* item, void* userdata))
+size_t bstack_capacity(const struct bstack* bs)
 {
-    for (size_t i = bstack_size(st); i-- > 0; )
-        handler((void*)&st->contents[char_index(i, st->obj_size)], userdata);
+    return bs->capacity;
 }
 
-void bstack_free(struct bstack* st, void* userdata, void (*deallocator) (void* item, void* userdata))
+void bstack_walk(struct bstack* bs, void* userdata, void (*handler) (void* item, void* userdata))
+{
+    for (size_t i = bstack_size(bs); i-- > 0; )
+        handler((void*)&bs->contents[char_index(i, bs->obj_size)], userdata);
+}
+
+void bstack_free(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata))
 {
     if (deallocator)
-        bstack_walk(st, userdata, deallocator);
-    free(st->contents);
-    st->contents = NULL;
-    st->capacity = 2; st->top= 0;
+        bstack_walk(bs, userdata, deallocator);
+    free(bs->contents);
+    bs->contents = NULL;
+    bs->capacity = 2; bs->size= 0;
 }
 
 // *** Helper functions *** //
@@ -100,18 +101,18 @@ static inline size_t char_index(size_t ind, size_t obj_size)
     return ind * obj_size;
 }
 
-static int stack_realloc(struct bstack* st)
+static int stack_realloc(struct bstack* bs)
 {
-    if (st->capacity == bstack_size(st))
+    if (bstack_capacity(bs)== bstack_size(bs))
     {
-        char* new_contents = realloc(st->contents, sizeof(char) * st->obj_size * st->capacity * 2);
+        char* new_contents = realloc(bs->contents, sizeof(char) * bs->obj_size * bstack_capacity(bs) * 2);
         if (!new_contents)
         {
             LOG(LIB_LVL, CERROR, "Allocation failure");
             return 1;
         }
-        st->contents = new_contents;
-        st->capacity *= 2;
+        bs->contents = new_contents;
+        bs->capacity *= 2;
     }
     return 0;
 }
