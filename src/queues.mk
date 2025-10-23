@@ -14,7 +14,7 @@ QUEUE_OBJ_FILES := $(patsubst $(QUEUE_SRC_DIR)/%.c,$(QUEUE_BIN_DIR)/%.o,$(QUEUE_
 QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
 
 # Static library
-$(QUEUE_BIN_DIR)/libqueue.a: $(QUEUE_OBJ_FILES)
+$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES)
 	ar rcs $@ $^
 
 $(QUEUE_BIN_DIR)/%.o: $(QUEUE_SRC_DIR)/%.c | $(QUEUE_BIN_DIR)
