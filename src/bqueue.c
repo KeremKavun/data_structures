@@ -25,27 +25,35 @@ int bqueue_init(struct bqueue* bq, size_t obj_size)
     return 0;
 }
 
-int benqueue(struct bqueue* bq, const void* new_item, void (*copy) (const void* new_item, void* queue_item))
+int benqueue(struct bqueue* bq, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata))
 {
     if (queue_realloc(bq) != 0)
     {
         LOG(LIB_LVL, CERROR, "queue_realloc failed");
         return 1;
     }
-    copy(new_item, (void*) &bq->contents[char_index(bq->rear, bq->obj_size)]);
+    if (copy(new_item, (void*) &bq->contents[char_index(bq->rear, bq->obj_size)], userdata) != 0)
+    {
+        LOG(PROJ_LVL, CERROR, "Copy ctor failed");
+        return 1;
+    }
     bq->rear = (bq->rear + 1) % bqueue_capacity(bq);
     bq->size++;
     return 0;
 }
 
-int emplace_benqueue(struct bqueue* bq, void (*init) (void* item))
+int emplace_benqueue(struct bqueue* bq, void* userdata, int (*init) (void* item, void* userdata))
 {
     if (queue_realloc(bq) != 0)
     {
         LOG(LIB_LVL, CERROR, "queue_realloc failed");
         return 1;
     }
-    init((void*) &bq->contents[char_index(bq->rear, bq->obj_size)]);
+    if (init((void*) &bq->contents[char_index(bq->rear, bq->obj_size)], userdata) != 0)
+    {
+        LOG(PROJ_LVL, CERROR, "Initializer failed");
+        return 1;
+    }
     bq->rear = (bq->rear + 1) % bqueue_capacity(bq);
     bq->size++;
     return 0;
@@ -55,7 +63,8 @@ int bdequeue(struct bqueue* bq, void* result)
 {
     if (bqueue_empty(bq))
         return 1;
-    memcpy(result, &bq->contents[char_index(bq->front, bq->obj_size)], bq->obj_size);
+    if (result)
+        memcpy(result, &bq->contents[char_index(bq->front, bq->obj_size)], bq->obj_size);
     bq->front = (bq->front + 1) % bqueue_capacity(bq);
     bq->size--;
     return 0;
