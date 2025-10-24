@@ -13,6 +13,8 @@ struct lstack
     struct dbly_linked_list* contents;
 };
 
+typedef struct lstack lstack_t;
+
 // init bstack, returns 0 if it succeeds, 1 otherwise
 int lstack_init(struct lstack* ls);
 // push an item, returns 0 if it succeeds, 1 otherwise

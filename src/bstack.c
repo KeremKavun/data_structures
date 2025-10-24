@@ -23,26 +23,34 @@ int bstack_init(struct bstack* bs, size_t obj_size)
     return 0;
 }
 
-int bpush(struct bstack* bs, const void* new_item, void (*copy) (const void* new_item, void* queue_item))
+int bpush(struct bstack* bs, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata))
 {
     if (stack_realloc(bs) != 0)
     {
         LOG(LIB_LVL, CERROR, "stack_realloc failed");
         return 1;
     }
-    copy(new_item, (void*) &bs->contents[char_index(bstack_size(bs), bs->obj_size)]);
+    if (copy(new_item, (void*) &bs->contents[char_index(bstack_size(bs), bs->obj_size)], userdata) != 0)
+    {
+        LOG(PROJ_LVL, CERROR, "Copy ctor failed");
+        return 1;
+    }
     bs->size++;
     return 0;
 }
 
-int emplace_bpush(struct bstack* bs, void (*init) (void* item))
+int emplace_bpush(struct bstack* bs, void* userdata, int (*init) (void* item, void* userdata))
 {
     if (stack_realloc(bs) != 0)
     {
         LOG(LIB_LVL, CERROR, "stack_realloc failed");
         return 1;
     }
-    init((void*) &bs->contents[char_index(bstack_size(bs), bs->obj_size)]);
+    if (init((void*) &bs->contents[char_index(bstack_size(bs), bs->obj_size)], userdata) != 0)
+    {
+        LOG(PROJ_LVL, CERROR, "Initializer failed");
+        return 1;
+    }
     bs->size++;
     return 0;
 }
@@ -51,8 +59,9 @@ int bpop(struct bstack* bs, void* result)
 {
     if (bstack_empty(bs))
         return 1;
-    bs->size--; 
-    memcpy(result, &bs->contents[char_index(bstack_size(bs), bs->obj_size)], bs->obj_size);
+    bs->size--;
+    if (result)
+        memcpy(result, &bs->contents[char_index(bstack_size(bs), bs->obj_size)], bs->obj_size);
     return 0;
 }
 

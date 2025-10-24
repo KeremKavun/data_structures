@@ -21,10 +21,10 @@ typedef struct bstack bstack_t;
 // init bstack, returns 0 if it succeeds, 1 otherwise
 int bstack_init(struct bstack* bs, size_t obj_size);
 // push an item by copying, returns 0 if it succeeds, 1 otherwise
-int bpush(struct bstack* bs, const void* new_item, void (*copy) (const void* new_item, void* queue_item));
+int bpush(struct bstack* bs, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata));
 // push an item by initializing the object in place, bstack will own the object 
 // must be careful if the given object stores pointers to the objects in the heap, you must provide a deallocator in this case
-int emplace_bpush(struct bstack* bs, void (*init) (void* item));
+int emplace_bpush(struct bstack* bs, void* userdata, int (*init) (void* item, void* userdata));
 // pop an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
 int bpop(struct bstack* bs, void* result);
 // peek an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
@@ -33,7 +33,7 @@ int btop(const struct bstack* bs, void* result);
 int bstack_empty(const struct bstack* bs);
 // Returns the size of the bstack
 size_t bstack_size(const struct bstack* bs);
-// Returns the total bytes of memory block that the bstack's content field point to
+// Returns the total number of objects with obj_size passed to the initializer
 size_t bstack_capacity(const struct bstack* bs);
 // walk bstack by given handler defined by the user according to item type they enqueue
 void bstack_walk(struct bstack* bs, void* userdata, void (*handler) (void* item, void* userdata));
