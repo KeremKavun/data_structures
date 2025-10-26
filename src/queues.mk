@@ -15,7 +15,9 @@ QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
 
 .SECONDEXPANSION:
 $(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a
-	ar rcs $@ $^
+	ar x $(LINKED_LIST_BIN_DIR)/liblinkedlists.a
+	ar rcs $@ $^ *.o
+	rm -f *.o
 
 $(QUEUE_BIN_DIR)/%.o: $(QUEUE_SRC_DIR)/%.c | $(QUEUE_BIN_DIR)
 	$(QUEUE_CC) $(QUEUE_CFLAGS) -I$(QUEUE_INCLUDE_DIR) -c $< -o $@

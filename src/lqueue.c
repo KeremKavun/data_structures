@@ -14,6 +14,7 @@ int lqueue_init(struct lqueue* lq)
         return 1;
     }
 
+    lq->contents = contents;
     dbly_list_init(lq->contents);
     return 0;
 }
