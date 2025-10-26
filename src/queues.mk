@@ -13,8 +13,8 @@ QUEUE_SRC_FILES := $(wildcard $(QUEUE_SRC_DIR)/*.c)
 QUEUE_OBJ_FILES := $(patsubst $(QUEUE_SRC_DIR)/%.c,$(QUEUE_BIN_DIR)/%.o,$(QUEUE_SRC_FILES))
 QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
 
-# Static library
-$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES)
+.SECONDEXPANSION:
+$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a
 	ar rcs $@ $^
 
 $(QUEUE_BIN_DIR)/%.o: $(QUEUE_SRC_DIR)/%.c | $(QUEUE_BIN_DIR)
@@ -25,3 +25,4 @@ $(QUEUE_BIN_DIR):
 	@mkdir -p $@
 
 -include $(QUEUE_DEP_FILES)
+include $(PROJECT_ROOT)/linked_lists/src/linked_lists.mk
