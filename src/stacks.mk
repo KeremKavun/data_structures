@@ -15,7 +15,9 @@ STACK_DEP_FILES := $(STACK_OBJ_FILES:.o=.d)
 
 .SECONDEXPANSION:
 $(STACK_BIN_DIR)/libstacks.a: $(STACK_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a
-	ar rcs $@ $^
+	ar x $(LINKED_LIST_BIN_DIR)/liblinkedlists.a
+	ar rcs $@ $^ *.o
+	rm -f *.o
 
 $(STACK_BIN_DIR)/%.o: $(STACK_SRC_DIR)/%.c | $(STACK_BIN_DIR)
 	$(STACK_CC) $(STACK_CFLAGS) -I$(STACK_INCLUDE_DIR) -c $< -o $@
