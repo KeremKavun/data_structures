@@ -19,8 +19,10 @@ int lqueue_init(struct lqueue* lq);
 int lenqueue(struct lqueue* lq, void* new_item);
 // dequeue an item, returns either item or NULL
 void* ldequeue(struct lqueue* lq);
-// peek an item, returns either item or NULL
-void* lqueue_peek(const struct lqueue* lq);
+// Get the rear of the queue
+void* lqueue_rear(const struct lqueue* lq);
+// Get the front of the queue
+void* lqueue_front(const struct lqueue* lq);
 // Returns 1 if the lqueue is empty, 0 otherwise
 int lqueue_empty(const struct lqueue* bq);
 // Returns the size of the lqueue

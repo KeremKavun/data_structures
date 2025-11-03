@@ -28,8 +28,10 @@ int benqueue(struct bqueue* bq, const void* new_item, void* userdata, int (*copy
 int emplace_benqueue(struct bqueue* bq, void* userdata, int (*init) (void* item, void* userdata));
 // dequeue an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
 int bdequeue(struct bqueue* bq, void* result);
-// peek an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
-int bqueue_peek(const struct bqueue* bq, void* result);
+// Get the front of the queue
+int bqueue_front(const struct bqueue* bq, void* result);
+// Get the rear of the queue
+int bqueue_rear(const struct bqueue* bq, void* result);
 // Returns 1 if the bqueue is empty, 0 otherwise
 int bqueue_empty(const struct bqueue* bq);
 // Returns the size of the bqueue

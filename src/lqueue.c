@@ -43,10 +43,16 @@ void* ldequeue(struct lqueue* lq)
     return data;
 }
 
-void* lqueue_peek(const struct lqueue* lq)
+void* lqueue_front(const struct lqueue* lq)
 {
-    struct dbly_list_item* peek = dbly_list_head(lq->contents);
-    return peek ? peek->data : NULL;
+    struct dbly_list_item* head = dbly_list_head(lq->contents);
+    return head ? head->data : NULL;
+}
+
+void* lqueue_rear(const struct lqueue* lq)
+{
+    struct dbly_list_item* tail = dbly_list_tail(lq->contents);
+    return tail ? tail->data : NULL;
 }
 
 int lqueue_empty(const struct lqueue* lq)

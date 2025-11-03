@@ -8,6 +8,7 @@
 
 static size_t char_index(size_t ind, size_t obj_size);
 static int queue_realloc(struct bqueue* bq);
+static int bqueue_getter(const struct bqueue* bq, void* result, size_t index);
 
 int bqueue_init(struct bqueue* bq, size_t obj_size)
 {
@@ -70,12 +71,14 @@ int bdequeue(struct bqueue* bq, void* result)
     return 0;
 }
 
-int bqueue_peek(const struct bqueue* bq, void* result)
+int bqueue_front(const struct bqueue* bq, void* result)
 {
-    if (bqueue_empty(bq))
-        return 1;
-    memcpy(result, &bq->contents[char_index(bq->front, bq->obj_size)], bq->obj_size);
-    return 0;
+    return bqueue_getter(bq, result, bq->front);
+}
+
+int bqueue_rear(const struct bqueue* bq, void* result)
+{
+    return bqueue_getter(bq, result, bq->rear);
 }
 
 int bqueue_empty(const struct bqueue* bq)
@@ -135,5 +138,13 @@ static int queue_realloc(struct bqueue* bq)
         bq->front = 0;
         bq->rear = bq->size;
     }
+    return 0;
+}
+
+static int bqueue_getter(const struct bqueue* bq, void* result, size_t index)
+{
+    if (bqueue_empty(bq))
+        return 1;
+    memcpy(result, &bq->contents[char_index(index, bq->obj_size)], bq->obj_size);
     return 0;
 }
