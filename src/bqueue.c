@@ -1,150 +1,99 @@
 #include "../include/bqueue.h"
+#include "../../buffers/include/cbuffer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
-#define INITIAL_CAPACITY 16
+#define INITIAL_CAPACITY 8
 
-static size_t char_index(size_t ind, size_t obj_size);
-static int queue_realloc(struct bqueue* bq);
-static int bqueue_getter(const struct bqueue* bq, void* result, size_t index);
+/*───────────────────────────────────────────────
+ * Lifecycle
+ *───────────────────────────────────────────────*/
 
 int bqueue_init(struct bqueue* bq, size_t obj_size)
 {
-    bq->contents = malloc(sizeof(char) * obj_size * INITIAL_CAPACITY);
-    if (!bq->contents)
+    struct cbuffer* contents = malloc(sizeof(struct cbuffer));
+    if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
-    bq->capacity = INITIAL_CAPACITY;
-    bq->size =0;
-    bq->front = 0;
-    bq->rear = 0;
-    bq->obj_size = obj_size;
-    return 0;
-}
-
-int benqueue(struct bqueue* bq, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata))
-{
-    if (queue_realloc(bq) != 0)
+    if (cbuffer_init(contents, obj_size) != 0)
     {
-        LOG(LIB_LVL, CERROR, "queue_realloc failed");
+        LOG(LIB_LVL, CERROR, "cbuffer_init failed");
+        free(contents);
         return 1;
     }
-    if (copy(new_item, (void*) &bq->contents[char_index(bq->rear, bq->obj_size)], userdata) != 0)
-    {
-        LOG(PROJ_LVL, CERROR, "Copy ctor failed");
-        return 1;
-    }
-    bq->rear = (bq->rear + 1) % bqueue_capacity(bq);
-    bq->size++;
+    bq->contents = contents;
     return 0;
-}
-
-int emplace_benqueue(struct bqueue* bq, void* userdata, int (*init) (void* item, void* userdata))
-{
-    if (queue_realloc(bq) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "queue_realloc failed");
-        return 1;
-    }
-    if (init((void*) &bq->contents[char_index(bq->rear, bq->obj_size)], userdata) != 0)
-    {
-        LOG(PROJ_LVL, CERROR, "Initializer failed");
-        return 1;
-    }
-    bq->rear = (bq->rear + 1) % bqueue_capacity(bq);
-    bq->size++;
-    return 0;
-}
-
-int bdequeue(struct bqueue* bq, void* result)
-{
-    if (bqueue_empty(bq))
-        return 1;
-    if (result)
-        memcpy(result, &bq->contents[char_index(bq->front, bq->obj_size)], bq->obj_size);
-    bq->front = (bq->front + 1) % bqueue_capacity(bq);
-    bq->size--;
-    return 0;
-}
-
-int bqueue_front(const struct bqueue* bq, void* result)
-{
-    return bqueue_getter(bq, result, bq->front);
-}
-
-int bqueue_rear(const struct bqueue* bq, void* result)
-{
-    return bqueue_getter(bq, result, bq->rear);
-}
-
-int bqueue_empty(const struct bqueue* bq)
-{
-    return bq->size == 0;
-}
-
-size_t bqueue_size(const struct bqueue* bq)
-{
-    return bq->size;
-}
-
-size_t bqueue_capacity(const struct bqueue* bq)
-{
-    return bq->capacity;
-}
-
-void bqueue_walk(const struct bqueue* bq, void* userdata, void (*handler) (void* item, void* userdata))
-{
-    for (size_t i = bq->front; i != bq->rear; i = (i + 1) % bqueue_capacity(bq))
-        handler((void*) &bq->contents[char_index(i, bq->obj_size)], userdata);
 }
 
 void bqueue_free(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata))
 {
-    if (deallocator)
-        bqueue_walk(bq, userdata, deallocator);
+    cbuffer_free(bq->contents, userdata, deallocator);
     free(bq->contents);
     bq->contents = NULL;
-    bq->capacity = bq->front = bq->rear = bq->size = 0;
 }
 
-// *** Helper functions *** //
+/*───────────────────────────────────────────────
+ * Enqueue & Dequeue
+ *───────────────────────────────────────────────*/
 
-static inline size_t char_index(size_t ind, size_t obj_size)
+int benqueue(struct bqueue* bq, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata))
 {
-    return ind * obj_size;
+    LOG(LIB_LVL, CINFO, "Enqueuing item at address %p, by copying", new_item);
+    return cbuffer_push(bq->contents, new_item, userdata, copy);
 }
 
-static int queue_realloc(struct bqueue* bq)
+int emplace_benqueue(struct bqueue* bq, void* userdata, int (*init) (void* item, void* userdata))
 {
-    if (bqueue_capacity(bq) == bqueue_size(bq))
-    {
-        char* new_contents = malloc(sizeof(char) * bq->obj_size * bqueue_capacity(bq) * 2);
-        if (!new_contents)
-        {
-            LOG(LIB_LVL, CERROR, "Allocation failure");
-            return 1;
-        }
-        
-        for (size_t i = 0; i < bqueue_size(bq); ++i)
-            memcpy(&new_contents[char_index(i, bq->obj_size)], &bq->contents[char_index((bq->front + i) % bqueue_capacity(bq), bq->obj_size)], bq->obj_size);
-        
-        free(bq->contents);
-        bq->contents = new_contents;
-        bq->capacity *= 2;
-        bq->front = 0;
-        bq->rear = bq->size;
-    }
-    return 0;
+    LOG(LIB_LVL, CINFO, "Enqueuing item by emplacing");
+    return cbuffer_emplace_push(bq->contents, userdata, init);
 }
 
-static int bqueue_getter(const struct bqueue* bq, void* result, size_t index)
+int bdequeue(struct bqueue* bq, void* result)
 {
-    if (bqueue_empty(bq))
-        return 1;
-    memcpy(result, &bq->contents[char_index(index, bq->obj_size)], bq->obj_size);
-    return 0;
+    LOG(LIB_LVL, CINFO, "Dequeuing item");
+    return cbuffer_pop(bq->contents, result);
+}
+
+/*───────────────────────────────────────────────
+ * Accessors
+ *───────────────────────────────────────────────*/
+
+int bqueue_front(const struct bqueue* bq, void* result)
+{
+    return cbuffer_get(bq->contents, 0, result);
+}
+
+int bqueue_rear(const struct bqueue* bq, void* result)
+{
+    return cbuffer_get(bq->contents, bqueue_size(bq) - 1, result);
+}
+
+int bqueue_empty(const struct bqueue* bq)
+{
+    return cbuffer_empty(bq->contents);
+}
+
+size_t bqueue_size(const struct bqueue* bq)
+{
+    return cbuffer_size(bq->contents);
+}
+
+size_t bqueue_capacity(const struct bqueue* bq)
+{
+    return cbuffer_capacity(bq->contents);
+}
+
+/*───────────────────────────────────────────────
+ * Iterations
+ *───────────────────────────────────────────────*/
+
+void bqueue_walk(const struct bqueue* bq, void* userdata, void (*handler)(void* item, void* userdata))
+{
+    size_t size = bqueue_size(bq);
+    for (size_t i = 0; i < size; ++i)
+        handler(cbuffer_at(bq->contents, i), userdata);
 }

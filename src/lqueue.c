@@ -5,6 +5,10 @@
 #include <string.h>
 #include <errno.h>
 
+/*───────────────────────────────────────────────
+ * Lifecycle
+ *───────────────────────────────────────────────*/
+
 int lqueue_init(struct lqueue* lq)
 {
     struct dbly_linked_list* contents = malloc(sizeof(struct dbly_linked_list));
@@ -18,6 +22,16 @@ int lqueue_init(struct lqueue* lq)
     dbly_list_init(lq->contents);
     return 0;
 }
+
+void lqueue_free(struct lqueue* lq, void* userdata, void (*deallocator) (void* item, void* userdata))
+{
+    dbly_list_free(lq->contents, userdata, deallocator);
+    free(lq->contents);
+}
+
+/*───────────────────────────────────────────────
+ * Enqueue & Dequeue
+ *───────────────────────────────────────────────*/
 
 int lenqueue(struct lqueue* lq, void* new_item)
 {
@@ -43,6 +57,10 @@ void* ldequeue(struct lqueue* lq)
     return data;
 }
 
+/*───────────────────────────────────────────────
+ * Accessors
+ *───────────────────────────────────────────────*/
+
 void* lqueue_front(const struct lqueue* lq)
 {
     struct dbly_list_item* head = dbly_list_head(lq->contents);
@@ -65,13 +83,11 @@ size_t lqueue_size(const struct lqueue* lq)
     return dbly_list_size(lq->contents);
 }
 
+/*───────────────────────────────────────────────
+ * Iterations
+ *───────────────────────────────────────────────*/
+
 void lqueue_walk(const struct lqueue* lq, void* userdata, void (*handler) (void* item, void* userdata))
 {
     dbly_list_walk_front(lq->contents, userdata, handler);
-}
-
-void lqueue_free(struct lqueue* lq, void* userdata, void (*deallocator) (void* item, void* userdata))
-{
-    dbly_list_free(lq->contents, userdata, deallocator);
-    free(lq->contents);
 }

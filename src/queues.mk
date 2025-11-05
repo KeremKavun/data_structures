@@ -14,8 +14,9 @@ QUEUE_OBJ_FILES := $(patsubst $(QUEUE_SRC_DIR)/%.c,$(QUEUE_BIN_DIR)/%.o,$(QUEUE_
 QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
 
 .SECONDEXPANSION:
-$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a
+$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a $$(BUFFERS_BIN_DIR)/libbuffers.a
 	ar x $(LINKED_LIST_BIN_DIR)/liblinkedlists.a
+	ar x $(BUFFERS_BIN_DIR)/libbuffers.a
 	ar rcs $@ $^ *.o
 	rm -f *.o
 
@@ -28,3 +29,4 @@ $(QUEUE_BIN_DIR):
 
 -include $(QUEUE_DEP_FILES)
 include $(PROJECT_ROOT)/linked_lists/src/linked_lists.mk
+include $(PROJECT_ROOT)/buffers/src/buffers.mk
