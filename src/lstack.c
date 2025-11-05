@@ -5,6 +5,10 @@
 #include <string.h>
 #include <errno.h>
 
+/*───────────────────────────────────────────────
+ * Lifecycle
+ *───────────────────────────────────────────────*/
+
 int lstack_init(struct lstack* ls)
 {
     struct dbly_linked_list* contents = malloc(sizeof(struct dbly_linked_list));
@@ -17,6 +21,20 @@ int lstack_init(struct lstack* ls)
     dbly_list_init(ls->contents);
     return 0;
 }
+
+void lstack_free(struct lstack* ls, void* userdata, void (*deallocator) (void* item, void* userdata))
+{
+    void* data;
+    while ((data = lpop(ls)))
+        deallocator(data, userdata);
+    free(ls->contents);
+    ls->contents->head = ls->contents->tail = NULL;
+    ls->contents->size = 0;
+}
+
+/*───────────────────────────────────────────────
+ * Push & Pop
+ *───────────────────────────────────────────────*/
 
 int lpush(struct lstack* ls, void* new_item)
 {
@@ -42,6 +60,10 @@ void* lpop(struct lstack* ls)
     return data;
 }
 
+/*───────────────────────────────────────────────
+ * Accessors
+ *───────────────────────────────────────────────*/
+
 void* ltop(struct lstack* ls)
 {
     struct dbly_list_item* peek = dbly_list_tail(ls->contents);
@@ -58,17 +80,11 @@ size_t lstack_size(const struct lstack* ls)
     return dbly_list_size(ls->contents);
 }
 
+/*───────────────────────────────────────────────
+ * Iterations
+ *───────────────────────────────────────────────*/
+
 void lstack_walk(struct lstack* ls, void* userdata, void (*handler) (void* item, void* userdata))
 {
     dbly_list_walk_back(ls->contents, userdata, handler);
-}
-
-void lstack_free(struct lstack* ls, void* userdata, void (*deallocator) (void* item, void* userdata))
-{
-    void* data;
-    while ((data = lpop(ls)))
-        deallocator(data, userdata);
-    free(ls->contents);
-    ls->contents->head = ls->contents->tail = NULL;
-    ls->contents->size = 0;
 }

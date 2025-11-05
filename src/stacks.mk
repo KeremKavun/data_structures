@@ -14,8 +14,9 @@ STACK_OBJ_FILES := $(patsubst $(STACK_SRC_DIR)/%.c,$(STACK_BIN_DIR)/%.o,$(STACK_
 STACK_DEP_FILES := $(STACK_OBJ_FILES:.o=.d)
 
 .SECONDEXPANSION:
-$(STACK_BIN_DIR)/libstacks.a: $(STACK_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a
+$(STACK_BIN_DIR)/libstacks.a: $(STACK_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a $$(BUFFERS_BIN_DIR)/libbuffers.a
 	ar x $(LINKED_LIST_BIN_DIR)/liblinkedlists.a
+	ar x $(BUFFERS_BIN_DIR)/libbuffers.a
 	ar rcs $@ $^ *.o
 	rm -f *.o
 
@@ -28,3 +29,4 @@ $(STACK_BIN_DIR):
 
 -include $(STACK_DEP_FILES)
 include $(PROJECT_ROOT)/linked_lists/src/linked_lists.mk
+include $(PROJECT_ROOT)/buffers/src/buffers.mk
