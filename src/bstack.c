@@ -19,7 +19,7 @@ int bstack_init(struct bstack* bs, size_t obj_size)
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
-    if (lbuffer_init(contents, obj_size, 1) != 0)
+    if (lbuffer_init(contents, obj_size, AUTO_RESIZE) != 0)
     {
         LOG(LIB_LVL, CERROR, "lbuffer_init failed");
         free(contents);
