@@ -1,8 +1,5 @@
 #include "../include/bst.h"
-#include "../../allocators/include/chunked_pool.h"
 #include <stdlib.h>
-
-#define CHUNKED_POOL_SIZE 256
 
 struct bst_node
 {
@@ -19,35 +16,22 @@ struct bst
     size_t size;
 };
 
-struct mini_lambda
-{
-    void (*func) (void* item, void* userdata);
-};
-
 static struct bst_node** bst_search_helper(struct bst* btree, const void* data);
 static void bst_walk_subtree(struct bst_node* node, void* userdata, void (*handler) (void* item, void* userdata), int *func_index_array);
 static struct bst_node** bst_findmin(struct bst_node** node_ref);
 static struct bst_node** bst_findmax(struct bst_node** node_ref);
-static void bst_node_deleter(void* item, void* userdata);
+static void free_node(void* item, void* userdata);
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-struct bst* bst_create(int (*cmp) (const void* key, const void* data))
+struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct chunked_pool* pool)
 {   
-    struct chunked_pool* pool = malloc(sizeof(struct chunked_pool));
-    if (!pool)
-    {
-        LOG(LIB_LVL, CERROR, "Failed to allocate memory for chunked pool");
-        return NULL;
-    }
-    chunked_pool_init(pool, CHUNKED_POOL_SIZE, sizeof(struct bst_node), bst_node_deleter);
     struct bst* btree = malloc(sizeof(struct bst));
     if (!btree)
     {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for btree");
-        free(pool);
         return NULL;
     }
     btree->pool = pool;
@@ -57,11 +41,10 @@ struct bst* bst_create(int (*cmp) (const void* key, const void* data))
     return btree;
 }
 
-void bst_destroy(struct bst* btree, void (*deallocator) (void* item, void* userdata))
+void bst_destroy(struct bst* btree)
 {
-    struct mini_lambda lambda = {deallocator};
-    chunked_pool_destroy(btree->pool, &lambda);
-    free(btree->pool);
+    if (!btree->pool)
+        bst_walk(btree, NULL, free_node, INORDER);
     free(btree);
 }
 
@@ -72,21 +55,13 @@ void bst_destroy(struct bst* btree, void (*deallocator) (void* item, void* userd
 enum bst_result_status bst_add(struct bst* btree, void* new_data)
 {
     LOG(LIB_LVL, CINFO, "Adding new data at %p", new_data);
-    struct bst_node** curr = &btree->root;
-    while (*curr)
+    struct bst_node** curr = bst_search_helper(btree, new_data);
+    if (*curr)
     {
-        int result = btree->cmp(new_data, (*curr)->data);
-        if (result < 0)
-            curr = &(*curr)->left;
-        else if (result > 0)
-            curr = &(*curr)->right;
-        else
-        {
-            LOG(LIB_LVL, CERROR, "Duplicate key");
-            return DUPLICATE_KEY;
-        }
+        LOG(LIB_LVL, CERROR, "Duplicate key");
+        return DUPLICATE_KEY;
     }
-    struct bst_node* new_node = chunked_pool_alloc(btree->pool);
+    struct bst_node* new_node = (btree->pool) ? chunked_pool_alloc(btree->pool) : malloc(sizeof(struct bst_node));
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for node");
@@ -104,8 +79,11 @@ enum bst_result_status bst_remove(struct bst* btree, void* data)
 {
     LOG(LIB_LVL, CINFO, "Removing data at %p", data);
     struct bst_node** target = bst_search_helper(btree, data);
-    if (!target)
+    if (!(*target))
+    {
+        LOG(LIB_LVL, CERROR, "Key not found");
         return NOT_FOUND;
+    }
     struct bst_node* node = *target;
     if (!node->left)
         *target = node->right;
@@ -120,7 +98,7 @@ enum bst_result_status bst_remove(struct bst* btree, void* data)
         successor->data = NULL;
         node = successor;
     }
-    chunked_pool_free(btree->pool, node);
+    (btree->pool) ? chunked_pool_free(btree->pool, node) : free(node);
     btree->size--;
     return OK;
 }
@@ -128,8 +106,11 @@ enum bst_result_status bst_remove(struct bst* btree, void* data)
 void* bst_search(struct bst* btree, const void* data)
 {
     struct bst_node** target = bst_search_helper(btree, data);
-    if (!target)
+    if (!(*target))
+    {
+        LOG(LIB_LVL, CERROR, "Key not found");
         return NULL;
+    }
     return (*target)->data;
 }
 
@@ -177,7 +158,6 @@ static struct bst_node** bst_search_helper(struct bst* btree, const void* data)
     struct bst_node** curr = &btree->root;
     while (*curr)
     {
-        printf("key: %d, curr: %d\n", *(int*)data, *(int*)(*curr)->data);
         int result = btree->cmp(data, (*curr)->data);
         if (result < 0)
             curr = &(*curr)->left;
@@ -186,8 +166,7 @@ static struct bst_node** bst_search_helper(struct bst* btree, const void* data)
         else
             return curr;
     }
-    LOG(LIB_LVL, CERROR, "Key not found");
-    return NULL;
+    return curr;
 }
 
 static void bst_walk_subtree(struct bst_node* node, void* userdata, void (*handler) (void* item, void* userdata), int* func_index_array)
@@ -224,9 +203,8 @@ static struct bst_node** bst_findmax(struct bst_node** node_ref)
     return curr;
 }
 
-static void bst_node_deleter(void* item, void* userdata)
+static void free_node(void* item, void* userdata)
 {
-    struct bst_node* node = item;
-    struct mini_lambda* lambda = userdata;
-    lambda->func(node->data, NULL);
+    (void)userdata;
+    free(item);
 }

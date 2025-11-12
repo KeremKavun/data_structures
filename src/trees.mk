@@ -13,18 +13,22 @@ TREES_SRC_FILES := $(wildcard $(TREES_SRC_DIR)/*.c)
 TREES_OBJ_FILES := $(patsubst $(TREES_SRC_DIR)/%.c,$(TREES_BIN_DIR)/%.o,$(TREES_SRC_FILES))
 TREES_DEP_FILES := $(TREES_OBJ_FILES:.o=.d)
 
-.SECONDEXPANSION:
-$(TREES_BIN_DIR)/libtrees.a: $(TREES_OBJ_FILES) $$(ALLOCATORS_BIN_DIR)/liballocators.a
-	ar x $(ALLOCATORS_BIN_DIR)/liballocators.a
-	ar rcs $@ $^ *.o
-	rm -f *.o
+# -----------------------------------------------------
+# Library build
+# -----------------------------------------------------
+$(TREES_BIN_DIR)/libtrees.a: $(TREES_OBJ_FILES)
+	ar rcs $@ $^
 
+# -----------------------------------------------------
+# Object file compilation
+# -----------------------------------------------------
 $(TREES_BIN_DIR)/%.o: $(TREES_SRC_DIR)/%.c | $(TREES_BIN_DIR)
 	$(TREES_CC) $(TREES_CFLAGS) -I$(TREES_INCLUDE_DIR) -c $< -o $@
 
+# -----------------------------------------------------
 # Create bin directory
+# -----------------------------------------------------
 $(TREES_BIN_DIR):
 	@mkdir -p $@
 
 -include $(TREES_DEP_FILES)
-include $(PROJECT_ROOT)/allocators/src/allocators.mk

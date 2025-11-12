@@ -1,0 +1,10 @@
+prefix=/home/kerem/code/C_codes
+libdir=${prefix}/trees/bin
+includedir=${prefix}/trees/include
+
+Name: trees
+Description: Collection of tree implementations
+Version: 1.0
+Requires: allocators
+Libs: -L${libdir} -lallocators
+Cflags: -I${includedir}
