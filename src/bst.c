@@ -10,7 +10,7 @@ struct bst_node
 
 struct bst
 {
-    struct chunked_pool* pool;
+    struct allocator_concept ac;
     struct bst_node* root;
     int (*cmp) (const void* key, const void* data);
     size_t size;
@@ -26,7 +26,7 @@ static void free_node(void* item, void* userdata);
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct chunked_pool* pool)
+struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct allocator_concept ac)
 {   
     struct bst* btree = malloc(sizeof(struct bst));
     if (!btree)
@@ -34,7 +34,7 @@ struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct ch
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for btree");
         return NULL;
     }
-    btree->pool = pool;
+    btree->ac = ac;
     btree->root = NULL;
     btree->cmp = cmp;
     btree->size = 0;
@@ -43,7 +43,7 @@ struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct ch
 
 void bst_destroy(struct bst* btree)
 {
-    if (!btree->pool)
+    if (!btree->ac.allocator)
         bst_walk(btree, NULL, free_node, INORDER);
     free(btree);
 }
@@ -61,7 +61,7 @@ enum bst_result_status bst_add(struct bst* btree, void* new_data)
         LOG(LIB_LVL, CERROR, "Duplicate key");
         return DUPLICATE_KEY;
     }
-    struct bst_node* new_node = (btree->pool) ? chunked_pool_alloc(btree->pool) : malloc(sizeof(struct bst_node));
+    struct bst_node* new_node = (btree->ac.allocator) ? btree->ac.alloc(btree->ac.allocator) : malloc(sizeof(struct bst_node));
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for node");
@@ -98,7 +98,7 @@ enum bst_result_status bst_remove(struct bst* btree, void* data)
         successor->data = NULL;
         node = successor;
     }
-    (btree->pool) ? chunked_pool_free(btree->pool, node) : free(node);
+    (btree->ac.allocator) ? btree->ac.free(btree->ac.allocator, node) : free(node);
     btree->size--;
     return OK;
 }

@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
-#include "../../allocators/include/chunked_pool.h"
+#include "../../allocators/include/allocator_concept.h"
 #include <stddef.h>
 
 enum bst_traversal_order
@@ -32,7 +32,7 @@ typedef struct bst bst_t;
  *───────────────────────────────────────────────*/
 
 // Creates bst and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct chunked_pool* pool);
+struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct allocator_concept ac);
 void bst_destroy(struct bst* btree);
 
 /*───────────────────────────────────────────────

@@ -5,6 +5,5 @@ includedir=${prefix}/trees/include
 Name: trees
 Description: Collection of tree implementations
 Version: 1.0
-Requires: allocators
-Libs: -L${libdir} -lallocators
+Libs: -L${libdir} -ltrees
 Cflags: -I${includedir}
