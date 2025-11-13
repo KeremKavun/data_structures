@@ -24,7 +24,7 @@ typedef struct bqueue bqueue_t;
 int bqueue_init(struct bqueue* bq, size_t obj_size);
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
 // if you dont store pointers to dynamic allocated objects, this function with a deallocator might be dangerous !!!
-void bqueue_free(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata));
+void bqueue_deinit(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata));
 
 /*───────────────────────────────────────────────
  * Enqueue & Dequeue

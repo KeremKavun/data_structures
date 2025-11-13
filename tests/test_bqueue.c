@@ -1,7 +1,7 @@
+#include "../include/bqueue.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/bqueue.h"
 
 // Copy function for enqueue
 static int copy_int(const void* new_item, void* queue_item, void* userdata) {
@@ -79,7 +79,7 @@ int main(void) {
 
     printf("Queue empty? %s\n", bqueue_empty(&q) ? "yes" : "no");
 
-    bqueue_free(&q, NULL, NULL);
+    bqueue_deinit(&q, NULL, NULL);
     printf("Freed queue\n");
 
     return 0;

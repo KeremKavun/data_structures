@@ -13,20 +13,13 @@ QUEUE_SRC_FILES := $(wildcard $(QUEUE_SRC_DIR)/*.c)
 QUEUE_OBJ_FILES := $(patsubst $(QUEUE_SRC_DIR)/%.c,$(QUEUE_BIN_DIR)/%.o,$(QUEUE_SRC_FILES))
 QUEUE_DEP_FILES := $(QUEUE_OBJ_FILES:.o=.d)
 
-.SECONDEXPANSION:
-$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES) $$(LINKED_LIST_BIN_DIR)/liblinkedlists.a $$(BUFFERS_BIN_DIR)/libbuffers.a
-	ar x $(LINKED_LIST_BIN_DIR)/liblinkedlists.a
-	ar x $(BUFFERS_BIN_DIR)/libbuffers.a
-	ar rcs $@ $^ *.o
-	rm -f *.o
+$(QUEUE_BIN_DIR)/libqueues.a: $(QUEUE_OBJ_FILES)
+	ar rcs $@ $^
 
 $(QUEUE_BIN_DIR)/%.o: $(QUEUE_SRC_DIR)/%.c | $(QUEUE_BIN_DIR)
 	$(QUEUE_CC) $(QUEUE_CFLAGS) -I$(QUEUE_INCLUDE_DIR) -c $< -o $@
 
-# Create bin directory
 $(QUEUE_BIN_DIR):
 	@mkdir -p $@
 
 -include $(QUEUE_DEP_FILES)
-include $(PROJECT_ROOT)/linked_lists/src/linked_lists.mk
-include $(PROJECT_ROOT)/buffers/src/buffers.mk

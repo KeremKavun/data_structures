@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #define INITIAL_CAPACITY 8
 
@@ -13,26 +12,19 @@
 
 int bqueue_init(struct bqueue* bq, size_t obj_size)
 {
-    struct cbuffer* contents = malloc(sizeof(struct cbuffer));
+    struct cbuffer* contents = cbuffer_create(obj_size);
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
-        return 1;
-    }
-    if (cbuffer_init(contents, obj_size) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "cbuffer_init failed");
-        free(contents);
         return 1;
     }
     bq->contents = contents;
     return 0;
 }
 
-void bqueue_free(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata))
+void bqueue_deinit(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata))
 {
-    cbuffer_free(bq->contents, userdata, deallocator);
-    free(bq->contents);
+    cbuffer_destroy(bq->contents, userdata, deallocator);
     bq->contents = NULL;
 }
 
