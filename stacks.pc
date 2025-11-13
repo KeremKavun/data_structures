@@ -1,0 +1,10 @@
+prefix=/home/kerem/code/C_codes
+libdir=${prefix}/stack/bin
+includedir=${prefix}/stack/include
+
+Name: stacks
+Description: Stack library (depends on libbuffers.a and liblinkedlists.a)
+Version: 1.0
+Requires: buffers, linkedlists
+Libs: -L${libdir} -lstacks
+Cflags: -I${includedir}

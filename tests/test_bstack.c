@@ -92,7 +92,7 @@ int main(void)
 
     // Free stack (also triggers deallocator print)
     printf("Freeing stack:\n");
-    bstack_free(&stack, NULL, free_item);
+    bstack_deinit(&stack, NULL, free_item);
     printf("\nStack freed.\n");
 
     return 0;

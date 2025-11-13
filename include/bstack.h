@@ -23,7 +23,7 @@ typedef struct bstack bstack_t;
 int bstack_init(struct bstack* bs, size_t obj_size);
 // free bstack contents (freeing bstack itself, if dynamically allocated, is on you)
 // if you dont store pointers to dynamic allocated objects, this function with a deallocator might be dangerous !!!
-void bstack_free(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata));
+void bstack_deinit(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata));
 
 /*───────────────────────────────────────────────
  * Push & Pop

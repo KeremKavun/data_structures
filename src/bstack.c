@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #define INITIAL_CAPACITY 8
 
@@ -13,28 +12,21 @@
 
 int bstack_init(struct bstack* bs, size_t obj_size)
 {
-    struct lbuffer* contents = malloc(sizeof(struct lbuffer));
+    struct lbuffer* contents = lbuffer_create(obj_size, AUTO_RESIZE);
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
-        return 1;
-    }
-    if (lbuffer_init(contents, obj_size, AUTO_RESIZE) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "lbuffer_init failed");
-        free(contents);
         return 1;
     }
     bs->contents = contents;
     return 0;
 }
 
-void bstack_free(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata))
+void bstack_deinit(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata))
 {
     if (deallocator)
         bstack_walk(bs, userdata, deallocator);
-    lbuffer_free(bs->contents, userdata, NULL);
-    free(bs->contents);
+    lbuffer_destroy(bs->contents, userdata, NULL);
     bs->contents = NULL;
 }
 
