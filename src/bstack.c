@@ -12,7 +12,7 @@
 
 int bstack_init(struct bstack* bs, size_t obj_size)
 {
-    struct lbuffer* contents = lbuffer_create(obj_size, AUTO_RESIZE);
+    struct lbuffer* contents = lbuffer_create(INITIAL_CAPACITY, obj_size, AUTO_RESIZE);
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");

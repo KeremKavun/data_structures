@@ -6,11 +6,13 @@ extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
+#include "../../concepts/include/object_concept.h"
 #include <stddef.h>
 
 struct lstack
 {
     struct dbly_linked_list* contents;
+    struct object_concept* oc;
 };
 
 typedef struct lstack lstack_t;
@@ -20,9 +22,9 @@ typedef struct lstack lstack_t;
  *───────────────────────────────────────────────*/
 
 // init bstack, returns 0 if it succeeds, 1 otherwise
-int lstack_init(struct lstack* ls);
+int lstack_init(struct lstack* ls, struct object_concept* oc);
 // free bstack contents (freeing bstack itself, if dynamically allocated, is on you)
-void lstack_free(struct lstack* ls, void* userdata, void (*deallocator) (void* item, void* userdata));
+void lstack_deinit(struct lstack* ls, void* context);
 
 /*───────────────────────────────────────────────
  * Push & Pop
