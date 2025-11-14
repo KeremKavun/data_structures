@@ -7,14 +7,9 @@ extern "C" {
 
 #include "../../debug/include/debug.h"
 #include "../../allocators/include/allocator_concept.h"
+#include "../internals/traversals.h"
+#include "../include/bintree.h"
 #include <stddef.h>
-
-enum bst_traversal_order
-{
-    PREORDER,
-    INORDER,
-    POSTORDER
-};
 
 enum bst_result_status
 {
@@ -32,7 +27,7 @@ typedef struct bst bst_t;
  *───────────────────────────────────────────────*/
 
 // Creates bst and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct allocator_concept ac);
+struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct allocator_concept* ac);
 void bst_destroy(struct bst* btree);
 
 /*───────────────────────────────────────────────
@@ -56,7 +51,7 @@ void* bst_max(struct bst* btree);
  * Iterations
  *───────────────────────────────────────────────*/
 
-void bst_walk(struct bst* btree, void* userdata, void (*handler) (void* item, void* userdata), enum bst_traversal_order order);
+void bst_walk(struct bst* btree, void* userdata, void (*handler) (void* item, void* userdata), enum traversal_order order);
 
 #ifdef __cplusplus
 }
