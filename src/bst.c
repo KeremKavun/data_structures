@@ -35,8 +35,11 @@ struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct al
 
 void bst_destroy(struct bst* btree)
 {
+    void (*deallocator) (void* item, void* userdata);
     if (!btree->ac)
         bst_walk(btree, NULL, free_node, POSTORDER);
+    else if (btree->ac && !btree->ac->allocator)
+        bst_walk(btree, NULL, (btree->ac && !btree->ac->free) ? free_node : btree->ac->free, POSTORDER);
     free(btree);
 }
 
