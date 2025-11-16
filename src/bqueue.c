@@ -12,7 +12,7 @@
 
 int bqueue_init(struct bqueue* bq, size_t obj_size)
 {
-    struct cbuffer* contents = cbuffer_create(obj_size);
+    struct cbuffer* contents = cbuffer_create(INITIAL_CAPACITY, obj_size);
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");

@@ -11,6 +11,7 @@ extern "C" {
 struct lqueue
 {
     struct dbly_linked_list* contents;
+    struct allocator_concept* ac;
 };
 
 typedef struct lqueue lqueue_t;
@@ -20,9 +21,9 @@ typedef struct lqueue lqueue_t;
  *───────────────────────────────────────────────*/
 
 // init queue, returns 0 if it succeeds, 1 otherwise
-int lqueue_init(struct lqueue* lq);
+int lqueue_init(struct lqueue* lq, struct allocator_concept* ac);
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
-void lqueue_free(struct lqueue* lq, void* userdata, void (*deallocator) (void* item, void* userdata));
+void lqueue_deinit(struct lqueue* lq, void* userdata, void (*deallocator) (void* item, void* userdata));
 
 /*───────────────────────────────────────────────
  * Enqueue & Dequeue
