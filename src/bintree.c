@@ -7,9 +7,9 @@ static void bintree_walk_subtree(struct bintree* tree, void* userdata, void (*ha
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_create(struct allocator_concept* ac)
+struct bintree* bintree_create(struct object_concept* oc)
 {
-    struct bintree* bintree = (ac && ac->allocator) ? ac->alloc(ac->allocator) : malloc(sizeof(struct bintree));
+    struct bintree* bintree = (oc && oc->allocator) ? oc->alloc(oc->allocator) : malloc(sizeof(struct bintree));
     if (!bintree)
     {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for bintree");
@@ -20,13 +20,15 @@ struct bintree* bintree_create(struct allocator_concept* ac)
     return bintree;
 }
 
-void bintree_destroy(struct bintree* tree, struct allocator_concept* ac)
+void bintree_destroy(struct bintree* tree, struct object_concept* oc)
 {
     if (!tree)
         return;
-    bintree_destroy(tree->left, ac);
-    bintree_destroy(tree->right, ac);
-    (ac && ac->allocator) ? ac->free(ac->allocator, tree) : free(tree);
+    bintree_destroy(tree->left, oc);
+    bintree_destroy(tree->right, oc);
+    if (oc->destruct)
+        oc->destruct(tree->data);
+    (oc && oc->allocator) ? oc->free(oc->allocator, tree) : free(tree);
 }
 
 /*───────────────────────────────────────────────

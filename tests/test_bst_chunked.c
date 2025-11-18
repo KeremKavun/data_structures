@@ -1,5 +1,6 @@
 #include "../include/bst.h"
 #include "../../allocators/include/chunked_pool.h"
+#include "../../concepts/include/object_concept.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,9 +51,8 @@ static void print_person(void* item, void* userdata)
     printf("[%d, %s, %d] ", p->id, p->name, p->age);
 }
 
-static void person_deallocator(void* item, void* userdata)
+static void person_deallocator(void* item)
 {
-    (void)userdata;
     Person* p = item;
     printf("Deallocating person: id=%d, name=%s, age=%d\n", p->id, p->name, p->age);
     free(p);
@@ -62,7 +62,7 @@ static void person_deallocator(void* item, void* userdata)
  * Test Cases
  *───────────────────────────────────────────────*/
 
-static struct bst* create_test_tree(struct allocator_concept* ac)
+static struct bst* create_test_tree(struct object_concept* ac)
 {
     return bst_create(person_cmp, ac);
 }
@@ -73,7 +73,7 @@ static void test_create_destroy(void)
     struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
     assert(pool);
 
-    struct allocator_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free};
+    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
     struct bst* tree = create_test_tree(&ac);
     assert(tree);
     assert(bst_empty(tree));
@@ -87,7 +87,7 @@ static void test_insert_and_search(void)
 {
     printf("TEST: insert/search complex objects\n");
     struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    struct allocator_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free};
+    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
     struct bst* tree = create_test_tree(&ac);
 
     Person* alice = make_person(3, "Alice", 30);
@@ -126,7 +126,7 @@ static void test_min_max(void)
 {
     printf("TEST: min/max complex objects\n");
     struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    struct allocator_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free};
+    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
     struct bst* tree = create_test_tree(&ac);
 
     Person* p1 = make_person(10, "Zoe", 24);
@@ -158,7 +158,7 @@ static void test_traversals(void)
 {
     printf("TEST: traversals complex objects\n");
     struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    struct allocator_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free};
+    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
     struct bst* tree = create_test_tree(&ac);
 
     Person* arr[] = {
@@ -195,7 +195,7 @@ static void test_removal(void)
 {
     printf("TEST: removal complex objects\n");
     struct chunked_pool* pool = chunked_pool_create(20, MAGIC);
-    struct allocator_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free};
+    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
     struct bst* tree = create_test_tree(&ac);
 
     int ids[] = {8, 3, 10, 1, 6, 14, 4, 7, 13};

@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
-#include "../../allocators/include/allocator_concept.h"
+#include "../../concepts/include/object_concept.h"
 #include "../internals/traversals.h"
 #include "../include/bintree.h"
 #include <stddef.h>
@@ -27,7 +27,7 @@ typedef struct bst bst_t;
  *───────────────────────────────────────────────*/
 
 // Creates bst and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct allocator_concept* ac);
+struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct object_concept* oc);
 void bst_destroy(struct bst* btree);
 
 /*───────────────────────────────────────────────
