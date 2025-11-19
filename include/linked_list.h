@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "../../concepts/include/object_concept.h"
 #include <stddef.h>
 
 // list_item struct
@@ -57,7 +58,7 @@ void list_walk(struct linked_list* ll, void* userdata, void (*handler) (void* it
 void list_reverse(struct linked_list* ll);
 // Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
 // where the object allocated (stack or heap?). Deallocator runs on every data member of the list_item
-void list_free(struct linked_list* ll, void* userdata, void (*deallocator) (void* data, void* userdata));
+void list_free(struct linked_list* ll, void* context, struct object_concept* oc);
 
 #ifdef __cplusplus
 }

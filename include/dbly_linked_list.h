@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "../../concepts/include/object_concept.h"
 #include <stddef.h>
 
 // dbly_list_item struct
@@ -63,9 +64,11 @@ void dbly_list_walk_front(struct dbly_linked_list* dll, void* userdata, void (*h
 void dbly_list_walk_back(struct dbly_linked_list* dll, void* userdata, void (*handler) (void* item, void* userdata));
 // Reverses the list
 void dbly_list_reverse(struct dbly_linked_list* dll);
-// Free the structure of the linked_list (not linked_list itself). Be careful about object pointers stored in the linked_list and
-// where the object allocated (stack or heap?). Deallocator runs on every data member of the dbly_list_item
-void dbly_list_free(struct dbly_linked_list* dll, void* userdata, void (*deallocator) (void* data, void* userdata));
+// Free the structure of the linked_list (not linked_list itself). Be careful
+// about object pointers stored in the linked_list and where the object
+// allocated (stack or heap?). Deallocator runs on every data member of the
+// dbly_list_item
+void dbly_list_free(struct dbly_linked_list *dll, void *context, struct object_concept *oc);
 
 #ifdef __cplusplus
 }
