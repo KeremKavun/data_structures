@@ -78,7 +78,7 @@ static void test_create_destroy(void)
     assert(tree);
     assert(bst_empty(tree));
 
-    bst_destroy(tree);       // No need to free nodes; pool owns memory
+    bst_destroy(tree, NULL);       // No need to free nodes; pool owns memory
     chunked_pool_destroy(pool);
     printf(" → PASSED\n\n");
 }
@@ -112,7 +112,7 @@ static void test_insert_and_search(void)
     Person notfound = {.id = 42};
     assert(bst_search(tree, &notfound) == NULL);
 
-    bst_destroy(tree);
+    bst_destroy(tree, NULL);
     chunked_pool_destroy(pool);
 
     free(alice);
@@ -144,7 +144,7 @@ static void test_min_max(void)
     assert(max && max->id == 20);
     printf(" Min: %s, Max: %s\n", min->name, max->name);
 
-    bst_destroy(tree);
+    bst_destroy(tree, NULL);
     chunked_pool_destroy(pool);
 
     free(p1);
@@ -182,7 +182,7 @@ static void test_traversals(void)
     bst_walk(tree, NULL, print_person, POSTORDER);
     printf("\n");
 
-    bst_destroy(tree);
+    bst_destroy(tree, NULL);
     chunked_pool_destroy(pool);
 
     for (int i = 0; i < 7; ++i)
@@ -227,7 +227,7 @@ static void test_removal(void)
     bst_walk(tree, NULL, print_person, INORDER);
     printf("\n");
 
-    bst_destroy(tree);
+    bst_destroy(tree, NULL);
     chunked_pool_destroy(pool);
 
     for (int i = 0; i < 9; ++i)

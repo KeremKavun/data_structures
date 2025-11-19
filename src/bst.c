@@ -32,9 +32,9 @@ struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct ob
     return tree;
 }
 
-void bst_destroy(struct bst* tree)
+void bst_destroy(struct bst* tree, void* context)
 {
-    bintree_destroy(tree->root, tree->oc);
+    bintree_destroy(tree->root, context, tree->oc);
     free(tree);
 }
 
@@ -89,7 +89,7 @@ enum bst_result_status bst_remove(struct bst* tree, void* data)
         node = successor;
     }
     if (tree->oc->destruct)
-        tree->oc->destruct(node->data);
+        tree->oc->destruct(node->data, NULL);
     (tree->oc && tree->oc->allocator) ? tree->oc->free(tree->oc->allocator, node) : free(node);
     tree->size--;
     return OK;

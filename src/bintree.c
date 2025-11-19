@@ -20,14 +20,14 @@ struct bintree* bintree_create(struct object_concept* oc)
     return bintree;
 }
 
-void bintree_destroy(struct bintree* tree, struct object_concept* oc)
+void bintree_destroy(struct bintree* tree, void* context, struct object_concept* oc)
 {
     if (!tree)
         return;
-    bintree_destroy(tree->left, oc);
-    bintree_destroy(tree->right, oc);
+    bintree_destroy(tree->left, context, oc);
+    bintree_destroy(tree->right, context, oc);
     if (oc->destruct)
-        oc->destruct(tree->data);
+        oc->destruct(tree->data, context);
     (oc && oc->allocator) ? oc->free(oc->allocator, tree) : free(tree);
 }
 

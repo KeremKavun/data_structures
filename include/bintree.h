@@ -25,7 +25,7 @@ typedef struct bintree bintree_t;
 
 // Creates bintree and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
 struct bintree* bintree_create(struct object_concept* oc);
-void bintree_destroy(struct bintree* tree, struct object_concept* oc);
+void bintree_destroy(struct bintree* tree, void* context, struct object_concept* oc);
 
 /*───────────────────────────────────────────────
  * Accessors
