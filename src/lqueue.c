@@ -3,13 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int lqueue_init(struct lqueue* lq)
+int lqueue_init(struct lqueue* lq, struct object_concept* oc)
 {
     struct dbly_linked_list* contents = malloc(sizeof(struct dbly_linked_list));
     if (!contents)
@@ -17,16 +16,18 @@ int lqueue_init(struct lqueue* lq)
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
-
     lq->contents = contents;
     dbly_list_init(lq->contents);
+    lq->oc = oc;
     return 0;
 }
 
-void lqueue_free(struct lqueue* lq, void* userdata, void (*deallocator) (void* item, void* userdata))
+void lqueue_deinit(struct lqueue* lq, void* context)
 {
-    dbly_list_free(lq->contents, userdata, deallocator);
+    dbly_list_free(lq->contents, context, lq->oc);
     free(lq->contents);
+    lq->contents = NULL;
+    lq->oc = NULL;
 }
 
 /*───────────────────────────────────────────────
@@ -35,13 +36,12 @@ void lqueue_free(struct lqueue* lq, void* userdata, void (*deallocator) (void* i
 
 int lenqueue(struct lqueue* lq, void* new_item)
 {
-    struct dbly_list_item* new_node = malloc(sizeof(struct dbly_list_item));
+    struct dbly_list_item* new_node = (lq->oc && lq->oc->allocator) ? lq->oc->alloc(lq->oc->allocator) : malloc(sizeof(struct dbly_list_item));
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
-
     dbly_list_item_init(new_node, new_item);
     dbly_list_insert_back(lq->contents, new_node);
     return 0;
@@ -53,7 +53,7 @@ void* ldequeue(struct lqueue* lq)
     if (!del)
         return NULL;
     void* data = del->data;
-    free(del);
+    (lq->oc && lq->oc->allocator) ? lq->oc->free(lq->oc->allocator, del) : free(del);
     return data;
 }
 

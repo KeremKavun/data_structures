@@ -6,12 +6,13 @@ extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
+#include "../../concepts/include/object_concept.h"
 #include <stddef.h>
 
 struct lqueue
 {
     struct dbly_linked_list* contents;
-    struct allocator_concept* ac;
+    struct object_concept* oc;
 };
 
 typedef struct lqueue lqueue_t;
@@ -20,10 +21,13 @@ typedef struct lqueue lqueue_t;
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-// init queue, returns 0 if it succeeds, 1 otherwise
-int lqueue_init(struct lqueue* lq, struct allocator_concept* ac);
+// init queue, returns 0 if it succeeds, 1 otherwise, oc is the object concept of the queue
+// Pass NULL to use malloc/free pairs as default, otherwise pass your own allocator concept
+int lqueue_init(struct lqueue* lq, struct object_concept* oc);
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
-void lqueue_deinit(struct lqueue* lq, void* userdata, void (*deallocator) (void* item, void* userdata));
+// If you supplied object_concept at the initialization, then first the destructor runs to free internal data,
+// then the allocator is used to free the element in the allocator
+void lqueue_deinit(struct lqueue* lq, void* context);
 
 /*───────────────────────────────────────────────
  * Enqueue & Dequeue

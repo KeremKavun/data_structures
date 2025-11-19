@@ -6,7 +6,6 @@ extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
-#include "../../allocators/include/allocator_concept.h"
 #include <stddef.h>
 
 // struct queue, 48 bytes in stack plus dynamically allocated 'contents' array at the heap
