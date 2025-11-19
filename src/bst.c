@@ -9,10 +9,6 @@ struct bst
     size_t size;
 };
 
-static struct bintree** bst_search_helper(struct bst* tree, const void* data);
-static struct bintree** bst_findmin(struct bintree** node_ref);
-static struct bintree** bst_findmax(struct bintree** node_ref);
-
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
@@ -42,37 +38,37 @@ void bst_destroy(struct bst* tree, void* context)
  * Operations
  *───────────────────────────────────────────────*/
 
-enum bst_result_status bst_add(struct bst* tree, void* new_data)
+enum trees_status bst_add(struct bst* tree, void* new_data)
 {
     LOG(LIB_LVL, CINFO, "Adding new data at %p", new_data);
-    struct bintree** curr = bst_search_helper(tree, new_data);
+    struct bintree** curr = bintree_search(&tree->root, new_data, tree->cmp);
     if (*curr)
     {
         LOG(LIB_LVL, CERROR, "Duplicate key");
-        return DUPLICATE_KEY;
+        return TREES_DUPLICATE_KEY;
     }
     struct bintree* new_node = bintree_create(tree->oc);
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for node");
-        return SYSTEM_ERROR;
+        return TREES_SYSTEM_ERROR;
     }
     new_node->left = NULL;
     new_node->right = NULL;
     new_node->data = new_data;
     *curr = new_node;
     tree->size++;
-    return OK;
+    return TREES_OK;
 }
 
-enum bst_result_status bst_remove(struct bst* tree, void* data)
+enum trees_status bst_remove(struct bst* tree, void* data)
 {
     LOG(LIB_LVL, CINFO, "Removing data at %p", data);
-    struct bintree** target = bst_search_helper(tree, data);
+    struct bintree** target = bintree_search(&tree->root, data, tree->cmp);
     if (!(*target))
     {
         LOG(LIB_LVL, CERROR, "Key not found");
-        return NOT_FOUND;
+        return TREES_NOT_FOUND;
     }
     struct bintree* node = *target;
     if (!node->left)
@@ -81,7 +77,7 @@ enum bst_result_status bst_remove(struct bst* tree, void* data)
         *target = node->left;
     else
     {
-        struct bintree** min = bst_findmin(&node->right);
+        struct bintree** min = bintree_findmin(&node->right);
         struct bintree* successor = *min;
         *min = successor->right;
         node->data = successor->data;
@@ -92,12 +88,12 @@ enum bst_result_status bst_remove(struct bst* tree, void* data)
         tree->oc->destruct(node->data, NULL);
     (tree->oc && tree->oc->allocator) ? tree->oc->free(tree->oc->allocator, node) : free(node);
     tree->size--;
-    return OK;
+    return TREES_OK;
 }
 
 void* bst_search(struct bst* tree, const void* data)
 {
-    struct bintree** target = bst_search_helper(tree, data);
+    struct bintree** target = bintree_search(&tree->root, data, tree->cmp);
     if (!(*target))
     {
         LOG(LIB_LVL, CERROR, "Key not found");
@@ -122,13 +118,13 @@ size_t bst_size(const struct bst* tree)
 
 void* bst_min(struct bst* tree)
 {
-    struct bintree** min_ref = bst_findmin(&tree->root);
+    struct bintree** min_ref = bintree_findmin(&tree->root);
     return min_ref ? (*min_ref)->data : NULL;
 }
 
 void* bst_max(struct bst* tree)
 {
-    struct bintree** max_ref = bst_findmax(&tree->root);
+    struct bintree** max_ref = bintree_findmax(&tree->root);
     return max_ref ? (*max_ref)->data : NULL;
 }
 
@@ -139,42 +135,4 @@ void* bst_max(struct bst* tree)
 void bst_walk(struct bst* tree, void* userdata, void (*handler) (void* item, void* userdata), enum traversal_order order)
 {
     bintree_walk(tree->root, userdata, handler, order);
-}
-
-// *** Helper functions *** //
-
-static struct bintree** bst_search_helper(struct bst* tree, const void* data)
-{
-    struct bintree** curr = &tree->root;
-    while (*curr)
-    {
-        int result = tree->cmp(data, (*curr)->data);
-        if (result < 0)
-            curr = &(*curr)->left;
-        else if (result > 0)
-            curr = &(*curr)->right;
-        else
-            return curr;
-    }
-    return curr;
-}
-
-static struct bintree** bst_findmin(struct bintree** node_ref)
-{
-    if (!node_ref || !*node_ref)
-        return NULL;
-    struct bintree** curr = node_ref;
-    while ((*curr)->left)
-        curr = &(*curr)->left;
-    return curr;
-}
-
-static struct bintree** bst_findmax(struct bintree** node_ref)
-{
-    if (!node_ref || !*node_ref)
-        return NULL;
-    struct bintree** curr = node_ref;
-    while ((*curr)->right)
-        curr = &(*curr)->right;
-    return curr;
 }
