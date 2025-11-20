@@ -3,13 +3,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <math.h>
 
 #define BASE_PRIME 53
 #define UP_LOAD_RATIO 0.7
 #define DOWN_LOAD_RATIO 0.1
 #define FACTOR_UP 2
 #define FACTOR_DOWN 0.5
+
+struct ht_item
+{
+   void* key;
+   void* value;
+};
+
+struct hash_table
+{
+   struct ht_item* items;
+   size_t capacity;
+   size_t size;
+   size_t (*hash) (const void* key, size_t capacity, size_t attempts);
+   int (*cmp_key) (const void* obj1, const void* obj2);
+};
 
 // ht_item helpers
 
@@ -29,7 +43,8 @@ static int is_deleted(struct ht_item* item);
 
 // hash_table helpers
 
-// init_ht helper. Inits size and memory realted attributes.
+static void ht_free_content(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata));
+// hash_table_init helper. Inits size and memory realted attributes.
 // Leaves object's state the same as before the function call in case of failure
 static int init_size_ht(struct hash_table* ht, size_t capacity);
 // Resize hash_table, returns 0 if it succeeds, 1 otherwise
@@ -44,37 +59,63 @@ static int resize_down(struct hash_table* ht);
 
 static void* deleted;
 
-struct ht_item
-{
-   void* key;
-   void* value;
-};
+/*───────────────────────────────────────────────
+ * Lifecycle
+ *───────────────────────────────────────────────*/
 
-struct hash_table* init_ht
-(
-    struct hash_table* ht,
-    size_t (*hash) (const void* key, size_t capacity, size_t attempts),
-    int (*cmp_key) (const void* obj1, const void* obj2)
-)
+int hash_table_init(struct hash_table* ht, size_t (*hash) (const void* key, size_t capacity, size_t attempts), int (*cmp_key) (const void* obj1, const void* obj2))
 {
     if (init_size_ht(ht, BASE_PRIME) != 0)
     {
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
-        return NULL;
+        return 1;
     }
     ht->hash = hash;
     ht->cmp_key = cmp_key;
+    return 0;
+}
+
+struct hash_table* hash_table_create(size_t (*hash) (const void* key, size_t capacity, size_t attempts), int (*cmp_key) (const void* obj1, const void* obj2))
+{
+    struct hash_table* ht = malloc(sizeof(*ht));
+    if (ht == NULL)
+    {
+        LOG(LIB_LVL, CERROR, "malloc failed");
+        return NULL;
+    }
+    if (hash_table_init(ht, hash, cmp_key) != 0)
+    {
+        LOG(LIB_LVL, CERROR, "hash_table_init failed");
+        free(ht);
+        return NULL;
+    }
     return ht;
 }
 
-int insert_ht(struct hash_table* ht, void* key, void* value)
+void hash_table_deinit(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata))
+{
+    ht_free_content(ht, userdata, deallocator);
+    // set everything to zero
+    memset(ht, 0, sizeof(*ht));
+}
+
+void hash_table_destroy(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata))
+{
+    ht_free_content(ht, userdata, deallocator);
+    free(ht);
+}
+
+/*───────────────────────────────────────────────
+ * Insertion & removal
+ *───────────────────────────────────────────────*/
+
+int hash_table_insert(struct hash_table* ht, void* key, void* value)
 {
     if (ht == NULL || key == NULL || value == NULL)
     {
         LOG(LIB_LVL, CERROR, "Invalid argument(s)");
         return 1;
     }
-
     const float load = (float) ht->size / ht->capacity;
     if (load >= UP_LOAD_RATIO)
     {
@@ -84,7 +125,6 @@ int insert_ht(struct hash_table* ht, void* key, void* value)
             return 1;
         }
     }
-
     int attempts = 0;
     int index = ht->hash(key, ht->capacity, attempts);
     struct ht_item* curr_item = &ht->items[index];
@@ -105,42 +145,18 @@ int insert_ht(struct hash_table* ht, void* key, void* value)
         index = ht->hash(key, ht->capacity, attempts);
         curr_item = &ht->items[index];
     }
-
     init_item((first_deleted) ? first_deleted : curr_item, key, value);
     ht->size++;
     return 0;
 }
 
-void* search_ht(struct hash_table* ht, const void* key)
-{
-    if (ht == NULL || key == NULL)
-    {
-        LOG(LIB_LVL, CERROR, "Invalid argument(s)");
-        return NULL;
-    }
-
-    int attempts = 0;
-    int index = ht->hash(key, ht->capacity, attempts);
-    struct ht_item* curr_item = &ht->items[index];
-    while (!is_null(curr_item))
-    {
-        if (!is_deleted(curr_item) && ht->cmp_key(get_key(curr_item), key) == 0)
-            return curr_item->value;
-        attempts++;
-        index = ht->hash(key, ht->capacity, attempts);
-        curr_item = &ht->items[index];
-    }
-    return NULL; // Key not found
-}
-
-int delete_ht(struct hash_table* ht, const void* key)
+int hash_table_delete(struct hash_table* ht, const void* key)
 {
     if (ht == NULL || key == NULL)
     {
         LOG(LIB_LVL, CERROR, "Invalid argument(s)");
         return 1;
     }
-
     int attempts = 0;
     int index = ht->hash(key, ht->capacity, attempts);
     struct ht_item* curr_item = &ht->items[index];
@@ -170,25 +186,58 @@ int delete_ht(struct hash_table* ht, const void* key)
         index = ht->hash(key, ht->capacity, attempts);
         curr_item = &ht->items[index];
     }
-
     LOG(LIB_LVL, CERROR, "The key to be deleted couldnt be found");
     return 1;
 }
 
-void walk_ht(struct hash_table* ht, void* userdata, void (*exec) (void* key, void* value, void* userdata))
+/*───────────────────────────────────────────────
+ * Properties
+ *───────────────────────────────────────────────*/
+
+size_t hash_table_size(const struct hash_table* ht)
+{
+    return ht->size;
+}
+
+size_t hash_table_capacity(const struct hash_table* ht)
+{
+    return ht->capacity;
+}
+
+/*───────────────────────────────────────────────
+ * Search
+ *───────────────────────────────────────────────*/
+
+void* hash_table_search(struct hash_table* ht, const void* key)
+{
+    if (ht == NULL || key == NULL)
+    {
+        LOG(LIB_LVL, CERROR, "Invalid argument(s)");
+        return NULL;
+    }
+    int attempts = 0;
+    int index = ht->hash(key, ht->capacity, attempts);
+    struct ht_item* curr_item = &ht->items[index];
+    while (!is_null(curr_item))
+    {
+        if (!is_deleted(curr_item) && ht->cmp_key(get_key(curr_item), key) == 0)
+            return curr_item->value;
+        attempts++;
+        index = ht->hash(key, ht->capacity, attempts);
+        curr_item = &ht->items[index];
+    }
+    return NULL; // Key not found
+}
+
+/*───────────────────────────────────────────────
+ * Iteration
+ *───────────────────────────────────────────────*/
+
+void hash_table_walk(struct hash_table* ht, void* userdata, void (*exec) (void* key, void* value, void* userdata))
 {
     for (size_t i = 0; i < ht->capacity; i++)
         if (!is_null(&ht->items[i]) && !is_deleted(&ht->items[i]))
             exec(ht->items[i].key, ht->items[i].value, userdata);
-}
-
-void free_ht(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata))
-{
-    if (deallocator)
-        walk_ht(ht, userdata, deallocator);
-    free(ht->items);
-    // set everything to zero
-    memset(ht, 0, sizeof(*ht));
 }
 
 // *** Helper functions *** //
@@ -256,6 +305,13 @@ static inline int is_deleted(struct ht_item* item)
     return (get_key(item) == &deleted && get_value(item) == &deleted);
 }
 
+static void ht_free_content(struct hash_table* ht, void* userdata, void (*deallocator) (void* key, void* value, void* userdata))
+{
+    if (deallocator)
+        hash_table_walk(ht, userdata, deallocator);
+    free(ht->items);
+}
+
 static int resize(struct hash_table* ht, float factor)
 {
     FILE* db = dbborrow();
@@ -264,24 +320,20 @@ static int resize(struct hash_table* ht, float factor)
         LOG(LIB_LVL, CWARNING, "dbborrow failed, cannot access prime database");
         return 1;
     }
-
     size_t new_capacity = nthprime(db, (long) (pi(db, ht->capacity)) * factor);
     if (new_capacity <= BASE_PRIME)
     {
         LOG(LIB_LVL, CINFO, "Didnt resize down the hash table since it has minimum size defined by the implementation, returning success");
         return 0;
     }
-
     struct ht_item* old_items = ht->items;
     size_t old_capacity = ht->capacity;
-
     if (init_size_ht(ht, nthprime(db, (long) (pi(db, old_capacity)) * factor)) != 0)
     {
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
         return 1;
     }
-
-    // Could not reuse insert_ht code because objects pointed to by key value pairs are already owned by this hash_table
+    // Could not reuse hash_table_insert code because objects pointed to by key value pairs are already owned by this hash_table
     // So it is okay to copy, nothing redundant dynamic allocation and copy here
     for (size_t i = 0; i < old_capacity; i++)
     {
@@ -300,7 +352,6 @@ static int resize(struct hash_table* ht, float factor)
             *curr_slot = *curr_item;
         }
     }
-
     free(old_items);
     return 0;
 }
