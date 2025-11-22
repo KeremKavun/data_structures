@@ -1,13 +1,13 @@
 #include "../../include/bintree.h"
 #include <stdlib.h>
 
-static void bintree_walk_subtree(struct bintree* tree, void* userdata, void (*handler) (void* item, void* userdata), int *func_index_array);
+static void bintree_walk_subtree(struct bintree* tree, void* userdata, void (*handler) (void* data, void* userdata), int *func_index_array);
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_create(struct object_concept* oc)
+struct bintree* bintree_create(void* data, struct object_concept* oc)
 {
     struct bintree* bintree = (oc && oc->allocator) ? oc->alloc(oc->allocator) : malloc(sizeof(struct bintree));
     if (!bintree)
@@ -17,6 +17,7 @@ struct bintree* bintree_create(struct object_concept* oc)
     }
     bintree->left = NULL;
     bintree->right = NULL;
+    bintree->data = data;
     return bintree;
 }
 
@@ -26,7 +27,7 @@ void bintree_destroy(struct bintree* tree, void* context, struct object_concept*
         return;
     bintree_destroy(tree->left, context, oc);
     bintree_destroy(tree->right, context, oc);
-    if (oc->destruct)
+    if (oc && oc->destruct)
         oc->destruct(tree->data, context);
     (oc && oc->allocator) ? oc->free(oc->allocator, tree) : free(tree);
 }
@@ -56,50 +57,10 @@ void* bintree_data(struct bintree* tree)
 }
 
 /*───────────────────────────────────────────────
- * Search
- *───────────────────────────────────────────────*/
-
-struct bintree** bintree_search(struct bintree** tree, const void* data, int (*cmp) (const void* key, const void* data))
-{
-    struct bintree** curr = tree;
-    while (*curr)
-    {
-        int result = cmp(data, (*curr)->data);
-        if (result < 0)
-            curr = &(*curr)->left;
-        else if (result > 0)
-            curr = &(*curr)->right;
-        else
-            return curr;
-    }
-    return curr;
-}
-
-struct bintree** bintree_findmin(struct bintree** node_ref)
-{
-    if (!node_ref || !*node_ref)
-        return NULL;
-    struct bintree** curr = node_ref;
-    while ((*curr)->left)
-        curr = &(*curr)->left;
-    return curr;
-}
-
-struct bintree** bintree_findmax(struct bintree** node_ref)
-{
-    if (!node_ref || !*node_ref)
-        return NULL;
-    struct bintree** curr = node_ref;
-    while ((*curr)->right)
-        curr = &(*curr)->right;
-    return curr;
-}
-
-/*───────────────────────────────────────────────
  * Traversal
  *───────────────────────────────────────────────*/
 
-void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* item, void* userdata), enum traversal_order order)
+void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* data, void* userdata), enum traversal_order order)
 {
     int func_index_array[3] = {0, 0, 0};
     func_index_array[order] = 1;
@@ -108,7 +69,7 @@ void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* i
 
 // *** Helper functions *** //
 
-static void bintree_walk_subtree(struct bintree* tree, void* userdata, void (*handler) (void* item, void* userdata), int *func_index_array)
+static void bintree_walk_subtree(struct bintree* tree, void* userdata, void (*handler) (void* data, void* userdata), int *func_index_array)
 {
     if (!tree)
         return;

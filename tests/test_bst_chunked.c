@@ -6,7 +6,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define MAGIC 24
+#define MAGIC bst_node_sizeof()
 
 /*───────────────────────────────────────────────
  * Data structure
@@ -94,13 +94,13 @@ static void test_insert_and_search(void)
     Person* bob   = make_person(1, "Bob", 25);
     Person* carol = make_person(5, "Carol", 28);
 
-    assert(bst_add(tree, alice) == OK);
-    assert(bst_add(tree, bob)   == OK);
-    assert(bst_add(tree, carol) == OK);
+    assert(bst_add(tree, alice) == TREES_OK);
+    assert(bst_add(tree, bob)   == TREES_OK);
+    assert(bst_add(tree, carol) == TREES_OK);
 
     // Duplicate ID
     Person* dup = make_person(3, "Alice Clone", 99);
-    assert(bst_add(tree, dup) == DUPLICATE_KEY);
+    assert(bst_add(tree, dup) == TREES_DUPLICATE_KEY);
     free(dup); // not inserted
 
     // Search existing
@@ -209,19 +209,19 @@ static void test_removal(void)
 
     // Remove leaf (13)
     Person k1 = {.id = 13};
-    assert(bst_remove(tree, &k1) == OK);
+    assert(bst_remove(tree, &k1) == TREES_OK);
 
     // Remove one-child (14)
     Person k2 = {.id = 14};
-    assert(bst_remove(tree, &k2) == OK);
+    assert(bst_remove(tree, &k2) == TREES_OK);
 
     // Remove two-children (3)
     Person k3 = {.id = 3};
-    assert(bst_remove(tree, &k3) == OK);
+    assert(bst_remove(tree, &k3) == TREES_OK);
 
     // Not found
     Person k4 = {.id = 99};
-    assert(bst_remove(tree, &k4) == NOT_FOUND);
+    assert(bst_remove(tree, &k4) == TREES_NOT_FOUND);
 
     printf(" Inorder after removals: ");
     bst_walk(tree, NULL, print_person, INORDER);

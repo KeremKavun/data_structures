@@ -24,7 +24,7 @@ typedef struct bintree bintree_t;
  *───────────────────────────────────────────────*/
 
 // Creates bintree and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct bintree* bintree_create(struct object_concept* oc);
+struct bintree* bintree_create(void* data, struct object_concept* oc);
 void bintree_destroy(struct bintree* tree, void* context, struct object_concept* oc);
 size_t bintree_sizeof();
 
@@ -37,18 +37,10 @@ struct bintree* bintree_right(const struct bintree* tree);
 void* bintree_data(struct bintree* tree);
 
 /*───────────────────────────────────────────────
- * Search
- *───────────────────────────────────────────────*/
-
-struct bintree** bintree_search(struct bintree** tree, const void* data, int (*cmp) (const void* key, const void* data));
-struct bintree** bintree_findmin(struct bintree** node_ref);
-struct bintree** bintree_findmax(struct bintree** node_ref);
-
-/*───────────────────────────────────────────────
  * Traversals
  *───────────────────────────────────────────────*/
 
-void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* item, void* userdata), enum traversal_order order);
+void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* data, void* userdata), enum traversal_order order);
 
 /*───────────────────────────────────────────────
  * Properties

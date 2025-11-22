@@ -9,7 +9,7 @@ extern "C" {
 #include "../../concepts/include/object_concept.h"
 #include "../internals/traversals.h"
 #include "../internals/status.h"
-#include "../include/bintree.h"
+#include "../internals/binsearch_tree.h"
 #include <stddef.h>
 
 struct bst;
@@ -22,6 +22,7 @@ typedef struct bst bst_t;
 // Creates bst and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
 struct bst* bst_create(int (*cmp) (const void* key, const void* data), struct object_concept* oc);
 void bst_destroy(struct bst* tree, void* context);
+size_t bst_node_sizeof();
 
 /*───────────────────────────────────────────────
  * Operations
@@ -37,14 +38,12 @@ void* bst_search(struct bst* tree, const void* data);
 
 int bst_empty(const struct bst* tree);
 size_t bst_size(const struct bst* tree);
-void* bst_min(struct bst* tree);
-void* bst_max(struct bst* tree);
 
 /*───────────────────────────────────────────────
  * Iterations
  *───────────────────────────────────────────────*/
 
-void bst_walk(struct bst* tree, void* userdata, void (*handler) (void* item, void* userdata), enum traversal_order order);
+void bst_walk(struct bst* tree, void* userdata, void (*handler) (void* data, void* userdata), enum traversal_order order);
 
 #ifdef __cplusplus
 }
