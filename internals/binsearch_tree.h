@@ -1,5 +1,5 @@
 #ifndef BINSEARCH_TREE_H
-#define BINSEARCH_TRE_H
+#define BINSEARCH_TREE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,4 +13,4 @@ struct bintree** bintree_search(struct bintree** tree, const void* data, int (*c
 }
 #endif
 
-#endif // BINSEARCH_TRE_H
+#endif // BINSEARCH_TREE_H

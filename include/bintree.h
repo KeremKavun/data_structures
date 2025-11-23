@@ -33,7 +33,9 @@ size_t bintree_sizeof();
  *───────────────────────────────────────────────*/
 
 struct bintree* bintree_left(const struct bintree* tree);
+const struct bintree* bintree_left_const(const struct bintree* tree);
 struct bintree* bintree_right(const struct bintree* tree);
+const struct bintree* bintree_right_const(const struct bintree* tree);
 void* bintree_data(struct bintree* tree);
 
 /*───────────────────────────────────────────────

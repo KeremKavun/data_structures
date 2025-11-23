@@ -1,4 +1,4 @@
-prefix=/home/kerem/code/C_codes
+prefix=/home/kerem/code/c
 libdir=${prefix}/trees/bin
 includedir=${prefix}/trees/include
 

@@ -36,6 +36,7 @@ void* bst_search(struct bst* tree, const void* data);
  * Accessors
  *───────────────────────────────────────────────*/
 
+const struct bintree* bst_root(const struct bst* tree);
 int bst_empty(const struct bst* tree);
 size_t bst_size(const struct bst* tree);
 

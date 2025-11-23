@@ -110,6 +110,11 @@ void* bst_search(struct bst* tree, const void* data)
  * Accessors
  *───────────────────────────────────────────────*/
 
+const struct bintree* bst_root(const struct bst* tree)
+{
+    return (const struct bintree*) tree->root;
+}
+
 int bst_empty(const struct bst* tree)
 {
     return tree->root == NULL;

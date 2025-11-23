@@ -17,7 +17,7 @@ int bintree_height(const struct bintree* tree)
     int depth = 0;
     struct lqueue lq;
     lqueue_init(&lq, NULL);
-    lenqueue(&lq, tree);
+    lenqueue(&lq, (struct bintree*) tree);
     while (!lqueue_empty(&lq))
     {
         size_t level_size = lqueue_size(&lq);

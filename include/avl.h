@@ -35,6 +35,7 @@ void* avl_search(struct avl* btree, const void* data);
  * Accessors
  *───────────────────────────────────────────────*/
 
+const struct bintree* avl_root(const struct avl* tree);
 int avl_empty(const struct avl* btree);
 size_t avl_size(const struct avl* btree);
 

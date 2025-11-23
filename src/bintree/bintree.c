@@ -41,12 +41,22 @@ size_t bintree_sizeof()
  * Accessors
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_left(const struct bintree* tree)
+struct bintree* bintree_left(struct bintree* tree)
 {
     return tree->left;
 }
 
-struct bintree* bintree_right(const struct bintree* tree)
+const struct bintree* bintree_left_const(const struct bintree* tree)
+{
+    return tree->left;
+}
+
+struct bintree* bintree_right(struct bintree* tree)
+{
+    return tree->right;
+}
+
+const struct bintree* bintree_right_const(const struct bintree* tree)
 {
     return tree->right;
 }
