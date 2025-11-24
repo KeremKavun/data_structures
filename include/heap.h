@@ -1,59 +1,46 @@
-#ifndef BIN_TREE_H
-#define BIN_TREE_H
+#ifndef HEAP_H
+#define HEAP_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "../../debug/include/debug.h"
-#include "../../concepts/include/object_concept.h"
-#include "../internals/traversals.h"
+#include "../internals/status.h"
+#include "../../buffers/internal/buffers_common.h"
 #include <stddef.h>
 
-struct bintree
-{
-    struct bintree* left;
-    struct bintree* right;
-    void* data;
-};
-
-typedef struct bintree bintree_t;
+struct heap;
+typedef struct heap heap_t;
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-// Creates bintree and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct bintree* bintree_create(void* data, struct object_concept* oc);
-void bintree_destroy(struct bintree* tree, void* context, struct object_concept* oc);
-size_t bintree_sizeof();
+struct heap* heap_create(char* stack_ptr, size_t capacity, int resize, int (*cmp) (const void* a, const void* b));
+void heap_destroy(struct heap* tree, void* context, void (*deallocator) (void* item, void* context));
+
+/*───────────────────────────────────────────────
+ * Operations
+ *───────────────────────────────────────────────*/
+int heap_add(struct heap* tree, void* new_data);
+void* heap_remove(struct heap* tree);
 
 /*───────────────────────────────────────────────
  * Accessors
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_left(struct bintree* tree);
-const struct bintree* bintree_left_const(const struct bintree* tree);
-struct bintree* bintree_right(struct bintree* tree);
-const struct bintree* bintree_right_const(const struct bintree* tree);
-void* bintree_data(struct bintree* tree);
+int heap_empty(const struct heap* tree);
+size_t heap_size(const struct heap* tree);
 
 /*───────────────────────────────────────────────
- * Traversals
+ * Iterations
  *───────────────────────────────────────────────*/
 
-void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* data, void* userdata), enum traversal_order order);
-
-/*───────────────────────────────────────────────
- * Properties
- *───────────────────────────────────────────────*/
-
-size_t bintree_size(const struct bintree* tree);
-int bintree_height(const struct bintree* tree);
-int bintree_balance_factor(const struct bintree* tree);
+void heap_walk(struct heap* tree, void* userdata, void (*handler) (void* data, void* userdata));
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // BIN_TREE_H
+#endif // HEAP_H

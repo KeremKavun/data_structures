@@ -31,7 +31,7 @@ static struct avl_node* avl_insert_balance_right(struct avl_node* root, bool* ta
 static struct avl_node* avl_remove_helper(struct avl* tree, struct avl_node* root, void* data, bool* shorter, bool* success);
 static struct avl_node* avl_remove_balance_left(struct avl_node* root, bool* shorter);
 static struct avl_node* avl_remove_balance_right(struct avl_node* root, bool* shorter);
-static struct avl_node* avl_remove_del_node(struct avl* tree, struct avl_node* root, bool* shorter, bool* success, struct bintree* (*it)(const struct bintree* tree)); 
+static struct avl_node* avl_remove_del_node(struct avl* tree, struct avl_node* root, bool* shorter, bool* success, struct bintree* (*it)(struct bintree* tree)); 
 static struct avl_node* rotate_left(struct avl_node* root);
 static struct avl_node* rotate_right(struct avl_node* root);
 
@@ -476,7 +476,7 @@ static struct avl_node* avl_remove_balance_right(struct avl_node* root, bool* sh
     return root;
 }
 
-static struct avl_node* avl_remove_del_node(struct avl* tree, struct avl_node* root, bool* shorter, bool* success, struct bintree* (*it) (const struct bintree* tree))
+static struct avl_node* avl_remove_del_node(struct avl* tree, struct avl_node* root, bool* shorter, bool* success, struct bintree* (*it) (struct bintree* tree))
 {
     struct avl_node* new_root = (struct avl_node*) it((struct bintree*) root);
     *shorter = true;
