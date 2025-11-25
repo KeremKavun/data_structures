@@ -17,8 +17,9 @@ typedef struct heap heap_t;
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-struct heap* heap_create(char* stack_ptr, size_t capacity, int resize, int (*cmp) (const void* a, const void* b));
-void heap_destroy(struct heap* tree, void* context, void (*deallocator) (void* item, void* context));
+int heap_init(struct heap* tree, char* stack_ptr, size_t capacity, int resize, int (*cmp) (const void* a, const void* b));
+void heap_deinit(struct heap* tree, void* context, void (*deallocator) (void* item, void* context));
+size_t heap_sizeof();
 
 /*───────────────────────────────────────────────
  * Operations

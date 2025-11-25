@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "../include/heap.h" 
+#include "../../utils/include/stack_alloc.h"
 
 /*───────────────────────────────────────────────
  * Test Helpers & Mock Data
@@ -57,7 +58,8 @@ void test_lifecycle_and_properties() {
 
     // Initialize Heap (Capacity 10, Resize 1/True)
     char array[10 * sizeof(void*)];
-    struct heap* h = heap_create(array, sizeof(array) / (sizeof(array[0]) * sizeof(void*)), NO_RESIZE, compare_ints);
+    STACK_ALLOC(struct heap, h, heap_sizeof());
+    heap_init(h, array, sizeof(array) / (sizeof(array[0]) * sizeof(void*)), NO_RESIZE, compare_ints);
     assert(h != NULL);
     assert(heap_empty(h) == 1);
     assert(heap_size(h) == 0);
@@ -100,7 +102,7 @@ void test_lifecycle_and_properties() {
     assert(heap_empty(h) == 1);
 
     // Destroy empty heap
-    heap_destroy(h, NULL, custom_deallocator);
+    heap_deinit(h, NULL, custom_deallocator);
     
     printf("PASSED\n");
 }
@@ -112,7 +114,8 @@ void test_resizing_and_cleanup() {
     free_counter = 0;
 
     // Create small heap (Capacity 2)
-    struct heap* h = heap_create(NULL, 2, AUTO_RESIZE, compare_ints);
+    STACK_ALLOC(struct heap, h, heap_sizeof());
+    heap_init(h, NULL, 2, AUTO_RESIZE, compare_ints);
     
     // Add 5 items (triggering resize)
     for (int i = 0; i < 5; i++) {
@@ -126,7 +129,7 @@ void test_resizing_and_cleanup() {
 
     // Destroy heap with items still in it
     // This should trigger custom_deallocator 5 times
-    heap_destroy(h, NULL, custom_deallocator);
+    heap_deinit(h, NULL, custom_deallocator);
 
     assert(free_counter == 5);
 
