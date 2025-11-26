@@ -5,7 +5,7 @@ struct bintree** bintree_search(struct bintree** tree, const void* data, int (*c
     struct bintree** curr = tree;
     while (*curr)
     {
-        int result = cmp(data, (*curr)->data);
+        int result = cmp(data, bintree_get_data(*curr));
         if (result < 0)
             curr = &(*curr)->left;
         else if (result > 0)

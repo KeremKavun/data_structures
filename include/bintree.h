@@ -29,14 +29,18 @@ void bintree_destroy(struct bintree* tree, void* context, struct object_concept*
 size_t bintree_sizeof();
 
 /*───────────────────────────────────────────────
- * Accessors
+ * Operations
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_left(struct bintree* tree);
-const struct bintree* bintree_left_const(const struct bintree* tree);
-struct bintree* bintree_right(struct bintree* tree);
-const struct bintree* bintree_right_const(const struct bintree* tree);
-void* bintree_data(struct bintree* tree);
+struct bintree* bintree_get_left(struct bintree* tree);
+const struct bintree* bintree_get_left_const(const struct bintree* tree);
+void bintree_set_left(struct bintree* tree, struct bintree* left);
+struct bintree* bintree_get_right(struct bintree* tree);
+const struct bintree* bintree_get_right_const(const struct bintree* tree);
+void bintree_set_right(struct bintree* tree, struct bintree* right);
+void* bintree_get_data(struct bintree* tree);
+const void* bintree_get_data_const(const struct bintree* tree);
+void bintree_set_data(struct bintree* tree, void* data);
 
 /*───────────────────────────────────────────────
  * Traversals

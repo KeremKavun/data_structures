@@ -41,29 +41,49 @@ size_t bintree_sizeof()
  * Accessors
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_left(struct bintree* tree)
+struct bintree* bintree_get_left(struct bintree* tree)
 {
     return tree->left;
 }
 
-const struct bintree* bintree_left_const(const struct bintree* tree)
+const struct bintree* bintree_get_left_const(const struct bintree* tree)
 {
     return tree->left;
 }
 
-struct bintree* bintree_right(struct bintree* tree)
+void bintree_set_left(struct bintree* tree, struct bintree* left)
+{
+    tree->left = left;
+}
+
+struct bintree* bintree_get_right(struct bintree* tree)
 {
     return tree->right;
 }
 
-const struct bintree* bintree_right_const(const struct bintree* tree)
+const struct bintree* bintree_get_right_const(const struct bintree* tree)
 {
     return tree->right;
 }
 
-void* bintree_data(struct bintree* tree)
+void bintree_set_right(struct bintree* tree, struct bintree* right)
+{
+    tree->right = right;
+}
+
+void* bintree_get_data(struct bintree* tree)
 {
     return tree->data;
+}
+
+const void* bintree_get_data_const(const struct bintree* tree)
+{
+    return tree->data;
+}
+
+void bintree_set_data(struct bintree* tree, void* data)
+{
+    tree->data = data;
 }
 
 /*───────────────────────────────────────────────

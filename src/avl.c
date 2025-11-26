@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <signal.h>
 
 enum avl_balance
 {
@@ -328,9 +327,9 @@ static struct avl_node* avl_remove_helper(struct avl* tree, struct avl_node* roo
     {
         // Just delete the root, leaf node
         if (!root->btree.left)
-            return avl_remove_del_node(tree, root, shorter, success, bintree_right);
+            return avl_remove_del_node(tree, root, shorter, success, bintree_get_right);
         else if (!root->btree.right)
-            return avl_remove_del_node(tree, root, shorter, success, bintree_left);
+            return avl_remove_del_node(tree, root, shorter, success, bintree_get_left);
         // Two subtree, exchange root with left max or right min and continue probing
         else
         {

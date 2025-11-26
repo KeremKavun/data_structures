@@ -7,13 +7,11 @@ extern "C" {
 
 #include "../../debug/include/debug.h"
 #include "../../concepts/include/object_concept.h"
-#include "../internals/traversals.h"
 #include <stddef.h>
 
 struct mway_header
 {
     size_t capacity;
-    size_t size;
 };
 
 #define GENERATE_MWAYTREE(N)                    \
@@ -30,14 +28,21 @@ struct mway_header
  * Lifecycle
  *───────────────────────────────────────────────*/
 
+int mway_init(struct mway_header* header, size_t m);
 struct mway_header* mway_create(size_t m, struct object_concept* oc);
+void mway_deinit(struct mway_header* header, void* context, void (*deallocator) (void* item, void* context));
 void mway_destroy(struct mway_header* header, void* context, struct object_concept* oc);
+size_t mway_sizeof(size_t m);
 
 /*───────────────────────────────────────────────
  * Operations
  *───────────────────────────────────────────────*/
 
-
+struct mway_header* mway_get_child(struct mway_header* header, size_t index);
+const struct mway_header* mway_get_child_const(const struct mway_header* header, size_t index);
+void* mway_get_data(struct mway_header* header, size_t index);
+const void* mway_get_data_const(const struct mway_header* header, size_t index);
+void mway_set_data(struct mway_header* header, size_t index, void* data);
 
 #ifdef __cplusplus
 }
