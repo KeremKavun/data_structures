@@ -72,7 +72,7 @@ size_t avl_node_sizeof()
 enum trees_status avl_add(struct avl* tree, void* new_data)
 {
     //raise(SIGUSR1); // Debug signal to track memory allocations
-    struct avl_node* new_node = (struct avl_node*) bintree_create(new_data, tree->oc);
+    struct avl_node* new_node = (struct avl_node*) bintree_create(NULL, NULL, new_data, tree->oc);
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Could not create avl_node");

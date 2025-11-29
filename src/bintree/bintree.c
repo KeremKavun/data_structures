@@ -7,7 +7,7 @@ static void bintree_walk_subtree(struct bintree* tree, void* userdata, void (*ha
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-struct bintree* bintree_create(void* data, struct object_concept* oc)
+struct bintree* bintree_create(struct bintree* left, struct bintree* right, void* data, struct object_concept* oc)
 {
     struct bintree* bintree = (oc && oc->allocator) ? oc->alloc(oc->allocator) : malloc(sizeof(struct bintree));
     if (!bintree)
@@ -15,8 +15,8 @@ struct bintree* bintree_create(void* data, struct object_concept* oc)
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for bintree");
         return NULL;
     }
-    bintree->left = NULL;
-    bintree->right = NULL;
+    bintree->left = left;
+    bintree->right = right;
     bintree->data = data;
     return bintree;
 }

@@ -9,11 +9,21 @@ extern "C" {
 #include "../../concepts/include/object_concept.h"
 #include <stddef.h>
 
+// child_capacity is the total number of children nodes.
+// data_capacity is the total number of data pointers.
+// It isnt reasonable to have capacities other than equal child and data capacities or
+// one less data capacity than child capacity (for example, B-tree).
 struct mway_header
 {
-    size_t capacity;
+    size_t child_capacity;
+    size_t data_capacity;
 };
 
+// This is sample macro to generate mwaytree types, not a must to use.
+// For example, B-tree implementation can alter void* data[N] to void* data[N-1].
+// Only requirement is that every implementation that uses m-way tree semantic
+// shall put struct mway_header as the first member of the struct and
+// child_capacity and data_capacity members shall be the first members of the struct.
 #define GENERATE_MWAYTREE(N)                    \
     struct m##N##tree                           \
     {                                           \
@@ -28,11 +38,10 @@ struct mway_header
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int mway_init(struct mway_header* header, size_t m);
-struct mway_header* mway_create(size_t m, struct object_concept* oc);
+int mway_init(struct mway_header* header, size_t child_capacity, size_t data_capacity);
+struct mway_header* mway_create(size_t child_capacity, size_t data_capacity, struct object_concept* oc);
 void mway_deinit(struct mway_header* header, void* context, void (*deallocator) (void* item, void* context));
 void mway_destroy(struct mway_header* header, void* context, struct object_concept* oc);
-size_t mway_sizeof(size_t m);
 
 /*───────────────────────────────────────────────
  * Operations

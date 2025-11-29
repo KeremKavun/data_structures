@@ -54,7 +54,7 @@ enum trees_status bst_add(struct bst* tree, void* new_data)
         LOG(LIB_LVL, CERROR, "Duplicate key");
         return TREES_DUPLICATE_KEY;
     }
-    struct bintree* new_node = bintree_create(new_data, tree->oc);
+    struct bintree* new_node = bintree_create(NULL, NULL, new_data, tree->oc);
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for node");

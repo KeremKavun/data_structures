@@ -2,27 +2,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline struct mway_header** mway_children_base(struct mway_header* header);
-static inline void** mway_data_base(struct mway_header* header);
-static void mway_walk_preorder(struct mway_header* header, void* userdata, void (*handler) (void* data, void* userdata));
-static void mway_walk_inorder(struct mway_header* header, void* userdata, void (*handler) (void* data, void* userdata));
-static void mway_walk_postorder(struct mway_header* header, void* userdata, void (*handler) (void* data, void* userdata));
+static inline struct mway_header** children_base(struct mway_header* header);
+static inline void** data_base(struct mway_header* header);
+static inline size_t children_count(struct mway_header* header);
+static inline size_t data_count(struct mway_header* header);
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int mway_init(struct mway_header* header, size_t m)
+int mway_init(struct mway_header* header, size_t child_capacity, size_t data_capacity)
 {
-    header->capacity = m;
-    memset(mway_children_base(header), 0, m * sizeof(struct mway_header*));
-    memset(mway_data_base(header), 0, m * sizeof(void*));
+    header->child_capacity = child_capacity;
+    header->data_capacity = data_capacity;
+    memset(children_base(header), 0, child_capacity * sizeof(struct mway_header*));
+    memset(data_base(header), 0, data_capacity * sizeof(void*));
     return 0;
 }
 
-struct mway_header* mway_create(size_t m, struct object_concept* oc)
+struct mway_header* mway_create(size_t child_capacity, size_t data_capacity, struct object_concept* oc)
 {
-    size_t total_size = sizeof(struct mway_header) + m * (sizeof(void*) + sizeof(struct mway_header*));
+    size_t total_size = sizeof(struct mway_header) + child_capacity * sizeof(struct mway_header*) + data_capacity * sizeof(void*);
     void* mway = (oc && oc->allocator) ? oc->alloc(oc->allocator) : malloc(total_size);
     if (!mway)
     {
@@ -30,7 +30,7 @@ struct mway_header* mway_create(size_t m, struct object_concept* oc)
         return NULL;
     }
     struct mway_header* header = (struct mway_header*) mway;
-    mway_init(header, m);
+    mway_init(header, child_capacity, data_capacity);
     return header;
 }
 
@@ -38,29 +38,25 @@ void mway_deinit(struct mway_header* header, void* context, void (*deallocator) 
 {
     if (!header)
         return;
-    for (size_t i = 0; i < header->capacity; i++)
+    for (size_t i = 0; i < children_count(header); i++)
         mway_deinit(mway_get_child(header, i), context, deallocator);
-    memset(mway_children_base(header), 0, header->capacity * sizeof(struct mway_header*));
-    memset(mway_data_base(header), 0, header->capacity * sizeof(void*));
+    if (deallocator)
+        for (size_t i = 0; i < data_count(header); i++)
+            deallocator(mway_get_data(header, i), context);
+    memset(children_base(header), 0, children_count(header) * sizeof(struct mway_header*));
+    memset(data_base(header), 0, data_count(header) * sizeof(void*));
 }
 
 void mway_destroy(struct mway_header* header, void* context, struct object_concept* oc)
 {
     if (!header)
         return;
-    for (size_t i = 0; i < header->capacity; i++)
+    for (size_t i = 0; i < children_count(header); i++)
         mway_destroy(mway_get_child(header, i), context, oc);
     if (oc && oc->destruct)
-    {
-        for (size_t i = 0; i < header->capacity; i++)
+        for (size_t i = 0; i < data_count(header); i++)
             oc->destruct(mway_get_data(header, i), context);
-    }
     (oc && oc->allocator) ? oc->free(oc->allocator, header) : free(header);
-}
-
-size_t mway_sizeof(size_t m)
-{
-    return sizeof(struct mway_header) + m * (sizeof(void*) + sizeof(struct mway_header*));
 }
 
 /*───────────────────────────────────────────────
@@ -69,42 +65,52 @@ size_t mway_sizeof(size_t m)
 
 struct mway_header* mway_get_child(struct mway_header* header, size_t index)
 {
-    return mway_children_base(header)[index];
+    return children_base(header)[index];
 }
 
 const struct mway_header* mway_get_child_const(const struct mway_header* header, size_t index)
 {
-    return (const struct mway_header*) mway_children_base((struct mway_header*) header)[index];
+    return (const struct mway_header*) children_base((struct mway_header*) header)[index];
 }
 
 void mway_set_child(struct mway_header* header, size_t index, struct mway_header* child)
 {
-    mway_children_base(header)[index] = child;
+    children_base(header)[index] = child;
 }
 
 void* mway_get_data(struct mway_header* header, size_t index)
 {
-    return mway_data_base(header)[index];
+    return data_base(header)[index];
 }
 
 const void* mway_get_data_const(const struct mway_header* header, size_t index)
 {
-    return mway_data_base((struct mway_header*) header)[index];
+    return data_base((struct mway_header*) header)[index];
 }
 
 void mway_set_data(struct mway_header* header, size_t index, void* data)
 {
-    mway_data_base(header)[index] = data;
+    data_base(header)[index] = data;
 }
 
 // *** Helper functions *** //
 
-static inline struct mway_header** mway_children_base(struct mway_header* header)
+static inline struct mway_header** children_base(struct mway_header* header)
 {
     return (struct mway_header**) ((char*) header + sizeof(struct mway_header));
 }
 
-static inline void** mway_data_base(struct mway_header* header)
+static inline void** data_base(struct mway_header* header)
 {
-    return (void**) ((char*) mway_children_base(header) + header->capacity * sizeof(struct mway_header*));
+    return (void**) ((char*) children_base(header) + children_count(header) * sizeof(struct mway_header*));
+}
+
+static inline size_t children_count(struct mway_header* header)
+{
+    return header->child_capacity;
+}
+
+static inline size_t data_count(struct mway_header* header)
+{
+    return header->data_capacity;
 }
