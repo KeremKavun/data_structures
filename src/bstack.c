@@ -10,9 +10,9 @@
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int bstack_init(struct bstack* bs, size_t obj_size)
+int bstack_init(struct bstack* bs, char* stack_ptr, size_t obj_size)
 {
-    struct lbuffer* contents = lbuffer_create(INITIAL_CAPACITY, obj_size, AUTO_RESIZE);
+    struct lbuffer* contents = lbuffer_create(stack_ptr, INITIAL_CAPACITY, obj_size, AUTO_RESIZE);
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");

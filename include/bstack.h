@@ -20,7 +20,7 @@ typedef struct bstack bstack_t;
  *───────────────────────────────────────────────*/
 
 // init bstack, returns 0 if it succeeds, 1 otherwise
-int bstack_init(struct bstack* bs, size_t obj_size);
+int bstack_init(struct bstack* bs, char* stack_ptr, size_t obj_size);
 // free bstack contents (freeing bstack itself, if dynamically allocated, is on you)
 // if you dont store pointers to dynamic allocated objects, this function with a deallocator might be dangerous !!!
 void bstack_deinit(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata));
