@@ -34,13 +34,17 @@ struct mway_header
                                                 \
     typedef struct m##N##tree m##N##tree##_t;
 
+// Macro to round a size up to the next multiple of 'align'. We will need this if we are aggregating standart mway tree node.
+#define ALIGN_UP(size, align) (((size) + (align) - 1) & ~((align) - 1))
+#define ALIGN_REQ sizeof(void*)
+
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
  
 struct mway_header* mway_create(size_t child_capacity, size_t data_capacity, size_t footer_size, struct object_concept* oc);
 void mway_destroy(struct mway_header* header, void* context, struct object_concept* oc);
-size_t mway_sizeof(size_t child_capacity, size_t data_capacity, size_t footer_size);
+size_t mway_sizeof(size_t child_capacity, size_t data_capacity, size_t footer_size, size_t align_req);
 
 /*───────────────────────────────────────────────
  * Getters & Setters
@@ -53,6 +57,8 @@ const void* mway_get_data_const(const struct mway_header* header, size_t index);
 void mway_set_data(struct mway_header* header, size_t index, void* data);
 void* mway_get_footer(struct mway_header* header);
 const void* mway_get_footer_const(const struct mway_header* header);
+struct mway_header** mway_get_child_addr(struct mway_header* header, size_t index);
+void** mway_get_data_addr(struct mway_header* header, size_t index);
 
 #ifdef __cplusplus
 }

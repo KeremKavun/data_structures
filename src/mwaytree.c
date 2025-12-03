@@ -13,7 +13,7 @@ static inline size_t data_count(struct mway_header* header);
 
 struct mway_header* mway_create(size_t child_capacity, size_t data_capacity, size_t footer_size, struct object_concept* oc)
 {
-    size_t total_size = mway_sizeof(child_capacity, data_capacity, footer_size);
+    size_t total_size = mway_sizeof(child_capacity, data_capacity, footer_size, ALIGN_REQ);
     void* mway = (oc && oc->allocator) ? oc->alloc(oc->allocator) : malloc(total_size);
     if (!mway)
     {
@@ -41,9 +41,10 @@ void mway_destroy(struct mway_header* header, void* context, struct object_conce
     (oc && oc->allocator) ? oc->free(oc->allocator, header) : free(header);
 }
 
-size_t mway_sizeof(size_t child_capacity, size_t data_capacity, size_t footer_size)
+size_t mway_sizeof(size_t child_capacity, size_t data_capacity, size_t footer_size, size_t align_req)
 {
-    return sizeof(struct mway_header) + child_capacity * sizeof(struct mway_header*) + data_capacity * sizeof(void*) + footer_size;
+    size_t raw_size = sizeof(struct mway_header) + child_capacity * sizeof(struct mway_header*) + data_capacity * sizeof(void*) + footer_size;
+    return ALIGN_UP(raw_size, align_req);
 }
 
 /*───────────────────────────────────────────────
@@ -82,12 +83,22 @@ void mway_set_data(struct mway_header* header, size_t index, void* data)
 
 void* mway_get_footer(struct mway_header* header)
 {
-    return (void*) ((char*) header + mway_sizeof(header->child_capacity, header->data_capacity, 0));
+    return (void*) (data_base(header) + header->data_capacity);
 }
 
 const void* mway_get_footer_const(const struct mway_header* header)
 {
-    return (const void*) ((char*) header + mway_sizeof(header->child_capacity, header->data_capacity, 0));
+    return (const void*) (data_base((struct mway_header*) header) + header->data_capacity);
+}
+
+struct mway_header** mway_get_child_addr(struct mway_header* header, size_t index)
+{
+    return &children_base(header)[index];
+}
+
+void** mway_get_data_addr(struct mway_header* header, size_t index)
+{
+    return &data_base(header)[index];
 }
 
 // *** Helper functions *** //
