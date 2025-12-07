@@ -10,23 +10,27 @@
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int bstack_init(struct bstack* bs, char* stack_ptr, size_t obj_size)
+int bstack_init(struct bstack* bs, size_t obj_size)
 {
-    struct lbuffer* contents = lbuffer_create(stack_ptr, INITIAL_CAPACITY, obj_size, AUTO_RESIZE);
+    struct lbuffer* contents = malloc(sizeof(struct lbuffer));
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
+    if (lbuffer_init(contents, INITIAL_CAPACITY, obj_size) != 0)
+    {
+        LOG(LIB_LVL, CERROR, "Buffer couldnt be initialized");
         return 1;
     }
     bs->contents = contents;
     return 0;
 }
 
-void bstack_deinit(struct bstack* bs, void* userdata, void (*deallocator) (void* item, void* userdata))
+void bstack_deinit(struct bstack* bs, void* context, struct object_concept* oc)
 {
-    if (deallocator)
-        bstack_walk(bs, userdata, deallocator);
-    lbuffer_destroy(bs->contents, userdata, NULL);
+    lbuffer_deinit(bs->contents, context, oc);
+    free(bs->contents);
     bs->contents = NULL;
 }
 
@@ -34,16 +38,16 @@ void bstack_deinit(struct bstack* bs, void* userdata, void (*deallocator) (void*
  * Push & Pop
  *───────────────────────────────────────────────*/
 
-int bpush(struct bstack* bs, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata))
+int bpush(struct bstack* bs, const void* new_item)
 {
     LOG(LIB_LVL, CINFO, "Pushing item at address %p, by copying", new_item);
-    return lbuffer_insert(bs->contents, new_item, bstack_size(bs), userdata, copy);
+    return lbuffer_insert(bs->contents, new_item, bstack_size(bs));
 }
 
-int emplace_bpush(struct bstack* bs, void* userdata, int (*init) (void* item, void* userdata))
+int emplace_bpush(struct bstack* bs, void* args, struct object_concept* oc)
 {
     LOG(LIB_LVL, CINFO, "Pushing item by emplacing");
-    return lbuffer_emplace_insert(bs->contents, bstack_size(bs), userdata, init);
+    return lbuffer_emplace_insert(bs->contents, bstack_size(bs), args, oc);
 }
 
 int bpop(struct bstack* bs, void* result)

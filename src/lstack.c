@@ -8,7 +8,7 @@
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int lstack_init(struct lstack* ls, struct object_concept* oc)
+int lstack_init(struct lstack* ls, struct allocator_concept* ac)
 {
     struct dbly_linked_list* contents = malloc(sizeof(struct dbly_linked_list));
     if (!contents)
@@ -18,22 +18,22 @@ int lstack_init(struct lstack* ls, struct object_concept* oc)
     }
     ls->contents = contents;
     dbly_list_init(ls->contents);
-    ls->oc = oc;
+    ls->ac = ac;
     return 0;
 }
 
-void lstack_deinit(struct lstack* ls, void* context)
+void lstack_deinit(struct lstack* ls, void* context, struct object_concept* oc)
 {
     void* data;
     while ((data = lpop(ls)))
     {
-        if (ls->oc && ls->oc->destruct)
-            ls->oc->destruct(data, context);
-        (ls->oc && ls->oc->allocator) ? ls->oc->free(ls->oc->allocator, data) : free(data);
+        if (oc && oc->deinit)
+            oc->deinit(data, context);
+        (ls->ac && ls->ac->allocator) ? ls->ac->free(ls->ac->allocator, data) : free(data);
     }
     free(ls->contents);
     ls->contents = NULL;
-    ls->oc = NULL;
+    ls->ac = NULL;
 }
 
 /*───────────────────────────────────────────────
@@ -42,7 +42,7 @@ void lstack_deinit(struct lstack* ls, void* context)
 
 int lpush(struct lstack* ls, void* new_item)
 {
-    struct dbly_list_item* new_node = (ls->oc && ls->oc->allocator) ? ls->oc->alloc(ls->oc->allocator) : malloc(sizeof(struct dbly_list_item));
+    struct dbly_list_item* new_node = (ls->ac && ls->ac->allocator) ? ls->ac->alloc(ls->ac->allocator) : malloc(sizeof(struct dbly_list_item));
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
@@ -59,7 +59,7 @@ void* lpop(struct lstack* ls)
     if (!del)
         return NULL;
     void* data = del->data;
-    (ls->oc && ls->oc->allocator) ? ls->oc->free(ls->oc->allocator, del) : free(del);
+    (ls->ac && ls->ac->allocator) ? ls->ac->free(ls->ac->allocator, del) : free(del);
     return data;
 }
 

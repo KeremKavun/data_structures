@@ -1,5 +1,5 @@
-#ifndef STACK_H
-#define STACK_H
+#ifndef LSTACK_H
+#define LSTACK_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -7,12 +7,13 @@ extern "C" {
 
 #include "../../debug/include/debug.h"
 #include "../../concepts/include/object_concept.h"
+#include "../../concepts/include/allocator_concept.h"
 #include <stddef.h>
 
 struct lstack
 {
     struct dbly_linked_list* contents;
-    struct object_concept* oc;
+    struct allocator_concept* ac;
 };
 
 typedef struct lstack lstack_t;
@@ -22,9 +23,9 @@ typedef struct lstack lstack_t;
  *───────────────────────────────────────────────*/
 
 // init bstack, returns 0 if it succeeds, 1 otherwise
-int lstack_init(struct lstack* ls, struct object_concept* oc);
+int lstack_init(struct lstack* ls, struct allocator_concept* ac);
 // free bstack contents (freeing bstack itself, if dynamically allocated, is on you)
-void lstack_deinit(struct lstack* ls, void* context);
+void lstack_deinit(struct lstack* ls, void* context, struct object_concept* oc);
 
 /*───────────────────────────────────────────────
  * Push & Pop
@@ -57,4 +58,4 @@ void lstack_walk(struct lstack* ls, void* userdata, void (*handler) (void* item,
 }
 #endif
 
-#endif // STACK_H
+#endif // LSTACK_H

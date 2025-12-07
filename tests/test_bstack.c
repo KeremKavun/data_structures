@@ -32,6 +32,7 @@ static void free_item(void* item, void* userdata)
 
 int main(void)
 {
+    struct object_concept oc = {.init = int_init, .deinit = free_item};
     struct bstack stack;
 
     if (bstack_init(&stack, sizeof(int)) != 0)
@@ -45,7 +46,7 @@ int main(void)
     // Push some items
     for (int i = 0; i < 5; ++i)
     {
-        if (bpush(&stack, &i, NULL, int_copy) != 0)
+        if (bpush(&stack, &i) != 0)
         {
             fprintf(stderr, "Push failed for %d\n", i);
             return 1;
@@ -70,7 +71,7 @@ int main(void)
     // Emplace push 3 items
     for (int i = 0; i < 3; ++i)
     {
-        emplace_bpush(&stack, NULL, int_init);
+        emplace_bpush(&stack, NULL, &oc);
     }
     printf("After emplace push 3: size=%zu\n", bstack_size(&stack));
 
@@ -92,7 +93,7 @@ int main(void)
 
     // Free stack (also triggers deallocator print)
     printf("Freeing stack:\n");
-    bstack_deinit(&stack, NULL, free_item);
+    bstack_deinit(&stack, NULL, &oc);
     printf("\nStack freed.\n");
 
     return 0;
