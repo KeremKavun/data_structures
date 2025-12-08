@@ -7,12 +7,13 @@ extern "C" {
 
 #include "../../debug/include/debug.h"
 #include "../../concepts/include/object_concept.h"
+#include "../../concepts/include/allocator_concept.h"
 #include <stddef.h>
 
 struct lqueue
 {
     struct dbly_linked_list* contents;
-    struct object_concept* oc;
+    struct allocator_concept* ac;
 };
 
 typedef struct lqueue lqueue_t;
@@ -23,11 +24,11 @@ typedef struct lqueue lqueue_t;
 
 // init queue, returns 0 if it succeeds, 1 otherwise, oc is the object concept of the queue
 // Pass NULL to use malloc/free pairs as default, otherwise pass your own allocator concept
-int lqueue_init(struct lqueue* lq, struct object_concept* oc);
+int lqueue_init(struct lqueue* lq, struct allocator_concept* ac);
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
 // If you supplied object_concept at the initialization, then first the destructor runs to free internal data,
 // then the allocator is used to free the element in the allocator
-void lqueue_deinit(struct lqueue* lq, void* context);
+void lqueue_deinit(struct lqueue* lq, void* context, struct object_concept* oc);
 
 /*───────────────────────────────────────────────
  * Enqueue & Dequeue
@@ -56,7 +57,7 @@ size_t lqueue_size(const struct lqueue* bq);
  *───────────────────────────────────────────────*/
 
 // walk queue by given handler defined by the user according to item type they enqueue
-void lqueue_walk(const struct lqueue* lq, void* userdata, void (*handler) (void* item, void* userdata));
+void lqueue_walk(const struct lqueue* lq, void* context, void (*handler) (void* item, void* context));
 
 #ifdef __cplusplus
 }

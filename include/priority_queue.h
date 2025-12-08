@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "../../concepts/include/object_concept.h"
 #include "../../debug/include/debug.h"
 #include <stddef.h>
 
@@ -16,7 +17,7 @@ typedef struct priority_queue priority_queue_t;
  *───────────────────────────────────────────────*/
 
 int priority_queue_init(struct priority_queue* pq, int (*cmp) (const void* a, const void* b));
-void priority_queue_deinit(struct priority_queue* pq, void* context, void (*deallocator) (void* item, void* context));
+void priority_queue_deinit(struct priority_queue* pq, void* context, struct object_concept* oc);
 
 /*───────────────────────────────────────────────
  * Operations
@@ -38,7 +39,7 @@ size_t priority_queue_size(const struct priority_queue* pq);
  * Iterations
  *───────────────────────────────────────────────*/
 
-void priority_queue_walk(struct priority_queue* pq, void* userdata, void (*handler) (void* item, void* userdata));
+void priority_queue_walk(struct priority_queue* pq, void* context, void (*handler) (void* item, void* context));
 
 #ifdef __cplusplus
 }

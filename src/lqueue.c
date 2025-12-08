@@ -8,7 +8,7 @@
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int lqueue_init(struct lqueue* lq, struct object_concept* oc)
+int lqueue_init(struct lqueue* lq, struct allocator_concept* ac)
 {
     struct dbly_linked_list* contents = malloc(sizeof(struct dbly_linked_list));
     if (!contents)
@@ -18,16 +18,16 @@ int lqueue_init(struct lqueue* lq, struct object_concept* oc)
     }
     lq->contents = contents;
     dbly_list_init(lq->contents);
-    lq->oc = oc;
+    lq->ac = ac;
     return 0;
 }
 
-void lqueue_deinit(struct lqueue* lq, void* context)
+void lqueue_deinit(struct lqueue* lq, void* context, struct object_concept* oc)
 {
-    dbly_list_free(lq->contents, context, lq->oc);
+    dbly_list_free(lq->contents, context, oc);
     free(lq->contents);
     lq->contents = NULL;
-    lq->oc = NULL;
+    lq->ac = NULL;
 }
 
 /*───────────────────────────────────────────────
@@ -36,7 +36,7 @@ void lqueue_deinit(struct lqueue* lq, void* context)
 
 int lenqueue(struct lqueue* lq, void* new_item)
 {
-    struct dbly_list_item* new_node = (lq->oc && lq->oc->allocator) ? lq->oc->alloc(lq->oc->allocator) : malloc(sizeof(struct dbly_list_item));
+    struct dbly_list_item* new_node = (lq->ac && lq->ac->allocator) ? lq->ac->alloc(lq->ac->allocator) : malloc(sizeof(struct dbly_list_item));
     if (!new_node)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
@@ -53,7 +53,7 @@ void* ldequeue(struct lqueue* lq)
     if (!del)
         return NULL;
     void* data = del->data;
-    (lq->oc && lq->oc->allocator) ? lq->oc->free(lq->oc->allocator, del) : free(del);
+    (lq->ac && lq->ac->allocator) ? lq->ac->free(lq->ac->allocator, del) : free(del);
     return data;
 }
 
@@ -87,7 +87,7 @@ size_t lqueue_size(const struct lqueue* lq)
  * Iterations
  *───────────────────────────────────────────────*/
 
-void lqueue_walk(const struct lqueue* lq, void* userdata, void (*handler) (void* item, void* userdata))
+void lqueue_walk(const struct lqueue* lq, void* context, void (*handler) (void* item, void* context))
 {
-    dbly_list_walk_front(lq->contents, userdata, handler);
+    dbly_list_walk_front(lq->contents, context, handler);
 }

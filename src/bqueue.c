@@ -12,19 +12,25 @@
 
 int bqueue_init(struct bqueue* bq, size_t obj_size)
 {
-    struct cbuffer* contents = cbuffer_create(INITIAL_CAPACITY, obj_size);
+    struct cbuffer* contents = malloc(sizeof(struct cbuffer));
     if (!contents)
     {
         LOG(LIB_LVL, CERROR, "Allocation failure");
+        return 1;
+    }
+    if (cbuffer_init(contents, INITIAL_CAPACITY, obj_size) != 0)
+    {
+        LOG(LIB_LVL, CERROR, "COuld not initialize cbuffer");
         return 1;
     }
     bq->contents = contents;
     return 0;
 }
 
-void bqueue_deinit(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata))
+void bqueue_deinit(struct bqueue* bq, void* context, struct object_concept* oc)
 {
-    cbuffer_destroy(bq->contents, userdata, deallocator);
+    cbuffer_deinit(bq->contents, context, oc);
+    free(bq->contents);
     bq->contents = NULL;
 }
 
@@ -32,22 +38,22 @@ void bqueue_deinit(struct bqueue* bq, void* userdata, void (*deallocator) (void*
  * Enqueue & Dequeue
  *───────────────────────────────────────────────*/
 
-int benqueue(struct bqueue* bq, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata))
+int benqueue(struct bqueue* bq, const void* new_item)
 {
     LOG(LIB_LVL, CINFO, "Enqueuing item at address %p, by copying", new_item);
-    return cbuffer_push(bq->contents, new_item, userdata, copy);
+    return cbuffer_push_back(bq->contents, new_item);
 }
 
-int emplace_benqueue(struct bqueue* bq, void* userdata, int (*init) (void* item, void* userdata))
+int emplace_benqueue(struct bqueue* bq, void* args, struct object_concept* oc)
 {
     LOG(LIB_LVL, CINFO, "Enqueuing item by emplacing");
-    return cbuffer_emplace_push(bq->contents, userdata, init);
+    return cbuffer_emplace_back(bq->contents, args, oc);
 }
 
 int bdequeue(struct bqueue* bq, void* result)
 {
     LOG(LIB_LVL, CINFO, "Dequeuing item");
-    return cbuffer_pop(bq->contents, result);
+    return cbuffer_pop_front(bq->contents, result);
 }
 
 /*───────────────────────────────────────────────
@@ -83,9 +89,9 @@ size_t bqueue_capacity(const struct bqueue* bq)
  * Iterations
  *───────────────────────────────────────────────*/
 
-void bqueue_walk(const struct bqueue* bq, void* userdata, void (*handler)(void* item, void* userdata))
+void bqueue_walk(const struct bqueue* bq, void* context, void (*handler) (void* item, void* context))
 {
     size_t size = bqueue_size(bq);
     for (size_t i = 0; i < size; ++i)
-        handler(cbuffer_at(bq->contents, i), userdata);
+        handler(cbuffer_at(bq->contents, i), context);
 }

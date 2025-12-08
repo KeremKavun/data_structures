@@ -14,7 +14,7 @@ struct priority_queue
 
 int priority_queue_init(struct priority_queue* pq, int (*cmp) (const void* a, const void* b))
 {
-    if (heap_init(&pq->heap, NULL, 0, 1, cmp) != 0)
+    if (heap_init(&pq->heap, 1, cmp) != 0)
     {
         LOG(LIB_LVL, CERROR, "Failed to create heap for priority queue");
         return 1;
@@ -22,9 +22,9 @@ int priority_queue_init(struct priority_queue* pq, int (*cmp) (const void* a, co
     return 0;
 }
 
-void priority_queue_deinit(struct priority_queue* pq, void* context, void (*deallocator) (void* item, void* context))
+void priority_queue_deinit(struct priority_queue* pq, void* context, struct object_concept* oc)
 {
-    heap_deinit(&pq->heap, context, deallocator);
+    heap_deinit(&pq->heap, context, oc);
 }
 
 /*───────────────────────────────────────────────

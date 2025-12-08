@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "../../concepts/include/object_concept.h"
 #include "../../debug/include/debug.h"
 #include <stddef.h>
 
@@ -24,17 +25,17 @@ typedef struct bqueue bqueue_t;
 int bqueue_init(struct bqueue* bq, size_t obj_size);
 // free queue contents (freeing queue itself, if dynamically allocated, is on you)
 // if you dont store pointers to dynamic allocated objects, this function with a deallocator might be dangerous !!!
-void bqueue_deinit(struct bqueue* bq, void* userdata, void (*deallocator) (void* item, void* userdata));
+void bqueue_deinit(struct bqueue* bq, void* context, struct object_concept* oc);
 
 /*───────────────────────────────────────────────
  * Enqueue & Dequeue
  *───────────────────────────────────────────────*/
 
 // enqueue an item by copying, returns 0 if it succeeds, 1 otherwise
-int benqueue(struct bqueue* bq, const void* new_item, void* userdata, int (*copy) (const void* new_item, void* queue_item, void* userdata));
+int benqueue(struct bqueue* bq, const void* new_item);
 // enqueue an item by initializing the object in place, queue will own the object 
 // must be careful if the given object stores pointers to the objects in the heap, you must provide a deallocator in this case
-int emplace_benqueue(struct bqueue* bq, void* userdata, int (*init) (void* item, void* userdata));
+int emplace_benqueue(struct bqueue* bq, void* args, struct object_concept* oc);
 // dequeue an item, returns 1 if queue is empty (failure), 0 if it successfull copies data into void* result
 int bdequeue(struct bqueue* bq, void* result);
 
@@ -58,7 +59,7 @@ size_t bqueue_capacity(const struct bqueue* bq);
  *───────────────────────────────────────────────*/
 
 // walk queue by given handler defined by the user according to item type they enqueue
-void bqueue_walk(const struct bqueue* bq, void* userdata, void (*handler) (void* item, void* userdata));
+void bqueue_walk(const struct bqueue* bq, void* context, void (*handler) (void* item, void* context));
 
 #ifdef __cplusplus
 }

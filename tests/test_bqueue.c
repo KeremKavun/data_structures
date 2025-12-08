@@ -25,6 +25,7 @@ static void print_int(void* item, void* userdata) {
 }
 
 int main(void) {
+    struct object_concept oc = {.init = init_int, .deinit = NULL};
     struct bqueue q;
     if (bqueue_init(&q, sizeof(int)) != 0) {
         fprintf(stderr, "bqueue_init failed\n");
@@ -35,7 +36,7 @@ int main(void) {
 
     // Enqueue 5 integers
     for (int i = 0; i < 5; ++i) {
-        if (benqueue(&q, &i, NULL, copy_int) != 0) {
+        if (benqueue(&q, &i) != 0) {
             fprintf(stderr, "enqueue failed at %d\n", i);
             return 1;
         }
@@ -61,7 +62,7 @@ int main(void) {
 
     // Emplace enqueue 3 new items
     for (int i = 0; i < 3; ++i)
-        emplace_benqueue(&q, NULL, init_int);
+        emplace_benqueue(&q, NULL, &oc);
 
     printf("After emplace enqueue 3: size=%zu\n", bqueue_size(&q));
 
