@@ -24,7 +24,7 @@ int lqueue_init(struct lqueue* lq, struct allocator_concept* ac)
 
 void lqueue_deinit(struct lqueue* lq, void* context, struct object_concept* oc)
 {
-    dbly_list_free(lq->contents, context, oc);
+    dbly_list_free(lq->contents, context, oc, lq->ac);
     free(lq->contents);
     lq->contents = NULL;
     lq->ac = NULL;

@@ -4,6 +4,7 @@
 #include "../include/lqueue.h"
 #include "../../allocators/include/chunked_pool.h"
 #include "../../concepts/include/object_concept.h"
+#include "../../concepts/include/allocator_concept.h"
 #include "../../linked_lists/include/dbly_linked_list.h" // Needed for sizeof(struct dbly_list_item)
 
 // Helper to create int data
@@ -36,22 +37,22 @@ void test_lqueue_with_pool() {
 
     // 1. Initialize Chunked Pool
     // We need it to store struct dbly_list_item
+    struct object_concept oc = { .init = NULL, .deinit = int_destruct }; 
     size_t node_size = sizeof(struct dbly_list_item);
     size_t capacity = 10; // Small capacity to test
     struct chunked_pool* pool = chunked_pool_create(capacity, node_size);
     assert(pool);
 
     // 2. Setup Object Concept
-    struct object_concept oc = {
+    struct allocator_concept ac = {
         .allocator = pool,
-        .alloc = (GENERIC_ALLOC_SIGN)chunked_pool_alloc,
-        .free = (GENERIC_FREE_SIGN)chunked_pool_free,
-        .destruct = int_destruct
+        .alloc = (GENERIC_ALLOC_SIGN) chunked_pool_alloc,
+        .free = (GENERIC_FREE_SIGN) chunked_pool_free,
     };
 
     // 3. Initialize lqueue
     struct lqueue lq;
-    int res = lqueue_init(&lq, &oc);
+    int res = lqueue_init(&lq, &ac);
     assert(res == 0);
     assert(lqueue_empty(&lq) == 1);
 
@@ -98,7 +99,7 @@ void test_lqueue_with_pool() {
     // The nodes should be returned to the pool.
     // The data (ints) should be freed by int_destruct.
     printf("Deinitializing queue...\n");
-    lqueue_deinit(&lq, NULL);
+    lqueue_deinit(&lq, NULL, &oc);
 
     // 8. Deinit pool
     chunked_pool_destroy(pool);
