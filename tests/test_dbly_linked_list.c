@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "../include/dbly_linked_list.h"
+#include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 
 // Helper to create a list item with integer data
@@ -217,13 +218,11 @@ void test_free() {
     dbly_list_insert_back(&dll, item1);
     dbly_list_insert_back(&dll, item2);
 
-    struct object_concept oc;
-    oc.destruct = int_destruct;
-    oc.allocator = NULL;
-    oc.alloc = NULL;
-    oc.free = node_free; // Free the list item node
+    struct allocator_concept ac = { .allocator = NULL, .alloc = NULL, .free = node_free };
+
+    struct object_concept oc = { .init = NULL, .deinit = int_destruct};
     
-    dbly_list_free(&dll, NULL, &oc);
+    dbly_list_free(&dll, NULL, &oc, &ac);
     
     assert(dbly_list_size(&dll) == 0);
     assert(dbly_list_empty(&dll) == 1);

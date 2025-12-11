@@ -15,10 +15,9 @@ static void dbly_list_walk_helper
     void* userdata,
     void (*data_handler) (void* data, void* userdata),
     void* context,
-    void (*item_handler) (void* context, void* ptr)
+    void (*item_handler) (void* item, void* context)
 );
 static void exchange_ptrs(void* context, void* item);
-static void free_item(void* context, void* item);
 
 // *** dbly_list_item implementation *** //
 
@@ -188,10 +187,9 @@ void dbly_list_reverse(struct dbly_linked_list* dll)
     dll->tail = temp;
 }
 
-void dbly_list_free(struct dbly_linked_list* dll, void* context, struct object_concept* oc)
+void dbly_list_free(struct dbly_linked_list *dll, void *context, struct object_concept *oc, struct allocator_concept* ac)
 {
-    dbly_list_walk_helper(dbly_list_head(dll), dbly_list_item_next, context, (oc ? oc->destruct : NULL),
-    (oc ? oc->allocator : NULL), (oc ? oc->free : free_item));
+    dbly_list_walk_helper(dbly_list_head(dll), dbly_list_item_next, context, oc->deinit, ac->allocator, ac->free);
     dll->head = dll->tail = NULL;
     dll->size = 0;
 }
@@ -222,7 +220,7 @@ static void dbly_list_walk_helper
     void* userdata,
     void (*data_handler) (void* data, void* userdata),
     void* context,
-    void (*item_handler) (void* context, void* ptr)
+    void (*item_handler) (void* item, void* context)
 )
 {
     while (entry)
@@ -244,10 +242,4 @@ static void exchange_ptrs(void* context, void* item)
     struct dbly_list_item* next = nitem->next;
     nitem->next = nitem->prev;
     nitem->prev = next;
-}
-
-static void free_item(void* context, void* item)
-{
-    (void) context;
-    free(item);
 }

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 #include <stddef.h>
 
@@ -68,7 +69,7 @@ void dbly_list_reverse(struct dbly_linked_list* dll);
 // about object pointers stored in the linked_list and where the object
 // allocated (stack or heap?). Deallocator runs on every data member of the
 // dbly_list_item
-void dbly_list_free(struct dbly_linked_list *dll, void *context, struct object_concept *oc);
+void dbly_list_free(struct dbly_linked_list *dll, void *context, struct object_concept *oc, struct allocator_concept* ac);
 
 #ifdef __cplusplus
 }

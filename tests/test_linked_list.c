@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "../include/linked_list.h"
+#include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 
 // Helper to create a list item with integer data
@@ -207,13 +208,11 @@ void test_free() {
     list_insert_back(&ll, item1);
     list_insert_back(&ll, item2);
 
-    struct object_concept oc;
-    oc.destruct = int_destruct;
-    oc.allocator = NULL;
-    oc.alloc = NULL;
-    oc.free = NULL; // Will use standard free since allocator is NULL
+    struct allocator_concept ac = { .allocator = NULL, .alloc = NULL, .free = NULL };
+
+    struct object_concept oc = { .init = NULL, .deinit = int_destruct};
     
-    list_free(&ll, NULL, &oc);
+    list_free(&ll, NULL, &oc, &ac);
     
     assert(list_size(&ll) == 0);
     assert(list_empty(&ll) == 1);

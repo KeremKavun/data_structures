@@ -129,16 +129,17 @@ void list_reverse(struct linked_list* ll)
     ll->head = prev;
 }
 
-void list_free(struct linked_list* ll, void* context, struct object_concept* oc)
+void list_free(struct linked_list* ll, void* context, struct object_concept* oc, struct allocator_concept* ac)
 {
     struct list_item* curr = ll->head;
     while (curr)
     {
         struct list_item* del_item = curr;
         curr = del_item->next;
-        if (oc && oc->destruct)
-            oc->destruct(del_item->data, context);
-        (oc && oc->allocator) ? oc->free(oc->allocator, del_item) : free(del_item);
+        if (oc->deinit)
+            oc->deinit(del_item->data, context);
+        if (ac->free)
+            ac->free(ac->allocator, del_item);
     }
     ll->head = NULL;
     ll->size = 0;
