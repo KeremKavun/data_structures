@@ -1,14 +1,14 @@
 #ifndef HEAP_H
 #define HEAP_H
 
+#include "../../concepts/include/object_concept.h"
+#include "../../debug/include/debug.h"
+#include "../internals/status.h"
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "../../debug/include/debug.h"
-#include "../internals/status.h"
-#include "../../buffers/internal/buffers_common.h"
-#include <stddef.h>
 
 struct heap;
 typedef struct heap heap_t;
@@ -17,8 +17,8 @@ typedef struct heap heap_t;
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int heap_init(struct heap* tree, char* stack_ptr, size_t capacity, int resize, int (*cmp) (const void* a, const void* b));
-void heap_deinit(struct heap* tree, void* context, void (*deallocator) (void* item, void* context));
+int heap_init(struct heap* tree, size_t capacity, int (*cmp) (const void* a, const void* b));
+void heap_deinit(struct heap* tree, void* context, struct object_concept* oc);
 size_t heap_sizeof();
 
 /*───────────────────────────────────────────────
@@ -38,7 +38,7 @@ size_t heap_size(const struct heap* tree);
  * Iterations
  *───────────────────────────────────────────────*/
 
-void heap_walk(struct heap* tree, void* userdata, void (*handler) (void* data, void* userdata));
+void heap_walk(struct heap* tree, void* context, void (*handler) (void* data, void* context));
 
 #ifdef __cplusplus
 }

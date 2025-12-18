@@ -26,11 +26,18 @@ struct Btree
 
 // Insert node at size_t index given by search_node. If index == (size_t) -1, insert into the first entry, if 0, i insert 1, in short, insert index + 1.
 // Return entry with NULLs if not overflowed else return last entry (save before shift). This function is noexcept
-static struct mway_entry insert_data(struct mway_header* node, struct mway_entry new_entry, size_t index, int (*cmp) (const void* key, const void* data));
+static struct mway_entry insert_data(struct mway_header* node, struct mway_entry new_entry, size_t index);
 // Split node by creating a new node and copying ((capacity / 2) - 1) into the new node and add last_entry to the new node.
 // After split, original node ptr is still preserved, no need to set, as asserted in insert_data. Return median as last entry of the original node.
 // In case of failure, return mway_entry with NULLs.
-static struct mway_entry split_node(struct mway_header* node_ptr, struct mway_entry last_entry, struct object_concept* oc);
+static struct mway_entry split_node(struct mway_header* node, struct mway_entry last_entry, struct object_concept* oc);
+// Check if deletion would cause underflow, if so save chiild ptr of entry to be deleted, else set the ptr to be returned to NULL.
+// size_t index is zero indexed provided by search_node
+// shift remaining at the right to the left
+// Return the ptr. NULL ptr will be interpreted as no underflow, while non NULL is vice versa
+static struct mway_header* delete_data(struct mway_header* node, size_t index, struct object_concept* oc);
+static void merge_nodes(struct mway_header* node_a, struct mway_header* node_b, struct object_concept* oc);
+
 // Return the index of previos entry if current entry data is greater. If no entry like that, return size - 1 of the nodes.
 // Note (size_t) -1 is returned if first entries data is greater than the input data. Notice the input data is either in data field
 // or in child nodes of entries child in returned index.
@@ -119,7 +126,9 @@ enum trees_status Btree_add(struct Btree* tree, void* new_data)
     {
         // noexcept since using POD
         bpop(&bs, &buffer);
-        curr_entry = insert_data(buffer.node, curr_entry, buffer.index, tree->cmp);
+        // index=-1 -> i=0, index=0 -> i=1, etc.
+        // Works due to unsigned wraparound when index=(size_t)-1
+        curr_entry = insert_data(buffer.node, curr_entry, buffer.index + 1);
         // No overflow means no split and no median propagation upwards
         if (curr_entry.data == NULL && curr_entry.child == NULL)
             break;
@@ -157,9 +166,56 @@ enum trees_status Btree_add(struct Btree* tree, void* new_data)
     return status;
 }
 
-enum trees_status Btree_remove(struct Btree* tree, void* data)
+void* Btree_remove(struct Btree* tree, void* data)
 {
+    void* ref = NULL;
+    // Anonymous struct to copy nodes and index together into the stack
+    struct
+    {
+        struct mway_header* node;
+        size_t index;
+    } buffer;
+    struct bstack bs;
+    // Initialize stack to store indexes of traversed nodes
+    if (bstack_init(&bs, NULL, sizeof(buffer)) != 0)
+    {
+        LOG(LIB_LVL, CERROR, "Could not allocate stack for backtracing");
+        goto fail_stack;
+    }
+    struct mway_header* curr = tree->root;
+    while (curr != NULL)
+    {
+        size_t index = search_node(curr, data, tree->cmp);
+        buffer.node = curr;
+        buffer.index = index;
+        // Found the data, stop traversing the tree.
+        if (index != (size_t) -1 && tree->cmp(mway_get_data_const(curr, index), data) == 0)
+            break;
+        if (bpush(&bs, &buffer, NULL, NULL) != 0)
+        {
+            LOG(LIB_LVL, CERROR, "Could not push the buffer");
+            goto fail_push;
+        }
+        // Update curr. If index is (size_t) -1, proceed with first child
+        curr = (index != (size_t) -1) ? mway_get_child(curr, index) : get_node_first_child(curr);
+    }
+    // Could not find the data
+    if (curr == NULL)
+    {
+        LOG(LIB_LVL, CERROR, "Could not find the data to remove");
+        goto fail_find;
+    }
+    struct mway_header* curr_node = delete_data(buffer.node, buffer.index, tree->oc);
+    while (!bstack_empty(&bs))
+    {
 
+    }
+    ref = NULL;
+    fail_find:
+    fail_push:
+    bstack_deinit(&bs, NULL, NULL);
+    fail_stack:
+    return ref;
 }
 
 void* Btree_search(struct Btree* tree, const void* data)
@@ -217,24 +273,21 @@ void Btree_walk(struct Btree* tree, void* context, void (*handler) (void* data, 
 
 // *** Helper functions *** //
 
-static struct mway_entry insert_data(struct mway_header* node, struct mway_entry new_entry, size_t index, int (*cmp) (const void* key, const void* data))
+static struct mway_entry insert_data(struct mway_header* node, struct mway_entry new_entry, size_t index)
 {
     size_t* size_ptr = get_node_size_ptr(node);
     size_t size = *size_ptr;
-    // index=-1 -> i=0, index=0 -> i=1, etc.
-    // Works due to unsigned wraparound when index=(size_t)-1
-    size_t i = index + 1; 
     // Insert struct mway_entry* new_entry and return last
     if (size == node->capacity)
     {
-        if (i < size)
+        if (index < size)
         {
             struct mway_entry last_entry = mway_get_entry(node, node->capacity - 1);
             // i is where we encounter first data that is bigger than new_entries data. We want to insert here, thus, shifting by 1.
             // dest is i + 1, src is i. i is zero indexed while size is not, so we use size - i gives data num from i to the last
             // instead of size - i + 1. But we need to substract 1 too, because we will discard the last data.
-            memmove(mway_get_entry_addr(node, i + 1), mway_get_entry_addr(node, i), sizeof(struct mway_entry) * (node->capacity - i - 1));
-            mway_set_entry(node, i, &new_entry);
+            memmove(mway_get_entry_addr(node, index + 1), mway_get_entry_addr(node, index), sizeof(struct mway_entry) * (node->capacity - index - 1));
+            mway_set_entry(node, index, &new_entry);
             return last_entry;
         }
         else
@@ -242,8 +295,8 @@ static struct mway_entry insert_data(struct mway_header* node, struct mway_entry
     }
     // This time, we dont substract size_t __n by one, since we have space
     // If i is size, we are adding to the very end and memmove shouldnt throw error, because 0 element is requested to be moved
-    memmove(mway_get_entry_addr(node, i + 1), mway_get_entry_addr(node, i), sizeof(struct mway_entry) * (size - i));
-    mway_set_entry(node, i, &new_entry);
+    memmove(mway_get_entry_addr(node, index + 1), mway_get_entry_addr(node, index), sizeof(struct mway_entry) * (size - index));
+    mway_set_entry(node, index, &new_entry);
     (*size_ptr)++;
     return (struct mway_entry) {.data = NULL, .child = NULL};
 }
@@ -280,6 +333,29 @@ static struct mway_entry split_node(struct mway_header* node, struct mway_entry 
     return median;
 }
 
+static struct mway_header* delete_data(struct mway_header* node, size_t index, struct object_concept* oc)
+{
+    struct mway_header* right_child = NULL;
+    size_t* size_ptr = get_node_size_ptr(node);
+    size_t size = *size_ptr;
+    // Deletion will going to cause underflow, save the child of entry into right_child
+    if (size <= ((node->capacity + 2) / 2) - 1)
+        right_child = mway_get_child(node, index);
+    // Destruct entries data
+    if (oc->destruct)
+        oc->destruct(mway_get_data(node, index), NULL);
+    // Shifth the buffer, deleting i, moving i + 1 into i, since i is 0 indexed, substracting -1 one more time from (size - i) to get the count of remaining
+    // 0 elements are handled naturally, causing memmove to take 0 as the third parameter
+    memmove(mway_get_entry_addr(node, index), mway_get_entry_addr(node, index + 1), sizeof(struct mway_entry) * (size - (index + 1)));
+    (*size_ptr)--;
+    return right_child;
+}
+
+static void merge_nodes(struct mway_header* node_a, struct mway_header* node_b, struct object_concept* oc)
+{
+
+}
+
 static size_t search_node(struct mway_header* node, const void* data, int (*cmp) (const void* key, const void* data))
 {
     size_t size = get_node_size(node);
@@ -296,13 +372,13 @@ static void walk_helper(struct mway_header* root, void* context, void (*handler)
 {
     if (!root)
         return;
-    size_t size = *(size_t*) mway_get_footer(root);
+    size_t size = get_node_size(root);
+    walk_helper(get_node_first_child(root), context, handler);
     for (size_t i = 0; i < size; i++)
     {
-        walk_helper(mway_get_child(root, i), context, handler);
         handler(mway_get_data(root, i), context);
+        walk_helper(mway_get_child(root, i), context, handler);
     }
-    walk_helper(mway_get_child(root, size), context, handler);
 }
 
 static struct mway_header* get_node_first_child(const struct mway_header* node)

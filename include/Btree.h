@@ -28,8 +28,11 @@ size_t Btree_node_sizeof(size_t order);
  * Operations
  *───────────────────────────────────────────────*/
 
+// Add item into the B-tree, classic return types in status.h 
+// Unfortunately, i cant provide strong guarantee here, in case of any failure, tree will be fucked up, not just here but in helpers
 enum trees_status Btree_add(struct Btree* tree, void* new_data);
-enum trees_status Btree_remove(struct Btree* tree, void* data);
+// Remove item from the B-tree and return
+void* Btree_remove(struct Btree* tree, void* data);
 void* Btree_search(struct Btree* tree, const void* data);
 
 /*───────────────────────────────────────────────

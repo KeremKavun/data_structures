@@ -3,28 +3,20 @@
 #include "../internals/heap_definition.h"
 #include <stdlib.h>
 
-struct context_wrapper
-{
-    void* userdata;
-    void (*handler) (void* item, void* userdata);
-};
-
 static void reheap_up(struct heap* root, size_t index);
 static void reheap_down(struct heap* root, size_t index);
 static size_t parent_index(size_t index);
 static size_t left_child_index(size_t index);
 static size_t right_child_index(size_t index);
 static void swap(void* a, void* b);
-static int copy_void_ptr(const void* new_item, void* buffer_item, void* userdata);
-static void exec_void_ptr(void* item, void* userdata);
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int heap_init(struct heap* tree, char* stack_ptr, size_t capacity, int resize, int (*cmp) (const void* a, const void* b))
+int heap_init(struct heap* tree, size_t capacity, int (*cmp) (const void* a, const void* b))
 {
-    if (lbuffer_init(&tree->buffer, stack_ptr, capacity, sizeof(void*), resize) != 0)
+    if (lbuffer_init(&tree->buffer, capacity, sizeof(void*)) != 0)
     {
         LOG(LIB_LVL, CERROR, "Failed to create lbuffer for heap");
         return 1;
@@ -33,10 +25,9 @@ int heap_init(struct heap* tree, char* stack_ptr, size_t capacity, int resize, i
     return 0;
 }
 
-void heap_deinit(struct heap* tree, void* context, void (*deallocator) (void* item, void* context))
+void heap_deinit(struct heap* tree, void* context, struct object_concept* oc)
 {
-    struct context_wrapper del_ctx = {context, deallocator};
-    lbuffer_deinit(&tree->buffer, &del_ctx, exec_void_ptr);
+    lbuffer_deinit(&tree->buffer, context, oc);
     tree->cmp = NULL;
 }
 
@@ -51,7 +42,7 @@ size_t heap_sizeof()
 
 int heap_add(struct heap* tree, void* new_data)
 {
-    if (lbuffer_insert(&tree->buffer, new_data, heap_size(tree), NULL, copy_void_ptr) != 0)
+    if (lbuffer_insert(&tree->buffer, new_data, heap_size(tree)) != 0)
     {
         LOG(LIB_LVL, CERROR, "Could not inserted into the buffer");
         return 1;
@@ -92,10 +83,9 @@ size_t heap_size(const struct heap* tree)
  * Iterations
  *───────────────────────────────────────────────*/
 
-void heap_walk(struct heap* tree, void* userdata, void (*handler) (void* data, void* userdata))
+void heap_walk(struct heap* tree, void* context, void (*handler) (void* data, void* context))
 {
-    struct context_wrapper ctx = {userdata, handler};
-    lbuffer_walk(&tree->buffer, &ctx, exec_void_ptr);
+    lbuffer_foreach(&tree->buffer, context, handler);
 }
 
 // *** Helper functions *** //
@@ -163,19 +153,4 @@ static void swap(void* a, void* b)
     void* temp = *(void**)a;
     *(void**)a = *(void**)b;
     *(void**)b = temp;
-}
-
-static int copy_void_ptr(const void* new_item, void* buffer_item, void* userdata)
-{
-    LOG(LIB_LVL, CINFO, "Copying %p into buffer at %p", new_item, buffer_item);
-    *(void**)buffer_item = (void*)new_item;
-    (void) userdata;
-    return 0;
-}
-
-static void exec_void_ptr(void* item, void* userdata)
-{
-    struct context_wrapper* ctx = (struct context_wrapper*)userdata;
-    if (ctx->handler)
-        ctx->handler(*(void**)item, ctx->userdata);
 }

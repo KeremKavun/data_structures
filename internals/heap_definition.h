@@ -1,7 +1,7 @@
 #ifndef HEAP_DEFINITION_H
 #define HEAP_DEFINITION_H
 
-#include "../../buffers/internal/lbuffer_definition.h"
+#include "../../buffers/include/lbuffer.h"
 
 struct heap
 {
