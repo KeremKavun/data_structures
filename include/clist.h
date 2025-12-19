@@ -1,21 +1,22 @@
 #ifndef CLIST_H
 #define CLIST_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 #include "../../utils/include/macros.h"
 #include "../../debug/include/debug.h"
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @defgroup Circular list (intrusive) API
+ * 
  * @brief Basic operations for the intrusive list.
  * * ### Global Constraints
- * - **NULL Pointers**: All `cl` and `item` arguments must be non-NULL
+ * - **NULL Pointers**: All `struct clist*` and `struct clist_item*` arguments must be non-NULL
  * - **Ownership**: This is an intrusive list; the user manages all memory.
  * @{
  */
@@ -40,23 +41,23 @@ extern "C" {
  * @warning **Null Safety**: All functions taking `struct clist_item*` 
  * expect a valid, initialized by @ref clist_item_init, non-NULL pointer. Behavior is undefined otherwise.
  */
-struct clist_item
-{
-    struct clist_item* prev;
-    struct clist_item* next;
+struct clist_item {
+    struct clist_item       *prev;
+    struct clist_item       *next;
 };
 
 /**
- * @brief Intializes the circular linked list item. Use this function to initialize
+ * @brief Initializes the circular linked list item. Use this function to initialize
  * hook to the list while initializing your object.
  * 
  * @param[in, out] item Pointer to the item to be initialized. Must not be NULL.
  */
-void clist_item_init(struct clist_item* item);
+void clist_item_init(struct clist_item *item);
 
 /**
  * @brief Recovers the parent structure pointer from an embedded clist_item.
- * @param ptr Pointer to the clist_item member.
+ * 
+ * @param ptr (struct clist_item *) Pointer to the clist_item member.
  * @param type Type of the parent structure.
  * @param member Name of the clist_item member within the parent.
  */
@@ -78,13 +79,13 @@ void clist_item_init(struct clist_item* item);
  *   cursor = front
  *   cursor->prev = back
  *   The cursor is your "view window" into the circular structure.
+ * 
  * @warning **Null Safety**: All functions taking `struct clist*` 
  * expect a valid, initialized by @ref clist_init, non-NULL pointer. Behavior is undefined otherwise.
  */
-struct clist
-{
-    struct clist_item* cursor;
-    size_t size;
+struct clist {
+    struct clist_item       *cursor;
+    size_t                  size;
 };
 
 /**
@@ -95,9 +96,10 @@ struct clist
 
 /**
  * @brief Initializes the circular linked list
+ * 
  * @param[in, out] cl Pointer to the list to be initialized. Must not be NULL.
  */
-void clist_init(struct clist* cl);
+void clist_init(struct clist *cl);
 
 /** @} */ // End of Initialization group
 
@@ -108,7 +110,7 @@ void clist_init(struct clist* cl);
  */
 
 /**
- * @brief Inserts a new item immediately before a specific position. The `struct clist_item* pos`
+ * @brief Inserts a new item immediately before a specific position. The `struct clist_item *pos`
  * must be currently inside @p cl. Does not change the cursor.
  * 
  * @param[in,out] cl Pointer to the list instance.
@@ -120,14 +122,11 @@ void clist_init(struct clist* cl);
  * * item without removing it from the list first, the list will become corrupt.
  * 
  * @note This operation is **O(1)** (constant time).
- * 
- * @see clist_remove()
- * @see clist_push_front()
  */
-void clist_insert_before(struct clist* cl, struct clist_item* pos, struct clist_item* new_item);
+void clist_insert_before(struct clist *cl, struct clist_item *pos, struct clist_item *new_item);
 
 /**
- * @brief Inserts a new item immediately after a specific position. The`struct clist_item* pos`
+ * @brief Inserts a new item immediately after a specific position. The`struct clist_item *pos`
  * must be currently inside @p cl. Does not change the cursor.
  * 
  * @param[in,out] cl Pointer to the list instance.
@@ -140,25 +139,22 @@ void clist_insert_before(struct clist* cl, struct clist_item* pos, struct clist_
  * item without removing it from the list first, the list will become corrupt.
  * 
  * @note This operation is **O(1)** (constant time).
- * 
- * @see clist_remove()
- * @see clist_push_back()
  */
-void clist_insert_after(struct clist* cl, struct clist_item* pos, struct clist_item* new_item);
+void clist_insert_after(struct clist *cl, struct clist_item *pos, struct clist_item *new_item);
 
 /**
  * @brief Inserts an item at the front of the list and changes `cursor` to `new_item`
  * 
  * @see clist_insert_before
  */
-void clist_push_front(struct clist* cl, struct clist_item* new_item);
+void clist_push_front(struct clist *cl, struct clist_item *new_item);
 
 /**
  * @brief Inserts an item at the back of the list.
  * 
  * @see clist_insert_after
  */
-void clist_push_back(struct clist* cl, struct clist_item* new_item);
+void clist_push_back(struct clist *cl, struct clist_item *new_item);
 
 /** @} */ // End of Insertion group
 
@@ -169,7 +165,7 @@ void clist_push_back(struct clist* cl, struct clist_item* new_item);
  */
 
 /**
- * @brief Removes item at specific position. The `struct clist_item* item` must be
+ * @brief Removes item at specific position. The `struct clist_item *item` must be
  * currently inside @p cl. Moves cursor to the next if item to be deleted is cursor.
  * 
  * @param[in,out] cl Pointer to the list instance.
@@ -178,12 +174,12 @@ void clist_push_back(struct clist* cl, struct clist_item* new_item);
  * @warning **Lifetime Management**: The list did NOT take ownership of the 
  * memory containing @p item. Removing it does not free that memory.
  * 
- * @warning **struct clist_item* item members**: The items members arent set
+ * @warning **struct clist_item *item members**: The items members arent set
  * to NULL or itself but users already requested to initialize the item to use this api.
  * 
  * @note This operation is **O(1)** (constant time).
  */
-void clist_remove(struct clist* cl, struct clist_item* item);
+void clist_remove(struct clist *cl, struct clist_item *item);
 
 /**
  * @brief Removes cursor and moves cursor one next.
@@ -191,7 +187,7 @@ void clist_remove(struct clist* cl, struct clist_item* item);
  * 
  * @see clist_remove
  */
-struct clist_item* clist_pop_front(struct clist* cl);
+struct clist_item *clist_pop_front(struct clist *cl);
 
 /**
  * @brief Removes an item at the back (one prev of the cursor) of the list.
@@ -199,7 +195,7 @@ struct clist_item* clist_pop_front(struct clist* cl);
  * 
  * @see clist_remove
  */
-struct clist_item* clist_pop_back(struct clist* cl);
+struct clist_item *clist_pop_back(struct clist *cl);
 
 /** @} */ // End of Removal group
 
@@ -250,7 +246,7 @@ struct clist_item* clist_pop_back(struct clist* cl);
  * @note The list must not be modified during iteration (no insertions/removals).
  */
 #define clist_foreach_entry(obj, head, member)                                \
-    for (struct clist_item* _curr = (head);                                   \
+    for (struct clist_item *_curr = (head);                                   \
          _curr != NULL && (obj = clist_entry(_curr, typeof(*obj), member), 1);\
          _curr = (_curr->next == (head) ? NULL : _curr->next))
 
@@ -334,26 +330,26 @@ struct clist_item* clist_pop_back(struct clist* cl);
  * @brief Returns the cursor.
  * @return Pointer to cursor item, or NULL if empty.
  */
-struct clist_item* get_clist_cursor(struct clist* cl);
+struct clist_item *get_clist_cursor(struct clist *cl);
 
 /**
  * @brief Checks if the list is empty.
  * @return 1 (true) if empty, 0 (false) otherwise.
  */
-int clist_empty(const struct clist* cl);
+int clist_empty(const struct clist *cl);
 
 /**
  * @brief Returns the number of items in the list.
  * @return Size of the list.
  */
-size_t clist_size(const struct clist* cl);
+size_t clist_size(const struct clist *cl);
 
 /** @} */ // End of Inspection group
 
 /**
  * @brief Sets the cursor. Passing NULL to new_cursor causes clist to lose the list
  */
-void set_clist_cursor(struct clist* cl, struct clist_item* new_cursor);
+void set_clist_cursor(struct clist *cl, struct clist_item *new_cursor);
 
 /** @} */ // End of Global group
 

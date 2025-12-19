@@ -1,0 +1,9 @@
+prefix=/home/kerem/code/c
+libdir=${prefix}/lists/bin
+includedir=${prefix}/lists/include
+
+Name: lists
+Description: Linked list utilities
+Version: 1.0
+Libs: -L${libdir} -llists
+Cflags: -I${includedir}

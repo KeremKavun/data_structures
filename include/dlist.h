@@ -5,6 +5,7 @@
 #include "../../concepts/include/object_concept.h"
 #include "../../debug/include/debug.h"
 #include <stddef.h>
+#include <assert.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,7 +15,7 @@ extern "C" {
  * @defgroup Double linked list API
  * @brief Basic operations for the generic double linked list list.
  * * ### Global Constraints
- * - **NULL Pointers**: All `struct dlist *dl` and `dlist_iter_t iter` arguments must be non-NULL
+ * - **NULL Pointers**: All `struct dlist *dl` and `struct dlist_item *item` arguments must be non-NULL
  * - **Ownership**: Internal nodes are owned by the list and managed by allocator_concept given by user,
  * - void *references to data are entirely owned by user. dlist_free might be helpful to destruct remaining
  * - objects in the list.
@@ -22,9 +23,24 @@ extern "C" {
  */
 
 /**
- * @brief Double linked list node iterator. Must not be NULL whenever used in functions uses them.
+ * @struct dlist_item
+ * 
+ * @brief nodes that stores void* refs, no need to use this
+ * struct generally except allocation.
+ * 
+ * @warning **Null Safety**: All functions taking `struct dlist_item*` 
+ * expect a valid, initialized by @ref dlist_item_init, non-NULL pointer. Behavior is undefined otherwise.
  */
-typedef struct dlist_item* dlist_iter_t;
+struct dlist_item {
+    struct dlist_item       *prev;
+    struct dlist_item       *next;
+    void                    *data;
+};
+
+/**
+ * @brief Init item.
+ */
+void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dlist_item *next, void *data);
 
 /**
  * @struct dlist
@@ -69,7 +85,7 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac);
  */
 void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc);
 
-/** @} */ // End of Initialization group
+/** @} */ // End of Initialization & Deinitalization group
 
 /**
  * @name Insertion
@@ -78,12 +94,12 @@ void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc);
  */
 
 /**
- * @brief Inserts a new item between @p prev_iter and @p next_iter.
+ * @brief Inserts a new item between @p prev_item and @p next_item.
  * They must be in @p dl.
  * 
  * @param[in,out] dl Pointer to the list instance.
- * @param[in] prev_iter Will be prev iter of new item.
- * @param[in] next_iter Will be next iter of new item.
+ * @param[in] prev_item Will be prev item of new item.
+ * @param[in] next_item Will be next item of new item.
  * @param[in] new_data Pointer to the new data to insert.
  * 
  * @return int, 0 indicates success, non-zero indicates failure
@@ -93,7 +109,7 @@ void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc);
  * 
  * @note This operation is **O(1)** (constant time).
  */
-int dlist_insert_between(struct dlist *dl, dlist_iter_t prev_iter, dlist_iter_t next_iter, void *new_data);
+int dlist_insert_between(struct dlist *dl, struct dlist_item *prev_item, struct dlist_item *next_item, void *new_data);
 
 /**
  * @brief Inserts an item at the front of the list.
@@ -121,17 +137,17 @@ int dlist_push_back(struct dlist *dl, void *new_data);
  * @brief Removes item at specific position.
  * 
  * @param[in,out] dl Pointer to the list instance.
- * @param[in] iter Iter to be removed from the list.
+ * @param[in] item Iter to be removed from the list.
  * Must be already in a list.
  * 
- * @return Data that was stored by `iter`, or NULL if list was empty.
+ * @return Data that was stored by `item`, or NULL if list was empty.
  * 
  * @warning **Lifetime Management**: The list did NOT take ownership of the memory pointed
  * by `void *new_data` passed in insert functions. It is returned to you back
  * 
  * @note This operation is **O(1)** (constant time).
  */
-void *dlist_remove(struct dlist *dl, dlist_iter_t *iter);
+void *dlist_remove(struct dlist *dl, struct dlist_item *item);
 
 /**
  * @brief Removes current head item.
@@ -158,65 +174,77 @@ void *dlist_remove_back(struct dlist *dl);
  */
 
 /**
- * @return prev iterator.
+ * @return prev item.
  */
-dlist_iter_t dlist_prev(dlist_iter_t iter);
+static inline struct dlist_item *dlist_item_prev(struct dlist_item *item)
+{
+    assert(item != NULL);
+    return item->prev;
+}
 
 /**
- * @return next iterator.
+ * @return next item.
  */
-dlist_iter_t dlist_next(dlist_iter_t iter);
+static inline struct dlist_item *dlist_item_next(struct dlist_item *item)
+{
+    assert(item != NULL);
+    return item->next;
+}
 
 /**
- * @return reference to data kept at iterator.
+ * @return reference to data kept at item.
  */
-void *dlist_get_data(dlist_iter_t iter);
+static inline void *dlist_item_data(struct dlist_item *item)
+{
+    assert(item != NULL);
+    return item->data;
+}
 
 /**
- * @brief Iterate over references to the data user provided following prev iterators
- * @param[in] iter Iterator `dlist_iter_t` for loop variable
- * @param[in] begin Iterator to begin (dlist_iter_t).
- * @param[in] end Iterator to end (dlist_iter_t).
+ * @brief Iterate over items by following prev pointers.
+ * @param[in] item Iterator `struct dlist_item *` for loop variable.
+ * @param[in] begin Iterator to begin (struct dlist_item *).
+ * @param[in] end Iterator to end (struct dlist_item *).
  * @note The list must not be modified during iteration (no insertions/removals).
  */
-#define dlist_foreach_bk(iter, begin, end) \
-    for (iter = begin; iter != end; iter = dlist_prev(iter))
+#define dlist_foreach_bk(item, begin, end) \
+    for (item = begin; item != end; item = dlist_item_prev(item))
 
 /**
  * @brief Iterate backwards safely by storing next pointer in advance.
- * @param[in] curr Loop variable (dlist_iter_t).
- * @param[in] n Temporary storage for next iterator (dlist_iter_t).
- * @param[in] begin Iterator to begin at (dlist_iter_t).
- * @param[in] end Iterator to stop at (dlist_iter_t, exclusive).
+ * @param[in] item Loop variable (struct dlist_item *).
+ * @param[in] n Temporary storage for prev item (struct dlist_item *).
+ * @param[in] begin Iterator to begin at (struct dlist_item *).
+ * @param[in] end Iterator to stop at (struct dlist_item *, exclusive).
  */
-#define dlist_foreach_fr_safe(curr, n, begin, end) \
-    for (curr = begin, n = dlist_next(curr); curr != end; curr = n, n = dlist_next(n))
+#define dlist_foreach_bk_safe(item, n, begin, end) \
+    for (item = begin, n = dlist_item_prev(item); item != end; item = n, n = dlist_item_prev(n))
 
 /**
- * @brief Iterate over references to the data user provided following next iterators
- * @param[in] iter Iterator `dlist_iter_t` for loop variable
- * @param[in] begin Iterator to begin (dlist_iter_t).
- * @param[in] end Iterator to end (dlist_iter_t).
+ * @brief Iterate over items by following next pointers.
+ * @param[in] item Iterator `struct dlist_item *` for loop variable.
+ * @param[in] begin Iterator to begin (struct dlist_item *).
+ * @param[in] end Iterator to end (struct dlist_item *).
  * @note The list must not be modified during iteration (no insertions/removals).
  */
-#define dlist_foreach_fr(iter, begin, end) \
-    for (iter = begin; iter != end; iter = dlist_next(iter))
+#define dlist_foreach_fr(item, begin, end) \
+    for (item = begin; item != end; item = dlist_item_next(item))
 
 /**
  * @brief Iterate forwards safely (allows removal of current node).
- * @param[in] curr Loop variable (dlist_iter_t).
- * @param[in] n Temporary storage for next iterator (dlist_iter_t).
- * @param[in] begin Iterator to begin at (dlist_iter_t).
- * @param[in] end Iterator to stop at (dlist_iter_t, exclusive).
+ * @param[in] item Loop variable (struct dlist_item *).
+ * @param[in] n Temporary storage for next item (struct dlist_item *).
+ * @param[in] begin Iterator to begin at (struct dlist_item *).
+ * @param[in] end Iterator to stop at (struct dlist_item *, exclusive).
  */
-#define dlist_foreach_fr_safe(curr, n, begin, end) \
-    for (curr = begin, n = dlist_next(curr); curr != end; curr = n, n = dlist_next(n))
+#define dlist_foreach_fr_safe(item, n, begin, end) \
+    for (item = begin, n = dlist_item_next(item); item != end; item = n, n = dlist_item_next(n))
 
- /** @} */ // End of Iteration group
+/** @} */ // End of Iteration group
 
- /**
+/**
  * @name Search
- * Operations to iterate items of the list.
+ * Operations to itemate items of the list.
  * @{
  */
 
@@ -227,12 +255,12 @@ void *dlist_get_data(dlist_iter_t iter);
  * reference for which the @p condition predicate returns true (non-zero).
  * If no match is found, @p result is set to NULL.
  * 
- * @param result Variable to store the result (void*).
+ * @param result (struct dlist_item *): Variable to store the result.
  *               Will be set to NULL if no match is found, or to the matching
  *               reference if found. Should be pre-declared.
  * 
- * @param begin Iterator to begin (dlist_iter_t).
- * @param end Iterator to end (dlist_iter_t).
+ * @param begin Iterator to begin (struct dlist_item *).
+ * @param end Iterator to end (struct dlist_item *).
  * @param condition Predicate function or macro that takes a pointer to void*
  *                  reference and returns zero (true) for a match, non-zero (false) otherwise.
  * 
@@ -242,11 +270,11 @@ void *dlist_get_data(dlist_iter_t iter);
 #define dlist_find_entry_bk(result, begin, end, condition)  \
 {                                                           \
     result = NULL;                                          \
-    dlist_iter_t _iter;                                     \
-    dlist_foreach_bk(_iter, begin, end) {                   \
-        void *_ref = dlist_get_data(_iter);                 \
+    struct dlist_item *_item;                               \
+    dlist_foreach_bk(_item, begin, end) {                   \
+        void *_ref = dlist_item_data(_item);                 \
         if (condition(_ref) == 0) {                         \
-            result = _ref;                                  \
+            result = _item;                                 \
             break;                                          \
         }                                                   \
     }                                                       \
@@ -256,15 +284,15 @@ void *dlist_get_data(dlist_iter_t iter);
  * @brief Searches for an item in the double linked list matching a condition, in forwards.
  * 
  * Iterates through the list starting from @p begin until @p end and returns the first
- * reference for which the @p condition predicate returns true (non-zero).
+ * item for which the @p condition predicate returns true (non-zero).
  * If no match is found, @p result is set to NULL.
  * 
- * @param result Variable to store the result (void*).
+ * @param result (struct dlist_item *): Variable to store the result.
  *               Will be set to NULL if no match is found, or to the matching
  *               reference if found. Should be pre-declared.
  * 
- * @param begin Iterator to begin  (dlist_iter_t).
- * @param end Iterator to end  (dlist_iter_t).
+ * @param begin Iterator to begin  (struct dlist_item *).
+ * @param end Iterator to end  (struct dlist_item *).
  * @param condition Predicate function or macro that takes a pointer to void*
  *                  reference and returns zero (true) for a match, non-zero (false) otherwise.
  * 
@@ -274,21 +302,21 @@ void *dlist_get_data(dlist_iter_t iter);
 #define dlist_find_entry_fr(result, begin, end, condition)  \
 {                                                           \
     result = NULL;                                          \
-    dlist_iter_t _iter;                                     \
-    dlist_foreach_fr(_iter, begin, end) {                   \
-        void *_ref = dlist_get_data(_iter);                 \
+    struct dlist_item *_item;                               \
+    dlist_foreach_fr(_item, begin, end) {                   \
+        void *_ref = dlist_item_data(_item);                 \
         if (condition(_ref) == 0) {                         \
-            result = _ref;                                  \
+            result = _item;                                 \
             break;                                          \
         }                                                   \
     }                                                       \
 }
 
- /** @} */ // End of Search group
+/** @} */ // End of Search group
 
- /**
+/**
  * @name Inspection
- * Operations to iterate items of the list.
+ * Operations to itemate items of the list.
  * @{
  */
 
@@ -307,18 +335,18 @@ size_t dlist_size(const struct dlist *dl);
 /**
  * @return Iterator to the head of the list.
  */
-dlist_iter_t dlist_head(struct dlist *dl);
+struct dlist_item *dlist_head(struct dlist *dl);
 
 /**
  * @return Iterator to the tail of the list.
  */
-dlist_iter_t dlist_tail(struct dlist *dl);
+struct dlist_item *dlist_tail(struct dlist *dl);
 
- /** @} */ // End of Inspection group
+/** @} */ // End of Inspection group
 
 void dlist_reverse(struct dlist *dl);
 
- /** @} */ // End of Global group
+/** @} */ // End of Global group
 
 #ifdef __cplusplus
 }

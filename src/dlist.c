@@ -1,12 +1,15 @@
 #include "../include/dlist.h"
 #include <stdlib.h>
-#include <assert.h>
 
-struct dlist_item {
-    struct dlist_item       *prev;
-    struct dlist_item       *next;
-    void                    *data;
-};
+// *** dlist_item implementation *** //
+
+void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dlist_item *next, void *data)
+{
+    assert(item != NULL);
+    item->prev = prev;
+    item->next = next;
+    item->data = data;
+}
 
 // *** dlist implementation *** //
 
@@ -18,9 +21,7 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac)
 {
     assert(dl != NULL);
     assert(ac != NULL);
-    dl->sentinel.next = &dl->sentinel;
-    dl->sentinel.prev = &dl->sentinel;
-    dl->sentinel.data = NULL;
+    dlist_item_init(&dl->sentinel, &dl->sentinel, &dl->sentinel, NULL);
     dl->size = 0;
     dl->ac = ac;
 }
@@ -28,10 +29,10 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac)
 void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc)
 {
     assert(dl != NULL);
-    dlist_iter_t curr;
-    dlist_iter_t n;
-    dlist_foreach_fr_safe(curr, n, dlist_head(dl), dlist_end(dl)) {
-        void *data = dlist_remove(dl, &curr);
+    struct dlist_item *curr;
+    struct dlist_item *n;
+    dlist_foreach_fr_safe(curr, n, dlist_head(dl), &dl->sentinel) {
+        void *data = dlist_remove(dl, curr);
         if (oc && oc->deinit)
             oc->deinit(data, context);
     }
@@ -41,7 +42,7 @@ void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc)
  * Insertion
  * ========================================================================= */
 
-int dlist_insert_between(struct dlist *dl, dlist_iter_t prev_node, dlist_iter_t next_node, void *new_data)
+int dlist_insert_between(struct dlist *dl, struct dlist_item *prev_node, struct dlist_item *next_node, void *new_data)
 {
     assert(dl != NULL);
     assert(prev_node != NULL && next_node != NULL);
@@ -51,9 +52,7 @@ int dlist_insert_between(struct dlist *dl, dlist_iter_t prev_node, dlist_iter_t 
         LOG(LIB_LVL, CERROR, "Allocator failed");
         return 1;
     }
-    new_item->data = new_data;
-    new_item->prev = prev_node;
-    new_item->next = next_node;
+    dlist_item_init(new_item, prev_node, next_node, new_data);
     // Sentinel usage assures prev_node->next && next_node->prev are non-NULL.
     prev_node->next = new_item;
     next_node->prev = new_item;
@@ -75,68 +74,44 @@ int dlist_push_back(struct dlist *dl, void *new_data)
  * Removal
  * ========================================================================= */
 
-void *dlist_remove(struct dlist *dl, dlist_iter_t *iter)
+void *dlist_remove(struct dlist *dl, struct dlist_item *item)
 {
     assert(dl != NULL);
-    assert(iter != NULL);
+    assert(item != NULL);
     assert(dl->ac != NULL && dl->ac->free != NULL && dl->ac->allocator != NULL);
-    dlist_iter_t node_to_remove = *iter;
-    if (node_to_remove == &dl->sentinel)
+    if (item == &dl->sentinel)
         return NULL; 
-    dlist_iter_t prev = node_to_remove->prev;
-    dlist_iter_t next = node_to_remove->next;
+    struct dlist_item *prev = item->prev;
+    struct dlist_item *next = item->next;
     prev->next = next;
     next->prev = prev;
-    void* data = node_to_remove->data;
-    dl->ac->free(dl->ac->allocator, node_to_remove);
-    dl->size++;
-    // Set *iter to NULL to at least avoid dangling pointers and segfaults,
-    // getting decent assert logs instead of core dumped.
-    *iter = NULL;
+    void* data = item->data;
+    dl->ac->free(dl->ac->allocator, item);
+    dl->size--;
     return data;
 }
 
 void *dlist_remove_front(struct dlist *dl)
 {
     assert(dl != NULL);
-    dlist_iter_t head = dlist_head(dl);
-    return dlist_remove(dl, &head);
+    return dlist_remove(dl, dlist_head(dl));
 }
 
 void *dlist_remove_back(struct dlist *dl)
 {
     assert(dl != NULL);
-    dlist_iter_t tail = dlist_tail(dl);
-    return dlist_remove(dl, &tail);
+    return dlist_remove(dl, dlist_tail(dl));
 }
 
 /* =========================================================================
  * Iteration
  * ========================================================================= */
 
-dlist_iter_t dlist_prev(dlist_iter_t iter)
-{
-    assert(iter != NULL);
-    return iter->prev;
-}
-
-dlist_iter_t dlist_next(dlist_iter_t iter)
-{
-    assert(iter != NULL);
-    return iter->next;
-}
-
-void *dlist_get_data(dlist_iter_t iter)
-{
-    assert(iter != NULL);
-    return iter->data;
-}
-
- /* =========================================================================
+/* =========================================================================
  * Search
  * ========================================================================= */
 
- /* =========================================================================
+/* =========================================================================
  * Inspection
  * ========================================================================= */
 
@@ -152,14 +127,31 @@ size_t dlist_size(const struct dlist *dl)
     return dl->size;
 }
 
-dlist_iter_t dlist_head(struct dlist *dl)
+struct dlist_item *dlist_head(struct dlist *dl)
 {
     assert(dl != NULL);
     return dl->sentinel.next;
 }
 
-dlist_iter_t dlist_tail(struct dlist *dl)
+struct dlist_item *dlist_tail(struct dlist *dl)
 {
     assert(dl != NULL);
     return dl->sentinel.prev;
+}
+
+// Others
+
+void dlist_reverse(struct dlist *dl)
+{
+    struct dlist_item *item;
+    struct dlist_item *n;
+    dlist_foreach_fr_safe(item, n, dlist_head(dl), &dl->sentinel) {
+        struct dlist_item *tmp =  item->next;
+        item->next = item->prev;
+        item->prev = tmp;
+    }
+    // Dont forget to handle the sentinel!
+    struct dlist_item *tmp = dl->sentinel.next;
+    dl->sentinel.next = dl->sentinel.prev;
+    dl->sentinel.prev = tmp;
 }
