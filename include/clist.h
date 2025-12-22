@@ -2,7 +2,6 @@
 #define CLIST_H
 
 #include "../../concepts/include/allocator_concept.h"
-#include "../../concepts/include/object_concept.h"
 #include "../../utils/include/macros.h"
 #include "../../debug/include/debug.h"
 #include <stddef.h>

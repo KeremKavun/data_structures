@@ -14,10 +14,12 @@
 
 // --- Object Concept Deinit Mock ---
 // context is used as a counter to verify calls
-void test_deinit_func(void *object, void *context) {
+
+static int counter = 0;
+
+void test_deinit_func(void *object) {
     (void)object; 
-    int *c = (int*)context;
-    if(c) (*c)++;
+    counter++;
 }
 
 // --- Test Data Helper ---
@@ -70,7 +72,7 @@ void test_lifecycle_basic() {
     assert(((my_data_t*)removed_data)->id == 3);
     assert(((my_data_t*)dlist_item_data(dlist_tail(&list)))->id == 1);
 
-    dlist_deinit(&list, NULL, NULL);
+    dlist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 
@@ -104,7 +106,7 @@ void test_forward_safe_iteration() {
         assert(*(int*)dlist_item_data(iter) == expected[i++]);
     }
 
-    dlist_deinit(&list, NULL, NULL);
+    dlist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 
@@ -128,7 +130,7 @@ void test_backward_iteration() {
     }
     assert(i == 3);
 
-    dlist_deinit(&list, NULL, NULL);
+    dlist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 
@@ -156,7 +158,7 @@ void test_find_macros() {
     // Should be the 4th item (2nd to last)
     assert(res == dlist_tail(&list)->prev); 
 
-    dlist_deinit(&list, NULL, NULL);
+    dlist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 
@@ -180,7 +182,7 @@ void test_reverse_list() {
     iter = dlist_item_next(iter);
     assert(*(int*)dlist_item_data(iter) == 1);
 
-    dlist_deinit(&list, NULL, NULL);
+    dlist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 
@@ -196,12 +198,12 @@ void test_cleanup() {
     dlist_push_back(&list, &vals[0]);
     dlist_push_back(&list, &vals[1]);
 
-    int count = 0;
     // Pass count as context to verify callbacks
-    dlist_deinit(&list, &count, &oc);
+    counter = 0;
+    dlist_deinit(&list, &oc);
 
     assert(dlist_size(&list) == 0);
-    assert(count == 2); // Deinit called twice
+    assert(counter == 2); // Deinit called twice
     printf("PASSED\n");
 }
 

@@ -76,8 +76,7 @@ void slist_init(struct slist *sl, struct allocator_concept *ac);
  * @brief Deinits the single linked list.
  * 
  * @param[in, out] sl Pointer to the list to be deinitialized. Must not be NULL or invalid.
- * @param[in] context Pointer to a arbitrary context for ease. Will be passed to the deinit method's void *context parameter.
- * @param[in] oc Pointer to an object_concept used to init/deinit nodes. Must not be NULL or invalid.
+ * @param[in] oc Pointer to an object_concept used to init/deinit nodes.
  * 
  * @warning **Deiniting**: the list given `sl` isnt freed, its fields are.
  * @warning **Object Fields Cleanup**: The lists fields arent set to zero. Since you might
@@ -85,7 +84,7 @@ void slist_init(struct slist *sl, struct allocator_concept *ac);
  * 
  * @see object_concept
  */
-void slist_deinit(struct slist *sl, void *context, struct object_concept *oc);
+void slist_deinit(struct slist *sl, struct object_concept *oc);
 
 /** @} */ // End of Initialization & Deinitalization group
 
@@ -190,8 +189,8 @@ static inline void *slist_item_data(struct slist_item **item)
  * then remove function should already alter what item points to, which
  * is next pointer, thus we dont call next.
  */
-#define slist_foreach_safe(sl, item, n, begin, end)                                 \
-    for (item = begin;                                                              \
+#define slist_foreach_safe(sl, item, n, begin, end)                        \
+    for (item = begin;                                                     \
          (item != end && *item != NULL) && ((n = (*item)->next), 1);       \
          item = ((*item) == n ? item : slist_item_next(item)))
 

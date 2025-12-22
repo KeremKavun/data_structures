@@ -25,13 +25,13 @@ void slist_init(struct slist *sl, struct allocator_concept *ac)
     sl->ac = ac;
 }
 
-void slist_deinit(struct slist *sl, void *context, struct object_concept *oc)
+void slist_deinit(struct slist *sl, struct object_concept *oc)
 {
     assert(sl != NULL);
     while (!slist_empty(sl)) {
         void *data = slist_remove(sl, slist_head(sl));
         if (oc && oc->deinit)
-            oc->deinit(data, context);
+            oc->deinit(data);
     }
 }
 

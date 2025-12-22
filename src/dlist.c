@@ -26,7 +26,7 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac)
     dl->ac = ac;
 }
 
-void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc)
+void dlist_deinit(struct dlist *dl, struct object_concept *oc)
 {
     assert(dl != NULL);
     struct dlist_item *curr;
@@ -34,7 +34,7 @@ void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc)
     dlist_foreach_fr_safe(curr, n, dlist_head(dl), &dl->sentinel) {
         void *data = dlist_remove(dl, curr);
         if (oc && oc->deinit)
-            oc->deinit(data, context);
+            oc->deinit(data);
     }
 }
 

@@ -39,16 +39,13 @@ typedef struct {
 } my_data_t;
 
 // Counter to verify deinit calls
-static int deinit_call_count = 0;
+static int counter = 0;
 
 // Deinit function matching object_concept signature
-void test_deinit_func(void *object, void *context) {
+void test_deinit_func(void *object) {
     (void)object;
     // Context is used here to pass a counter
-    int *counter = (int *)context;
-    if (counter) {
-        (*counter)++;
-    }
+    counter++;
 }
 
 // Predicate for finding an item (id == 2)
@@ -99,7 +96,7 @@ void test_lifecycle_and_allocator() {
 
     // 4. Cleanup (without object concept)
     // Passing NULL for context and oc since we don't own d1/d2 memory here (stack)
-    slist_deinit(&list, NULL, NULL);
+    slist_deinit(&list, NULL);
     
     assert(slist_size(&list) == 0);
     printf("PASSED\n");
@@ -140,7 +137,7 @@ void test_safe_iteration_logic() {
     iter = slist_item_next(iter);
     assert(*(int*)slist_item_data(iter) == 30);
 
-    slist_deinit(&list, NULL, NULL);
+    slist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 
@@ -162,14 +159,13 @@ void test_object_concept_deinit() {
         .init = NULL, // Not used by slist_deinit
         .deinit = test_deinit_func
     };
-
-    int context_counter = 0;
     
     // Deinit list, passing the counter as context
-    slist_deinit(&list, &context_counter, &oc);
+    counter = 0;
+    slist_deinit(&list, &oc);
 
     // Should have called deinit twice (once for each item)
-    assert(context_counter == 2);
+    assert(counter == 2);
     assert(slist_size(&list) == 0);
 
     printf("PASSED\n");
@@ -198,7 +194,7 @@ void test_find_macro() {
     assert(found->id == 2);
     assert(strcmp(found->name, "B") == 0);
 
-    slist_deinit(&list, NULL, NULL);
+    slist_deinit(&list, NULL);
     printf("PASSED\n");
 }
 

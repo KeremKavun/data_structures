@@ -74,7 +74,6 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac);
  * @brief Deinits the double linked list.
  * 
  * @param[in, out] dl Pointer to the list to be deinitialized. Must not be NULL or invalid.
- * @param[in] context Pointer to a arbitrary context for ease. Will be passed to the deinit method's void *context parameter.
  * @param[in] oc Pointer to an object_concept used to init/deinit nodes. Must not be NULL or invalid.
  * 
  * @warning **Deiniting**: the list given `dl` isnt freed, its fields are.
@@ -83,7 +82,7 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac);
  * 
  * @see object_concept
  */
-void dlist_deinit(struct dlist *dl, void *context, struct object_concept *oc);
+void dlist_deinit(struct dlist *dl, struct object_concept *oc);
 
 /** @} */ // End of Initialization & Deinitalization group
 
