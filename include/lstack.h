@@ -1,61 +1,132 @@
-#ifndef LSTACK_H
-#define LSTACK_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef STACK_LSTACK_H
+#define STACK_LSTACK_H
 
 #include "../../debug/include/debug.h"
 #include "../../concepts/include/object_concept.h"
 #include "../../concepts/include/allocator_concept.h"
 #include <stddef.h>
 
-struct lstack
-{
-    struct dbly_linked_list* contents;
-    struct allocator_concept* ac;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @defgroup Stack ADT with linked list data structure
+ * 
+ * @brief Stack ADT.
+ * * ### Global Constraints
+ * - **NULL Pointers**: All `struct lstack *ls` must be non-NULL nor invalid. Methods of `struct object_concept`
+ * - must be given and implemented.
+ * - **Ownership**: Internal nodes are owned by the underlying list and managed by allocator_concept given by user,
+ * - void *references to data are entirely owned by user. lstack_deinit might be helpful to destruct remaining
+ * - objects in the stack.
+ * @{
+ */
+
+/**
+ * @struct lstack
+ * 
+ * @brief Stack ADT with singular linked list.
+ * 
+ * @warning **Null Safety**: All functions taking `struct lstack *` 
+ * expect a valid, initialized by @ref lstack_init, non-NULL pointer. Behavior is undefined otherwise.
+ */
+struct lstack {
+    struct slist        *contents;
 };
 
-typedef struct lstack lstack_t;
+/**
+ * @name Initialization & Deinitialization
+ * Functions for setting up the stack.
+ * @{
+ */
 
-/*───────────────────────────────────────────────
- * Lifecycle
- *───────────────────────────────────────────────*/
-
-// init bstack, returns 0 if it succeeds, 1 otherwise
+/**
+ * @brief Initializes the stack ADT.
+ * 
+ * @param[in, out] ls Pointer to the stack instance.
+ * @param[in] ac Pointer to an allocator_concept used to allocate nodes. Must not be NULL or invalid.
+ * 
+ * @see allocator_concept
+ * @see slist_init
+ */
 int lstack_init(struct lstack* ls, struct allocator_concept* ac);
-// free bstack contents (freeing bstack itself, if dynamically allocated, is on you)
-void lstack_deinit(struct lstack* ls, void* context, struct object_concept* oc);
 
-/*───────────────────────────────────────────────
- * Push & Pop
- *───────────────────────────────────────────────*/
+/**
+ * @brief Deinitializes the stack ADT.
+ * 
+ * @param[in, out] ls Pointer to the stack instance.
+ * @param[in] oc Pointer to an object_concept used to deinit objects.
+ * 
+ * @see allocator_concept
+ * @see slist_init
+ */
+void lstack_deinit(struct lstack* ls, struct object_concept* oc);
 
-// push an item, returns 0 if it succeeds, 1 otherwise
+/** @} */ // End of Initialization & Deinitialization group
+
+/**
+ * @name Push & Pop
+ * Functions to push and pop items.
+ * @{
+ */
+
+/**
+ * @brief Pushes new item.
+ * 
+ * @param[in] new_item new item to be pushed into the stack.
+ * 
+ * @return 0 on success, non-zero otherwise.
+ */
 int lpush(struct lstack* ls, void* new_item);
-// pop an item, returns either item or NULL
+
+/**
+ * @brief Pops the stack ADT.
+ * 
+ * @return Reference to an object, supplied by user,
+ * stored in the stack
+ */
 void* lpop(struct lstack* ls);
 
-/*───────────────────────────────────────────────
- * Accessors
- *───────────────────────────────────────────────*/
+/** @} */ // End of Push & Pop group
 
-// peek an item, returns either item or NULL
+/**
+ * @name Inspection
+ * Functions to query stack ADT.
+ * @{
+ */
+
+/**
+ * @return Reference to the data stored at the top,
+ * without popping.
+ */
 void* ltop(struct lstack* ls);
-// Returns 1 if the lstack is empty, 0 otherwise
+
+/**
+ * @return 1 if the stack is empty, 0 otherwise.
+ */
 int lstack_empty(const struct lstack* ls);
-// Returns the size of the lstack
+
+/**
+ * @return Count of the objects stored in the stack.
+ */
 size_t lstack_size(const struct lstack* ls);
 
-/*───────────────────────────────────────────────
- * Iterations
- *───────────────────────────────────────────────*/
+/** @} */ // End of Inspection group
 
-// walk bstack by given handler defined by the user according to item type they enqueue
-void lstack_walk(struct lstack* ls, void* userdata, void (*handler) (void* item, void* userdata));
+/**
+ * @brief Iterates over the stack.
+ * 
+ * @param[in] context Pointer to an arbitrary context for ease.
+ * @param[in] handler Pointer to a function pointer that executes
+ * taking data reference and context pointer.
+ */
+void lstack_walk(struct lstack* ls, void* context, void (*handler) (void* item, void* context));
+
+/** @} */ // End of Global group
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // LSTACK_H
+#endif // STACK_LSTACK_H
