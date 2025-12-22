@@ -47,6 +47,8 @@ struct lstack {
  * @param[in, out] ls Pointer to the stack instance.
  * @param[in] ac Pointer to an allocator_concept used to allocate nodes. Must not be NULL or invalid.
  * 
+ * @return 0 on success, non-zero otherwise.
+ * 
  * @see allocator_concept
  * @see slist_init
  */
@@ -58,8 +60,7 @@ int lstack_init(struct lstack* ls, struct allocator_concept* ac);
  * @param[in, out] ls Pointer to the stack instance.
  * @param[in] oc Pointer to an object_concept used to deinit objects.
  * 
- * @see allocator_concept
- * @see slist_init
+ * @see object_concept
  */
 void lstack_deinit(struct lstack* ls, struct object_concept* oc);
 

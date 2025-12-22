@@ -1,8 +1,10 @@
 #include "../include/lstack.h"
-#include "../../linked_lists/include/slist.h"
+#include "../../linkedlists/include/slist.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+const size_t node_size = sizeof(struct slist_item);
 
 /* =========================================================================
  * Initialization & Deinitialization
@@ -44,7 +46,8 @@ int lpush(struct lstack* ls, void* new_item)
 
 void* lpop(struct lstack* ls)
 {
-    return slist_remove(ls->contents, slist_head(ls->contents));
+    struct slist_item** head = slist_head(ls->contents);
+    return (*head) ? slist_remove(ls->contents, head) : NULL;
 }
 
 /* =========================================================================
