@@ -137,6 +137,8 @@ void dynarray_delete(struct dynarray *arr, size_t begin, size_t end)
 
 void dynarray_pop_back(struct dynarray *arr)
 {
+    if (dynarray_size(arr) == 0)
+        return;
     dynarray_delete(arr, dynarray_size(arr) - 1, dynarray_size(arr));
 }
 
@@ -208,11 +210,16 @@ int dynarray_get(const struct dynarray *arr, size_t index, void *result)
 void *dynarray_front(struct dynarray *arr)
 {
     assert(arr != NULL && arr->base.buffer != NULL);
+    if (dynarray_empty(arr))
+        return NULL;
     return arr->base.buffer;
 }
 
 void *dynarray_back(struct dynarray *arr)
 {
+    assert(arr != NULL && arr->base.buffer != NULL);
+    if (dynarray_empty(arr))
+        return NULL;
     return dynarray_iterator_at(arr, dynarray_size(arr) - 1);
 }
 

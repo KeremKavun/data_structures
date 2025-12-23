@@ -203,14 +203,12 @@ int dynarray_resize(struct dynarray *arr, size_t new_size, void *default_val);
 int dynarray_get(const struct dynarray *arr, size_t index, void *result);
 
 /**
- * @brief Returns pointer to the first element.
- * @warning Undefined if empty.
+ * @brief Returns pointer to the first element, NULL if empty.
  */
 void *dynarray_front(struct dynarray *arr);
 
 /**
- * @brief Returns pointer to the last element.
- * @warning Undefined if empty.
+ * @brief Returns pointer to the last element, NULL if empty.
  */
 void *dynarray_back(struct dynarray *arr);
 
