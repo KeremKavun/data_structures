@@ -1,52 +1,102 @@
-#ifndef AVL_H
-#define AVL_H
+#ifndef TREES_AVL_H
+#define TREES_AVL_H
+
+#include "../../debug/include/debug.h"
+#include "../../concepts/include/allocator_concept.h"
+#include "../../concepts/include/object_concept.h"
+#include "../include/bintree.h"
+#include "../internals/status.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "../../debug/include/debug.h"
-#include "../../concepts/include/object_concept.h"
-#include "../internals/status.h"
-#include "../internals/binsearch_tree.h"
-#include <stddef.h>
+/**
+ * @defgroup AVL API
+ * 
+ * @brief Basic operations for avl tree.
+ * * ### Global Constraints
+ * - **NULL Pointers**: All `struct avl *tree` arguments must be non-NULL.
+ * - **Ownership**: Internal nodes are owned by allocator_concept given by user, stored in the avl,
+ * - void *references to data are entirely owned by user. @ref avl_destroy might be helpful to destruct remaining
+ * - objects in the tree.
+ * @{
+ */
 
-struct avl;
-typedef struct avl avl_t;
+/**
+ * @struct avl
+ * 
+ * @brief Aggregation of generic binary tree.
+ */
+struct avl {
+    struct avl_node             *root;
+    struct allocator_concept    ac;
+    int (*cmp) (const void *key, const void *data);
+    size_t                      size;
+};
 
-/*───────────────────────────────────────────────
- * Lifecycle
- *───────────────────────────────────────────────*/
+/**
+ * @name Create & Destroy
+ * Functions for setting up the tree.
+ * @{
+ */
 
 // Creates avl and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct avl* avl_create(int (*cmp) (const void* key, const void* data), struct object_concept* oc);
-void avl_destroy(struct avl* btree, void* context);
+struct avl *avl_create(int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
+void avl_destroy(struct avl *btree, struct object_concept *oc);
 size_t avl_node_sizeof();
 
-/*───────────────────────────────────────────────
- * Operations
- *───────────────────────────────────────────────*/
+/** @} */ // End of Create & Destroy group
 
-enum trees_status avl_add(struct avl* btree, void* new_data);
-enum trees_status avl_remove(struct avl* btree, void* data);
-void* avl_search(struct avl* btree, const void* data);
+/**
+ * @name Operations
+ * Functions for add, remove and search.
+ * @{
+ */
 
-/*───────────────────────────────────────────────
- * Accessors
- *───────────────────────────────────────────────*/
+enum trees_status avl_add(struct avl *btree, void *new_data);
+enum trees_status avl_remove(struct avl *btree, void *data);
+void *avl_search(struct avl *btree, const void *data);
 
-const struct bintree* avl_root(const struct avl* tree);
-int avl_empty(const struct avl* btree);
-size_t avl_size(const struct avl* btree);
+/** @} */ // End of Operations group
 
-/*───────────────────────────────────────────────
- * Iterations
- *───────────────────────────────────────────────*/
+/**
+ * @name Inspection
+ * Functions to query the tree.
+ * @{
+ */
 
-void avl_walk(struct avl* btree, void* userdata, void (*handler) (void* data, void* userdata), enum traversal_order order);
+static inline const struct bintree *avl_root(const struct avl *tree)
+{
+    return (const struct bintree*) tree->root;
+}
+
+static inline int avl_empty(const struct avl *tree)
+{
+    return tree->root == NULL;
+}
+
+static inline size_t avl_size(const struct avl *tree)
+{
+    return tree->size;
+}
+
+/** @} */ // End of Inspection group
+
+/**
+ * @name Traversal
+ * Functions for traversals.
+ * @{
+ */
+
+// Use generic binary tree algorithms, since this is aggregate
+// and technically inherits.
+
+/** @} */ // End of Traversal group
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // AVL_H
+#endif // TREES_AVL_H

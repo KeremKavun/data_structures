@@ -1,63 +1,197 @@
-#ifndef BIN_TREE_H
-#define BIN_TREE_H
+#ifndef TREES_BINTREE_H
+#define TREES_BINTREE_H
+
+#include "../../debug/include/debug.h"
+#include "../../concepts/include/allocator_concept.h"
+#include "../../concepts/include/object_concept.h"
+#include "../internals/traversals.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "../../debug/include/debug.h"
-#include "../../concepts/include/object_concept.h"
-#include "../internals/traversals.h"
-#include <stddef.h>
+/**
+ * @defgroup Generic Binary Tree API
+ * 
+ * @brief Basic operations for the generic binary tree.
+ * * ### Global Constraints
+ * - **NULL Pointers**: All `struct bintree *tree` arguments must be non-NULL.
+ * - **Ownership**: Internal nodes are owned by allocator_concept given by user,
+ * - void *references to data are entirely owned by user. @ref bintree_destroy might be helpful to destruct remaining
+ * - objects in the tree.
+ * @{
+ */
 
-struct bintree
-{
-    struct bintree* left;
-    struct bintree* right;
-    void* data;
+/**
+ * @struct bintree
+ * 
+ * @brief Simple binary tree/node.
+ */
+struct bintree {
+    struct bintree      *left;
+    struct bintree      *right;
+    void                *data;
 };
 
 typedef struct bintree bintree_t;
 
-/*───────────────────────────────────────────────
- * Lifecycle
- *───────────────────────────────────────────────*/
+/**
+ * @name Create & Destroy
+ * Functions for setting up the tree.
+ * @{
+ */
 
-// Creates bintree and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
-struct bintree* bintree_create(struct bintree* left, struct bintree* right, void* data, struct object_concept* oc);
-void bintree_destroy(struct bintree* tree, void* context, struct object_concept* oc);
-size_t bintree_sizeof();
+/**
+ * @brief Creates a binary tree on the heap.
+ * 
+ * @param[in] left Left child of the tree.
+ * @param[in] right Right child of the tree.
+ * @param[in] data Reference to the data to store.
+ * @param[in] ac allocator_concept to create the tree, must be non-NULL and valid.
+ * 
+ * @return Binary tree, NULL if not successful.
+ */
+struct bintree *bintree_create(struct bintree *left, struct bintree *right, void *data, struct allocator_concept* ac);
 
-/*───────────────────────────────────────────────
- * Operations
- *───────────────────────────────────────────────*/
+/**
+ * @brief Destroys the binary tree.
+ * 
+ * @param[in, out] tree Pointer to the binary tree instance.
+ * @param[in] oc object_concept to deinit data references.
+ * @param[in] ac allocator_concept to return memory back, must be non NULL
+ * and valid, and same as passed into the @ref bintree_create method.
+ */
+void bintree_destroy(struct bintree *tree, struct object_concept *oc, struct allocator_concept *ac);
 
-struct bintree* bintree_get_left(struct bintree* tree);
-const struct bintree* bintree_get_left_const(const struct bintree* tree);
-void bintree_set_left(struct bintree* tree, struct bintree* left);
-struct bintree* bintree_get_right(struct bintree* tree);
-const struct bintree* bintree_get_right_const(const struct bintree* tree);
-void bintree_set_right(struct bintree* tree, struct bintree* right);
-void* bintree_get_data(struct bintree* tree);
-const void* bintree_get_data_const(const struct bintree* tree);
-void bintree_set_data(struct bintree* tree, void* data);
+/** @} */ // End of Create & Destroy group
 
-/*───────────────────────────────────────────────
- * Traversals
- *───────────────────────────────────────────────*/
+/**
+ * @name Getters & Setters
+ * Functions for get and set things.
+ * @{
+ */
 
-void bintree_walk(struct bintree* tree, void* userdata, void (*handler) (void* data, void* userdata), enum traversal_order order);
+/**
+ * @return left child.
+ */
+static inline struct bintree* bintree_get_left(struct bintree* tree)
+{
+    return tree->left;
+}
 
-/*───────────────────────────────────────────────
- * Properties
- *───────────────────────────────────────────────*/
+/**
+ * @return const left child.
+ */
+static inline const struct bintree* bintree_get_left_const(const struct bintree* tree)
+{
+    return tree->left;
+}
 
-size_t bintree_size(const struct bintree* tree);
-int bintree_height(const struct bintree* tree);
-int bintree_balance_factor(const struct bintree* tree);
+/**
+ * @brief Sets left child.
+ */
+static inline void bintree_set_left(struct bintree* tree, struct bintree* left)
+{
+    tree->left = left;
+}
+
+/**
+ * @return right child.
+ */
+static inline struct bintree* bintree_get_right(struct bintree* tree)
+{
+    return tree->right;
+}
+
+/**
+ * @return const right child.
+ */
+static inline const struct bintree* bintree_get_right_const(const struct bintree* tree)
+{
+    return tree->right;
+}
+
+/**
+ * @brief Sets right child.
+ */
+static inline void bintree_set_right(struct bintree* tree, struct bintree* right)
+{
+    tree->right = right;
+}
+
+/**
+ * @return reference to the data.
+ */
+static inline void* bintree_get_data(struct bintree* tree)
+{
+    return tree->data;
+}
+
+/**
+ * @return const reference to the data.
+ */
+static inline const void* bintree_get_data_const(const struct bintree* tree)
+{
+    return tree->data;
+}
+
+/**
+ * @brief Sets the reference.
+ */
+static inline void bintree_set_data(struct bintree* tree, void* data)
+{
+    tree->data = data;
+}
+
+/** @} */ // End of Getters & Setters group
+
+/**
+ * @name Traversal
+ * Functions for traverse binary trees.
+ * @{
+ */
+
+/**
+ * @brief Traverses tree in the given order
+ * 
+ * @param[in] context Context pointer for ease.
+ * @param[in] handler Pointer to a function pointer that executes
+ * taking data reference and context pointer.
+ * @param[in] order Defines the traversel order,
+ * preorder, inorder or postorder?
+ */
+void bintree_traverse(struct bintree *tree, void *context, void (*handler) (void *data, void *context), enum traversal_order order);
+
+/**
+ * @brief Traverses the tree in BFS
+ */
+int bintree_bfs(struct bintree *tree, void *context, void (*handler) (void *data, void *context));
+
+/**
+ * @brief Traverses the tree in DFS
+ */
+int bintree_dfs(struct bintree *tree, void *context, void (*handler) (void *data, void *context));
+
+/** @} */ // End of Traversal group
+
+/**
+ * @name Properties
+ * Functions for additional information about the
+ * tree, but they might be costful and heavy.
+ * @{
+ */
+
+size_t bintree_size(const struct bintree *tree);
+int bintree_height(const struct bintree *tree);
+int bintree_balance_factor(const struct bintree *tree);
+
+/** @} */ // End of Properties group
+
+/** @} */ // End of Global group
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // BIN_TREE_H
+#endif // TREES_BINTREE_H

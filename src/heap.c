@@ -1,49 +1,53 @@
 #include "../include/heap.h"
-#include "../../buffers/include/lbuffer.h"
-#include "../internals/heap_definition.h"
+#include "../../arrays/include/dynarray.h"
 #include <stdlib.h>
+#include <inttypes.h>
+
+#define INITIAL_CAPACITY 4
 
 static void reheap_up(struct heap* root, size_t index);
 static void reheap_down(struct heap* root, size_t index);
 static size_t parent_index(size_t index);
 static size_t left_child_index(size_t index);
 static size_t right_child_index(size_t index);
-static void swap(void* a, void* b);
+static void swap(void* a, void* b, struct dynarray *arr);
 
-/*───────────────────────────────────────────────
- * Lifecycle
- *───────────────────────────────────────────────*/
+/* =========================================================================
+ * Initialize & Deinitialize
+ * ========================================================================= */
 
-int heap_init(struct heap* tree, size_t capacity, int (*cmp) (const void* a, const void* b))
+int heap_init(struct heap* tree, size_t obj_size, struct object_concept *oc, int (*cmp) (const void* a, const void* b))
 {
-    if (lbuffer_init(&tree->buffer, capacity, sizeof(void*)) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "Failed to create lbuffer for heap");
+    struct dynarray *contents = malloc(sizeof(struct dynarray));
+    if (!contents) {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
         return 1;
     }
+    if (dynarray_init(contents, INITIAL_CAPACITY, obj_size, *oc) != 0) {
+        LOG(LIB_LVL, CERROR, "Failed to create dynarray for heap");
+        free(contents);
+        return 1;
+    }
+    tree->contents = contents;
     tree->cmp = cmp;
     return 0;
 }
 
-void heap_deinit(struct heap* tree, void* context, struct object_concept* oc)
+void heap_deinit(struct heap* tree)
 {
-    lbuffer_deinit(&tree->buffer, context, oc);
+    dynarray_deinit(tree->contents);
+    free(tree->contents);
     tree->cmp = NULL;
 }
 
-size_t heap_sizeof()
-{
-    return sizeof(struct heap);
-}
-
-/*───────────────────────────────────────────────
+/* =========================================================================
  * Operations
- *───────────────────────────────────────────────*/
+ * ========================================================================= */
 
 int heap_add(struct heap* tree, void* new_data)
 {
-    if (lbuffer_insert(&tree->buffer, new_data, heap_size(tree)) != 0)
-    {
+    assert(tree != NULL);
+    if (dynarray_push_back(tree->contents, new_data) != 0) {
         LOG(LIB_LVL, CERROR, "Could not inserted into the buffer");
         return 1;
     }
@@ -51,84 +55,90 @@ int heap_add(struct heap* tree, void* new_data)
     return 0;
 }
 
-void* heap_remove(struct heap* tree)
+int heap_remove(struct heap* tree, void *removed)
 {
+    assert(tree != NULL);
     if (heap_empty(tree))
-        return NULL;
-    void* del;
-    void** root_data = lbuffer_at(&tree->buffer, 0);
-    void** last_item_data = lbuffer_at(&tree->buffer, lbuffer_size(&tree->buffer) - 1);
-    del = *root_data;
-    *root_data = *last_item_data;
-    lbuffer_remove(&tree->buffer, lbuffer_size(&tree->buffer) - 1, NULL);
+        return 0;
+    void* root_data = dynarray_front(tree->contents);
+    if (tree->contents->oc.init(removed, root_data) != 0) {
+        LOG(LIB_LVL, CERROR, "Could not initialized the destination");
+        return 1;
+    }
+    if (dynarray_set(tree->contents, 0, dynarray_back(tree->contents)) != 0) {
+        LOG(LIB_LVL, CERROR, "Could not copy last item into the root");
+        return 1;
+    }
+    dynarray_pop_back(tree->contents);
     reheap_down(tree, 0);
-    return del;
+    return 0;
 }
 
-/*───────────────────────────────────────────────
- * Accessors
- *───────────────────────────────────────────────*/
+/* =========================================================================
+ * Inspection
+ * ========================================================================= */
 
 int heap_empty(const struct heap* tree)
 {
-    return lbuffer_empty(&tree->buffer);
+    assert(tree != NULL);
+    return dynarray_empty(tree->contents);
 }
 
 size_t heap_size(const struct heap* tree)
 {
-    return lbuffer_size(&tree->buffer);
+    assert(tree != NULL);
+    return dynarray_size(tree->contents);
 }
 
-/*───────────────────────────────────────────────
- * Iterations
- *───────────────────────────────────────────────*/
+// Iteration
 
 void heap_walk(struct heap* tree, void* context, void (*handler) (void* data, void* context))
 {
-    lbuffer_foreach(&tree->buffer, context, handler);
+    assert(tree);
+    void *begin = dynarray_iterator_begin(tree->contents);
+    void *end = dynarray_iterator_end(tree->contents);
+    while (begin != end) {
+        handler(begin, context);
+        begin = dynarray_iterator_next(tree->contents, begin);
+    }
 }
 
 // *** Helper functions *** //
 
 static void reheap_up(struct heap* root, size_t index)
 {
-    while (index > 0)
-    {
+    while (index > 0) {
         size_t p_index = parent_index(index);
-        void* child_slot = lbuffer_at(&root->buffer, index);
-        void* parent_slot = lbuffer_at(&root->buffer, p_index);
-        if (root->cmp(*(void**) parent_slot, *(void**) child_slot) >= 0)
+        void* child_slot = array_at(root->contents, index);
+        void* parent_slot = array_at(root->contents, p_index);
+        if (root->cmp(parent_slot, child_slot) >= 0)
             break;
-        swap(child_slot, parent_slot);
+        swap(child_slot, parent_slot, root->contents);
         index = p_index;
     }
 }
 
 static void reheap_down(struct heap* root, size_t index)
 {
-    while (1)
-    {
+    while (1) {
         size_t left = left_child_index(index);
         size_t right = right_child_index(index);
         size_t largest = index;
-        if (left < heap_size(root))
-        {
-            void* left_val = *(void**)lbuffer_at(&root->buffer, left);
-            void* largest_val = *(void**)lbuffer_at(&root->buffer, largest);
-            
+        if (left < heap_size(root)) {
+            void* left_val = array_at(root->contents, left);
+            void* largest_val = array_at(root->contents, largest);
             if (root->cmp(largest_val, left_val) < 0)
                 largest = left;
         }
-        if (right < heap_size(root))
-        {
-            void* right_val = *(void**)lbuffer_at(&root->buffer, right);
-            void* largest_val = *(void**)lbuffer_at(&root->buffer, largest);
+        if (right < heap_size(root)) {
+            void* right_val = array_at(root->contents, right);
+            void* largest_val = array_at(root->contents, largest);
             if (root->cmp(largest_val, right_val) < 0)
                 largest = right;
         }
         if (largest == index)
             break;
-        swap(lbuffer_at(&root->buffer, index), lbuffer_at(&root->buffer, largest));
+        swap(array_at(root->contents, index), array_at(root->contents, largest), root->contents);
         index = largest;
     }
 }
@@ -148,9 +158,10 @@ static size_t right_child_index(size_t index)
     return 2 * index + 2;
 }
 
-static void swap(void* a, void* b)
+static void swap(void* a, void* b, struct dynarray *arr)
 {
-    void* temp = *(void**)a;
-    *(void**)a = *(void**)b;
-    *(void**)b = temp;
+    uint8_t tmp[arr->base.obj_size];
+    arr->oc.init(tmp, a);
+    arr->oc.init(a, b);
+    arr->oc.init(b, tmp);
 }

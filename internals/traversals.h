@@ -5,14 +5,11 @@
 extern "C" {
 #endif
 
-enum traversal_order
-{
+enum traversal_order {
     PREORDER,
     INORDER,
     POSTORDER
 };
-
-typedef enum traversal_order traversal_order_t;
 
 #ifdef __cplusplus
 }
