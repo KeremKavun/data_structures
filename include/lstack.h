@@ -52,7 +52,7 @@ struct lstack {
  * @see allocator_concept
  * @see slist_init
  */
-int lstack_init(struct lstack* ls, struct allocator_concept* ac);
+int lstack_init(struct lstack *ls, struct allocator_concept *ac);
 
 /**
  * @brief Deinitializes the stack ADT.
@@ -62,7 +62,7 @@ int lstack_init(struct lstack* ls, struct allocator_concept* ac);
  * 
  * @see object_concept
  */
-void lstack_deinit(struct lstack* ls, struct object_concept* oc);
+void lstack_deinit(struct lstack *ls, struct object_concept *oc);
 
 /** @} */ // End of Initialization & Deinitialization group
 
@@ -79,7 +79,7 @@ void lstack_deinit(struct lstack* ls, struct object_concept* oc);
  * 
  * @return 0 on success, non-zero otherwise.
  */
-int lpush(struct lstack* ls, void* new_item);
+int lpush(struct lstack *ls, void *new_item);
 
 /**
  * @brief Pops the stack ADT.
@@ -87,7 +87,7 @@ int lpush(struct lstack* ls, void* new_item);
  * @return Reference to an object, supplied by user,
  * stored in the stack
  */
-void* lpop(struct lstack* ls);
+void *lpop(struct lstack *ls);
 
 /** @} */ // End of Push & Pop group
 
@@ -101,17 +101,17 @@ void* lpop(struct lstack* ls);
  * @return Reference to the data stored at the top,
  * without popping.
  */
-void* ltop(struct lstack* ls);
+void *ltop(struct lstack *ls);
 
 /**
  * @return 1 if the stack is empty, 0 otherwise.
  */
-int lstack_empty(const struct lstack* ls);
+int lstack_empty(const struct lstack *ls);
 
 /**
  * @return Count of the objects stored in the stack.
  */
-size_t lstack_size(const struct lstack* ls);
+size_t lstack_size(const struct lstack *ls);
 
 /** @} */ // End of Inspection group
 
@@ -122,7 +122,7 @@ size_t lstack_size(const struct lstack* ls);
  * @param[in] handler Pointer to a function pointer that executes
  * taking data reference and context pointer.
  */
-void lstack_walk(struct lstack* ls, void* context, void (*handler) (void* item, void* context));
+void lstack_walk(struct lstack *ls, void *context, void (*handler) (void *item, void *context));
 
 /** @} */ // End of Global group
 

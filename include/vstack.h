@@ -83,8 +83,8 @@ int vpush(struct vstack *vs, void *new_item);
  * @param[in, out] popped_item Pointer to memory block to
  * store popped item. Nothing is copied if NULL.
  * 
- * @return 0 on success, non-zero otherwise (including nothing to pop),
- * in case copy ctor fails.
+ * @return 0 on success, positive if copy ctor fails, negative
+ * if the stack is empty.
  */
 int vpop(struct vstack *vs, void *popped_item);
 
@@ -100,8 +100,8 @@ int vpop(struct vstack *vs, void *popped_item);
  * @param[in, out] top_item Pointer to memory block to
  * store top item.
  * 
- * @return 0 on success, non-zero otherwise, in case copy
- * ctor fails.
+ * @return 0 on success, positive if copy ctor fails, negative
+ * if the stack is empty.
  */
 int vtop(struct vstack *vs, void *top_item);
 
