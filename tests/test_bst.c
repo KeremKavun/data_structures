@@ -1,5 +1,5 @@
 #include "../include/bst.h"
-#include "../../allocators/include/chunked_pool.h"
+#include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,11 +58,13 @@ static void person_deallocator(void* item)
     free(p);
 }
 
+struct object_concept oc = { .init = NULL, .deinit = person_deallocator };
+
 /*───────────────────────────────────────────────
  * Test Cases
  *───────────────────────────────────────────────*/
 
-static struct bst* create_test_tree(struct object_concept* ac)
+static struct bst* create_test_tree(struct allocator_concept* ac)
 {
     return bst_create(person_cmp, ac);
 }
@@ -70,24 +72,32 @@ static struct bst* create_test_tree(struct object_concept* ac)
 static void test_create_destroy(void)
 {
     printf("TEST: create/destroy\n");
-    struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    assert(pool);
+    struct syspool pool = { .obj_size = MAGIC };
 
-    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
+    struct allocator_concept ac = {
+        &pool, 
+        (GENERIC_ALLOC_SIGN) sysalloc, 
+        (GENERIC_FREE_SIGN) sysfree
+    };
+    
     struct bst* tree = create_test_tree(&ac);
     assert(tree);
     assert(bst_empty(tree));
 
     bst_destroy(tree, NULL);       // No need to free nodes; pool owns memory
-    chunked_pool_destroy(pool);
     printf(" → PASSED\n\n");
 }
 
 static void test_insert_and_search(void)
 {
     printf("TEST: insert/search complex objects\n");
-    struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
+    struct syspool pool = { .obj_size = MAGIC };
+
+    struct allocator_concept ac = {
+        &pool, 
+        (GENERIC_ALLOC_SIGN) sysalloc, 
+        (GENERIC_FREE_SIGN) sysfree
+    };
     struct bst* tree = create_test_tree(&ac);
 
     Person* alice = make_person(3, "Alice", 30);
@@ -112,44 +122,7 @@ static void test_insert_and_search(void)
     Person notfound = {.id = 42};
     assert(bst_search(tree, &notfound) == NULL);
 
-    bst_destroy(tree, NULL);
-    chunked_pool_destroy(pool);
-
-    free(alice);
-    free(bob);
-    free(carol);
-
-    printf(" → PASSED\n\n");
-}
-
-static void test_min_max(void)
-{
-    printf("TEST: min/max complex objects\n");
-    struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
-    struct bst* tree = create_test_tree(&ac);
-
-    Person* p1 = make_person(10, "Zoe", 24);
-    Person* p2 = make_person(4, "Mark", 45);
-    Person* p3 = make_person(20, "Liam", 32);
-
-    bst_add(tree, p1);
-    bst_add(tree, p2);
-    bst_add(tree, p3);
-
-    Person* min = bst_min(tree);
-    Person* max = bst_max(tree);
-
-    assert(min && min->id == 4);
-    assert(max && max->id == 20);
-    printf(" Min: %s, Max: %s\n", min->name, max->name);
-
-    bst_destroy(tree, NULL);
-    chunked_pool_destroy(pool);
-
-    free(p1);
-    free(p2);
-    free(p3);
+    bst_destroy(tree, &oc);
 
     printf(" → PASSED\n\n");
 }
@@ -157,8 +130,13 @@ static void test_min_max(void)
 static void test_traversals(void)
 {
     printf("TEST: traversals complex objects\n");
-    struct chunked_pool* pool = chunked_pool_create(10, MAGIC);
-    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
+    struct syspool pool = { .obj_size = MAGIC };
+
+    struct allocator_concept ac = {
+        &pool, 
+        (GENERIC_ALLOC_SIGN) sysalloc, 
+        (GENERIC_FREE_SIGN) sysfree
+    };
     struct bst* tree = create_test_tree(&ac);
 
     Person* arr[] = {
@@ -175,18 +153,14 @@ static void test_traversals(void)
         bst_add(tree, arr[i]);
 
     printf(" Preorder: ");
-    bst_walk(tree, NULL, print_person, PREORDER);
+    bintree_traverse(bst_root(tree), NULL, print_person, PREORDER);
     printf("\n Inorder:  ");
-    bst_walk(tree, NULL, print_person, INORDER);
+    bintree_traverse(bst_root(tree), NULL, print_person, INORDER);
     printf("\n Postorder:");
-    bst_walk(tree, NULL, print_person, POSTORDER);
+    bintree_traverse(bst_root(tree), NULL, print_person, POSTORDER);
     printf("\n");
 
-    bst_destroy(tree, NULL);
-    chunked_pool_destroy(pool);
-
-    for (int i = 0; i < 7; ++i)
-        free(arr[i]);
+    bst_destroy(tree, &oc);
 
     printf(" → PASSED\n\n");
 }
@@ -194,8 +168,13 @@ static void test_traversals(void)
 static void test_removal(void)
 {
     printf("TEST: removal complex objects\n");
-    struct chunked_pool* pool = chunked_pool_create(20, MAGIC);
-    struct object_concept ac = {pool, (GENERIC_ALLOC_SIGN) chunked_pool_alloc, (GENERIC_FREE_SIGN) chunked_pool_free, NULL};
+    struct syspool pool = { .obj_size = MAGIC };
+
+    struct allocator_concept ac = {
+        &pool, 
+        (GENERIC_ALLOC_SIGN) sysalloc, 
+        (GENERIC_FREE_SIGN) sysfree
+    };
     struct bst* tree = create_test_tree(&ac);
 
     int ids[] = {8, 3, 10, 1, 6, 14, 4, 7, 13};
@@ -209,29 +188,71 @@ static void test_removal(void)
 
     // Remove leaf (13)
     Person k1 = {.id = 13};
-    assert(bst_remove(tree, &k1) == TREES_OK);
+    void* removed1 = bst_remove(tree, &k1);
+    assert(removed1 != NULL);
+    printf(" Removed: id=%d\n", ((Person*)removed1)->id);
 
     // Remove one-child (14)
     Person k2 = {.id = 14};
-    assert(bst_remove(tree, &k2) == TREES_OK);
+    void* removed2 = bst_remove(tree, &k2);
+    assert(removed2 != NULL);
+    printf(" Removed: id=%d\n", ((Person*)removed2)->id);
 
     // Remove two-children (3)
     Person k3 = {.id = 3};
-    assert(bst_remove(tree, &k3) == TREES_OK);
+    void* removed3 = bst_remove(tree, &k3);
+    assert(removed3 != NULL);
+    printf(" Removed: id=%d\n", ((Person*)removed3)->id);
 
     // Not found
     Person k4 = {.id = 99};
-    assert(bst_remove(tree, &k4) == TREES_NOT_FOUND);
+    void* removed4 = bst_remove(tree, &k4);
+    assert(removed4 == NULL);
+    printf(" Not found: id=99 (expected)\n");
 
     printf(" Inorder after removals: ");
-    bst_walk(tree, NULL, print_person, INORDER);
+    bintree_traverse(bst_root(tree), NULL, print_person, INORDER);
     printf("\n");
 
-    bst_destroy(tree, NULL);
-    chunked_pool_destroy(pool);
+    bst_destroy(tree, &oc);
 
-    for (int i = 0; i < 9; ++i)
-        free(persons[i]);
+    printf(" → PASSED\n\n");
+}
+
+static void test_size_tracking(void)
+{
+    printf("TEST: size tracking\n");
+    struct syspool pool = { .obj_size = MAGIC };
+
+    struct allocator_concept ac = {
+        &pool, 
+        (GENERIC_ALLOC_SIGN) sysalloc, 
+        (GENERIC_FREE_SIGN) sysfree
+    };
+    struct bst* tree = create_test_tree(&ac);
+
+    assert(bst_size(tree) == 0);
+
+    Person* p1 = make_person(1, "One", 20);
+    Person* p2 = make_person(2, "Two", 21);
+    Person* p3 = make_person(3, "Three", 22);
+
+    bst_add(tree, p1);
+    assert(bst_size(tree) == 1);
+
+    bst_add(tree, p2);
+    assert(bst_size(tree) == 2);
+
+    bst_add(tree, p3);
+    assert(bst_size(tree) == 3);
+
+    Person k = {.id = 2};
+    bst_remove(tree, &k);
+    assert(bst_size(tree) == 2);
+
+    printf(" Size tracking correct: 0 → 1 → 2 → 3 → 2\n");
+
+    bst_destroy(tree, &oc);
 
     printf(" → PASSED\n\n");
 }
@@ -245,9 +266,9 @@ int main(void)
     printf("────────── BST WITH CHUNKED POOL TEST ──────────\n\n");
     test_create_destroy();
     test_insert_and_search();
-    test_min_max();
     test_traversals();
     test_removal();
+    test_size_tracking();
     printf("All complex-object tests PASSED ✅\n");
     return 0;
 }

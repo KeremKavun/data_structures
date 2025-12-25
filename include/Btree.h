@@ -64,7 +64,7 @@ void Btree_destroy(struct Btree *tree, struct object_concept *oc);
  * 
  * @see mway_sizeof
  */
-size_t Btree_node_sizeof(size_t order)
+static inline size_t Btree_node_sizeof(size_t order)
 {
     // order -1 data and entry, but adding one child to make it B-tree node with one size_t
     return mway_sizeof(order - 1, sizeof(struct mway_header*) + sizeof(size_t));
@@ -100,7 +100,7 @@ static inline const struct mway_header* Btree_root(const struct Btree* tree)
 
 static inline int Btree_empty(const struct Btree* tree)
 {
-    return tree->root == NULL;
+    return tree->size == 0;
 }
 
 static inline size_t Btree_size(const struct Btree* tree)

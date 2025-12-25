@@ -67,9 +67,9 @@ void *avl_search(struct avl *btree, const void *data);
  * @{
  */
 
-static inline const struct bintree *avl_root(const struct avl *tree)
+static inline struct bintree *avl_root(struct avl *tree)
 {
-    return (const struct bintree*) tree->root;
+    return (struct bintree*) tree->root;
 }
 
 static inline int avl_empty(const struct avl *tree)

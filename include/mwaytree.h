@@ -180,13 +180,13 @@ static inline void mway_set_data(struct mway_header* header, size_t index, void*
 /** @return Pointer to the custom footer area following the entries. */
 static inline void* mway_get_footer(struct mway_header* header)
 {
-    return (void*) (mway_base(header) + sizeof(struct mway_entry) * header->capacity);
+    return (void*) (mway_base(header) + header->capacity);
 }
 
 /** @return Const pointer to the custom footer area. */
 static inline const void* mway_get_footer_const(const struct mway_header* header)
 {
-    return (const void*) (mway_base((struct mway_header*) header) + sizeof(struct mway_entry) * header->capacity);
+    return (const void*) (mway_base((struct mway_header*) header) + header->capacity);
 }
 
 /** @return Address of the entry structure at the specified index. */
