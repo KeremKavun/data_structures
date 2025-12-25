@@ -74,14 +74,68 @@ static struct mway_entry split_node(struct mway_header* node, struct mway_entry 
  * 
  * @return Removed entry from the B-tree.
  */
-static struct mway_entry remove_data(struct mway_header *node, size_t index);
+static struct mway_entry remove_entry(struct mway_header *node, size_t index);
 
+static void exchange_entries(struct mway_header *target_node, size_t index);
+
+/**
+ * @brief Performs a "Right Rotation" to fix an underflow in the right sibling.
+ * * ### Mental Model
+ * Think of the Parent Key as a pivot. The Donor (Left Sibling) pushes its 
+ * largest value UP to the Parent, which forces the Parent's existing separator 
+ * DOWN into the Starving (Right Sibling) node.
+ * * ### Data Flow
+ * 1. **Shift Starving:** Make room at index 0.
+ * 2. **Parent -> Starving:** The separator key moves down to `starving[0]`.
+ * 3. **Donor -> Parent:** The largest key from Donor moves up to replace the parent separator.
+ * * ### Pointer Surgery
+ * The critical pointer movement involves the Donor's rightmost child:
+ * - It represents values > Donor's max key but < Parent's old key.
+ * - It becomes the **First Child** of the Starving node.
+ * * @param[in,out] donor The left sibling that has extra keys to spare.
+ * @param[in,out] entry The parent entry pointing to the **starving** node (entry->child).
+ */
 static void borrow_from_left(struct mway_header *donor, struct mway_entry *entry);
+
+/**
+ * @brief Performs a "Left Rotation" to fix an underflow in the left sibling.
+ * * ### Mental Model
+ * The Donor (Right Sibling) pushes its smallest value UP to the Parent, 
+ * bumping the Parent's existing separator DOWN into the Starving (Left Sibling) node.
+ * * ### Data Flow
+ * 1. **Parent -> Starving:** The separator key moves down to the *end* of the Starving node.
+ * 2. **Donor -> Parent:** The smallest key from Donor moves up to replace the parent separator.
+ * 3. **Shift Donor:** The Donor shifts remaining entries left to cover the gap.
+ * * ### Pointer Surgery
+ * The critical pointer movement involves the Donor's "First Child" (stored in footer):
+ * - It represents values < Donor's min key but > Parent's old key.
+ * - It becomes the child associated with the new entry appended to the Starving node.
+ * * @param[in,out] starving The left sibling that is underflowed.
+ * @param[in,out] entry    The parent entry pointing to the **donor** node (entry->child).
+ */
 static void borrow_from_right(struct mway_header *starving, struct mway_entry *entry);
 
-// Return the index of previos entry if current entry data is greater. If no entry like that, return size - 1 of the nodes.
-// Note (size_t) -1 is returned if first entries data is greater than the input data. Notice the input data is either in data field
-// or in child nodes of entries child in returned index.
+/**
+ * @brief Merges two sibling nodes and the parent separator into a single node.
+ * * ### Mental Model (The "Sandwich")
+ * When neither sibling can lend a key, we must merge. The Left Node absorbs 
+ * both the Parent Separator and the Right Node.
+ * `[Left Data] + [Parent Separator] + [Right Data] => [New Left Node]`
+ * * ### Data Flow
+ * 1. **Parent -> Left:** The separator key at `index` is appended to the Left Node.
+ * 2. **Right -> Left:** All entries from the Right Node are appended to the Left Node.
+ * 3. **Cleanup:** The Right Node is freed, and the separator is removed from the Parent.
+ * * ### Pointer Surgery
+ * - The Right Node's "First Child" becomes the child pointer for the 
+ * separator key that moved down from the parent.
+ * - The parent node loses one child pointer (the one pointing to the Right Node).
+ * * @param[in,out] parent_node The node containing the separator and child pointers.
+ * @param[in]     index       The index of the separator in the parent node.
+ * - Left Sibling is at `child(index-1)` (or first_child if index==0).
+ * - Right Sibling is at `child(index)`.
+ * @param[in]     ac          Allocator concept used to free the Right Node.
+ */
+static void merge_starvings(struct mway_header *parent_node, size_t index, struct allocator_concept *ac);
 
 /**
  * @brief Searches for the appropriate child index to traverse for a given data key.
@@ -265,7 +319,7 @@ void* Btree_remove(struct Btree* tree, void* data)
         LOG(LIB_LVL, CERROR, "Could not find the data to remove");
         goto fail_find;
     }
-    struct mway_entry removed = remove_data(buffer.node, buffer.index);
+    struct mway_entry removed = remove_entry(buffer.node, buffer.index);
     while (!vstack_empty(&bs)) {
         // Early exit
         if (!is_underflowed(buffer.node))
@@ -374,7 +428,7 @@ static struct mway_entry split_node(struct mway_header* node, struct mway_entry 
     return median;
 }
 
-static struct mway_entry remove_data(struct mway_header *node, size_t index)
+static struct mway_entry remove_entry(struct mway_header *node, size_t index)
 {
     size_t *size_ptr = get_node_size_ptr(node);
     assert(index < *size_ptr);
@@ -385,53 +439,122 @@ static struct mway_entry remove_data(struct mway_header *node, size_t index)
     (*size_ptr)--;
     return removed;
 }
+
+/**
+ * @brief Swaps the internal entry with its in-order predecessor (stored in a leaf).
+ * * @param target_node The internal node containing the key to remove.
+ * @param index       The index of the key to remove.
+ * @return struct mway_header* Pointer to the LEAF node that now contains the target key.
+ */
+static struct mway_header* exchange_with_predecessor(struct mway_header *target_node, size_t index)
+{
+    // 1. Get reference to the internal data we want to remove
+    struct mway_entry *internal_entry = mway_get_entry_addr(target_node, index);
+
+    // 2. Go Left Once
+    // If index is 0, the left child is the 'first_child' in the footer.
+    // Otherwise, it is the child stored at index-1.
+    struct mway_header *curr = (index == 0) 
+        ? get_node_first_child(target_node) 
+        : mway_get_child(target_node, index - 1);
+
+    // 3. Go Right until we hit a leaf
+    // We check if the *next* step would be NULL. If so, 'curr' is the leaf.
+    while (1) {
+        // Optimization: Check the first child pointer to determine if leaf.
+        // If first child is NULL, all children are NULL (property of B-trees).
+        if (get_node_first_child(curr) == NULL) {
+            break; // Found the leaf
+        }
+        
+        // Move to the rightmost child
+        // In a node with N keys, the rightmost child is at index N.
+        size_t size = get_node_size(curr);
+        curr = mway_get_child(curr, size);
+    }
+
+    // 4. Perform the Swap
+    // We are now at the "Predecessor Leaf". The greatest value is the last entry.
+    size_t leaf_size = get_node_size(curr);
+    struct mway_entry *leaf_entry = mway_get_entry_addr(curr, leaf_size - 1);
+
+    // SWAP ONLY DATA (The structure of the tree must remain valid)
+    void *temp_data = internal_entry->data;
+    internal_entry->data = leaf_entry->data;
+    leaf_entry->data = temp_data;
+
+    // Return the leaf node so the caller can start deletion logic directly on it
+    return curr;
+}
+
 /*if (get_node_size(donor) <= (((donor->capacity + 1) + 1) / 2 - 1))
         return 1; */
 static void borrow_from_left(struct mway_header *donor, struct mway_entry *entry)
 {
-    size_t target_size = get_node_size(entry->child);
-    memmove(mway_get_entry_addr(entry->child, 1), mway_get_entry_addr(entry->child, 0), sizeof(struct mway_entry) * target_size);
+    struct mway_header *starving = entry->child;
+    size_t starving_size = get_node_size(starving);
+    memmove(mway_get_entry_addr(starving, 1), mway_get_entry_addr(starving, 0), sizeof(struct mway_entry) * starving_size);
     // Set first entry of 'starving' node
-    struct mway_entry *dest = mway_get_entry_addr(entry->child, 0);
+    struct mway_entry *dest = mway_get_entry_addr(starving, 0);
     dest->data = entry->data;
-    dest->child = get_node_first_child(entry->child);
+    // Just shifted array, so we must consider first child too.
+    dest->child = get_node_first_child(starving);
     // Get last donor
     size_t donor_size = get_node_size(donor);
     struct mway_entry donor_last = mway_get_entry(donor, donor_size - 1);
     // Set parents data
     entry->data = donor_last.data;
-    // Set first child of 'starving' node to donors child, since it will be strictly less
-    *get_node_first_child_ptr(entry->child) = donor_last.child;
+    // Last child of donor stores objects lesser than parent, greater than donors last child.
+    // Since we move parent to starving and donor last to parent, we set first child of the starving to donor_lasts child.
+    *get_node_first_child_ptr(starving) = donor_last.child;
     // Update sizes
     *get_node_size_ptr(donor) = donor_size - 1;
-    *get_node_size_ptr(entry->child) = target_size + 1;
+    *get_node_size_ptr(starving) = starving_size + 1;
 }
 
 static void borrow_from_right(struct mway_header *starving, struct mway_entry *entry)
 {
     struct mway_header *donor = entry->child;
     size_t starving_size = get_node_size(starving);
-    // 1. Append Parent's data to the end of starving node
-    // No memmove needed for starving node, we just append
+    // Set last entry of 'starving' node
     struct mway_entry *dest = mway_get_entry_addr(starving, starving_size);
     dest->data = entry->data;
-    // The new child of starving is the *leftmost* child of the donor
-    // (Everything in that subtree is less than the donor's first key, but greater than parent key)
+    // First child of donor stores objects greater than parent, lesser than donors first child.
+    // Since we move parent to starving and donor first to parent, we set dest child to first child of the donor.
     dest->child = get_node_first_child(donor);
-    // 2. Move Donor's first data up to Parent
-    struct mway_entry *donor_first = mway_get_entry_addr(donor, 0);
-    entry->data = donor_first->data;
-    // 3. Fix Donor's "First Child" pointer
-    // The child associated with the key we just moved up (donor_first->child) 
-    // becomes the new leftmost boundary for the donor.
-    *get_node_first_child_ptr(donor) = donor_first->child;
-    // 4. Shift Donor entries left to cover the gap
-    // We overwrite index 0 with index 1, etc.
+    // Get first donor
     size_t donor_size = get_node_size(donor);
+    struct mway_entry *donor_first = mway_get_entry_addr(donor, 0);
+    // Set parents data
+    entry->data = donor_first->data;
+    // Will shift array, so we must consider first child too.
+    *get_node_first_child_ptr(donor) = donor_first->child;
     memmove(mway_get_entry_addr(donor, 0), mway_get_entry_addr(donor, 1), sizeof(struct mway_entry) * (donor_size - 1));
-    // 5. Update sizes
+    // Update sizes
     *get_node_size_ptr(starving) = starving_size + 1;
     *get_node_size_ptr(donor) = donor_size - 1;
+}
+
+static void merge_starvings(struct mway_header *parent_node, size_t index, struct allocator_concept *ac)
+{
+    struct mway_header *left_starving = (index != 0) ? mway_get_child(parent_node, index - 1) : get_node_first_child(parent_node);
+    size_t left_starving_size = get_node_size(left_starving);
+    struct mway_header *right_starving = mway_get_child(parent_node, index);
+    size_t right_starving_size = get_node_size(right_starving);
+    // Set last entry of 'left starving' node to the parent
+    struct mway_entry *dest = mway_get_entry_addr(left_starving, left_starving_size);
+    dest->data = mway_get_data(parent_node, index);
+    // First child of right_starving stores objects greater than parent, lesser than right_starving first child.
+    // Since we move parent to left_starving and copy right_starving, we set dest child to first child of the right_starving.
+    dest->child = get_node_first_child(right_starving);
+    // Copy right starving nodes entries into the left starving, notice left_starving_size will be passed one more, since we appended the parent.
+    memcpy(mway_get_entry_addr(left_starving, left_starving_size + 1), mway_get_entry_addr(right_starving, 0), sizeof(struct mway_entry) * right_starving_size);
+    // Update merged nodes (left_starving) size
+    *get_node_size_ptr(left_starving) = left_starving_size + right_starving_size + 1;
+    // Safely delete parent entries child, right_starving. One previous child ptr will be pointing to the new merged node.
+    ac->free(ac->allocator, right_starving);
+    // Now remove parent entry from the parent node
+    remove_entry(parent_node, index);
 }
 
 static size_t search_node(struct mway_header* node, const void* data, int (*cmp) (const void* key, const void* data))

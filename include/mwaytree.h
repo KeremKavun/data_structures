@@ -189,7 +189,7 @@ static inline struct mway_entry* mway_get_entry_addr(struct mway_header* header,
 // *** Helper functions *** //
 
 /** @return Pointer to the start of the entry array. */
-static inline struct mway_entry* base(struct mway_header* header)
+static inline struct mway_entry* mway_base(struct mway_header* header)
 {
     // Calculate address immediately after header
     size_t header_size = sizeof(struct mway_header);
