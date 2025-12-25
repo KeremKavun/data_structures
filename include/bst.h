@@ -117,7 +117,7 @@ void *bst_search(struct bst *tree, const void *data);
  */
 static inline struct bintree* bst_root(struct bst *tree)
 {
-    return &tree->root;
+    return tree->root;
 }
 
 /**

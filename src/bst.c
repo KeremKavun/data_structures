@@ -43,7 +43,7 @@ enum trees_status bst_add(struct bst *tree, void *new_data)
 {
     assert(tree != NULL);
     LOG(LIB_LVL, CINFO, "Adding new data at %p", new_data);
-    struct bintree **curr = bintree_search(&tree->root, new_data, tree->cmp);
+    struct bintree **curr = gbst_search(&tree->root, new_data, tree->cmp);
     if (*curr) {
         LOG(LIB_LVL, CERROR, "Duplicate key");
         return TREES_DUPLICATE_KEY;
@@ -62,7 +62,7 @@ void *bst_remove(struct bst *tree, void *data)
 {
     assert(tree != NULL);
     LOG(LIB_LVL, CINFO, "Removing data at %p", data);
-    struct bintree **target = bintree_search(&tree->root, data, tree->cmp);
+    struct bintree **target = gbst_search(&tree->root, data, tree->cmp);
     if (!(*target)) {
         LOG(LIB_LVL, CERROR, "Key not found");
         return NULL;
@@ -81,16 +81,16 @@ void *bst_remove(struct bst *tree, void *data)
         successor->data = tmp;
         node = successor;
     }
-    void *data = node->data;
+    void *removed_data = node->data;
     tree->ac.free(tree->ac.allocator, node);
     tree->size--;
-    return data;
+    return removed_data;
 }
 
 void *bst_search(struct bst* tree, const void *data)
 {
     assert(tree != NULL);
-    struct bintree **target = bintree_search(&tree->root, data, tree->cmp);
+    struct bintree **target = gbst_search(&tree->root, data, tree->cmp);
     if (!(*target)) {
         LOG(LIB_LVL, CERROR, "Key not found");
         return NULL;

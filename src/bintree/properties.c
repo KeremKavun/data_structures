@@ -10,7 +10,7 @@ size_t bintree_size(const struct bintree* tree)
 {
     assert(tree != NULL);
     size_t count = 0;
-    bintree_walk((struct bintree*) tree, &count, bintree_size_helper, INORDER);
+    bintree_traverse((struct bintree*) tree, &count, bintree_size_helper, INORDER);
     return count;
 }
 

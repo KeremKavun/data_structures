@@ -8,7 +8,6 @@
 
 struct mway_header* mway_create(size_t capacity, size_t footer_size, struct allocator_concept *ac)
 {
-    size_t total_size = mway_sizeof(capacity, footer_size);
     void* mway = ac->alloc(ac->allocator);
     if (!mway) {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for mway");

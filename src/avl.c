@@ -97,7 +97,7 @@ enum trees_status avl_remove(struct avl *tree, void *data)
 void *avl_search(struct avl *tree, const void *data)
 {
     // struct avl_node is compatible with bintree, its first field is bintree, aggregation of bintree
-    struct avl_node** target = (struct avl_node**) bintree_search((struct bintree**) &tree->root, data, tree->cmp);
+    struct avl_node** target = (struct avl_node**) gbst_search((struct bintree**) &tree->root, data, tree->cmp);
     if (!(*target)) {
         LOG(LIB_LVL, CERROR, "Key not found");
         return NULL;

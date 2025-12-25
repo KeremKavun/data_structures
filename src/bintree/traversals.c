@@ -17,6 +17,7 @@ void bintree_traverse(struct bintree *tree, void *context, void (*handler) (void
     bintree_walk_subtree(tree, context, handler, func_index_array);
 }
 
+/*
 int bintree_bfs(struct bintree *tree, void *context, void (*handler) (void *data, void *context))
 {
 }
@@ -24,6 +25,7 @@ int bintree_bfs(struct bintree *tree, void *context, void (*handler) (void *data
 int bintree_dfs(struct bintree *tree, void *context, void (*handler) (void *data, void *context))
 {
 }
+*/
 
 // *** Helper functions *** //
 

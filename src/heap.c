@@ -109,8 +109,8 @@ static void reheap_up(struct heap* root, size_t index)
 {
     while (index > 0) {
         size_t p_index = parent_index(index);
-        void* child_slot = array_at(root->contents, index);
-        void* parent_slot = array_at(root->contents, p_index);
+        void* child_slot = array_at((struct array *) root->contents, index);
+        void* parent_slot = array_at((struct array *) root->contents, p_index);
         if (root->cmp(parent_slot, child_slot) >= 0)
             break;
         swap(child_slot, parent_slot, root->contents);
@@ -125,20 +125,20 @@ static void reheap_down(struct heap* root, size_t index)
         size_t right = right_child_index(index);
         size_t largest = index;
         if (left < heap_size(root)) {
-            void* left_val = array_at(root->contents, left);
-            void* largest_val = array_at(root->contents, largest);
+            void* left_val = array_at((struct array *) root->contents, left);
+            void* largest_val = array_at((struct array *) root->contents, largest);
             if (root->cmp(largest_val, left_val) < 0)
                 largest = left;
         }
         if (right < heap_size(root)) {
-            void* right_val = array_at(root->contents, right);
-            void* largest_val = array_at(root->contents, largest);
+            void* right_val = array_at((struct array *) root->contents, right);
+            void* largest_val = array_at((struct array *) root->contents, largest);
             if (root->cmp(largest_val, right_val) < 0)
                 largest = right;
         }
         if (largest == index)
             break;
-        swap(array_at(root->contents, index), array_at(root->contents, largest), root->contents);
+        swap(array_at((struct array *) root->contents, index), array_at((struct array *) root->contents, largest), root->contents);
         index = largest;
     }
 }

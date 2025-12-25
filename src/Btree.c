@@ -9,7 +9,7 @@
 
     struct mway_header;
     struct mway_entry[N];
-    struct mway_header* first_child;
+    struct mway_header *first_child;
     size_t size;
 */
 
@@ -27,7 +27,7 @@ static int copy_bb(void *dest, void *src)
     *(struct btree_buffer *) dest = *(const struct btree_buffer *) src;
     return 0;
 }
-static void deinit_bb(void *ptr) {}
+static void deinit_bb(void *ptr) { (void) ptr; }
 
 struct btree_node_footer_layout {
     struct mway_header      *first_child;
@@ -49,7 +49,7 @@ struct btree_node_footer_layout {
  * 
  * @note This function is `noexcept` and assumes the node is non-NULL.
  */
-static struct mway_entry insert_data(struct mway_header* node, struct mway_entry new_entry, size_t index);
+static struct mway_entry insert_data(struct mway_header *node, struct mway_entry new_entry, size_t index);
 
 /**
  * @brief Splits a full node into two, creating a new sibling node.
@@ -64,7 +64,7 @@ static struct mway_entry insert_data(struct mway_header* node, struct mway_entry
  * @return The median @ref mway_entry to be promoted to the parent node.
  * A null-initialized @ref mway_entry on allocation failure.
  */
-static struct mway_entry split_node(struct mway_header* node, struct mway_entry last_entry, struct allocator_concept *ac);
+static struct mway_entry split_node(struct mway_header *node, struct mway_entry last_entry, struct allocator_concept *ac);
 
 /**
  * @brief Just save the entry to be removed and then shift.
@@ -74,9 +74,7 @@ static struct mway_entry split_node(struct mway_header* node, struct mway_entry 
  * 
  * @return Removed entry from the B-tree.
  */
-static struct mway_entry remove_entry(struct mway_header *node, size_t index);
-
-static void exchange_entries(struct mway_header *target_node, size_t index);
+static void *remove_entry(struct mway_header *node, size_t index);
 
 /**
  * @brief Performs a "Right Rotation" to fix an underflow in the right sibling.
@@ -151,7 +149,7 @@ static void merge_starvings(struct mway_header *parent_node, size_t index, struc
  * (implies traversal should follow the "first child" stored in the footer).
  * (size_t)(size - 1) if the input data is greater than or equal to all entries.
  */
-static size_t search_node(struct mway_header* node, const void* data, int (*cmp) (const void* key, const void* data));
+static size_t search_node(struct mway_header *node, const void *data, int (*cmp) (const void *key, const void *data));
 
 /**
  * @brief Recursive helper for in-order traversal of the tree.
@@ -162,25 +160,35 @@ static size_t search_node(struct mway_header* node, const void* data, int (*cmp)
  * @param[in] context User-provided context passed to the handler.
  * @param[in] handler Callback function to process each data item.
  */
-static void walk_helper(struct mway_header* root, void* context, void (*handler) (void* item, void* context));
+static void walk_helper(struct mway_header *root, void *context, void (*handler) (void *item, void *context));
 
 /** 
  * @brief Gets the "leftmost" child pointer stored in the node's footer.
  * @note This pointer handles the range of values strictly less than entry[0].
  */
-static struct mway_header* get_node_first_child(const struct mway_header* node);
+static struct mway_header *get_node_first_child(const struct mway_header *node);
 
 /** 
  * @brief Gets the current number of active entries (size) from the footer.
  * @note This is distinct from capacity. Capacity is fixed; size varies.
  */
-static size_t get_node_size(const struct mway_header* node);
+static size_t get_node_size(const struct mway_header *node);
 
 /** @return Mutable pointer to the "leftmost" child field in the footer. */
-static struct mway_header** get_node_first_child_ptr(struct mway_header* node);
+static struct mway_header** get_node_first_child_ptr(struct mway_header *node);
 
 /** @return Mutable pointer to the size field in the footer. */
-static size_t* get_node_size_ptr(struct mway_header* node);
+static size_t* get_node_size_ptr(struct mway_header *node);
+
+// Place this in your implementation file
+static struct mway_header* get_child_at_logical_index(struct mway_header* node, size_t logical_index)
+{
+    if (logical_index == 0) {
+        return get_node_first_child(node); // The footer pointer
+    }
+    // Logical index 'k' corresponds to entry 'k-1'
+    return mway_get_child(node, logical_index - 1);
+}
 
 /* =========================================================================
  * Create & Destroy
@@ -188,13 +196,13 @@ static size_t* get_node_size_ptr(struct mway_header* node);
 
 struct Btree *Btree_create(size_t order, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac)
 {
-    struct Btree* tree = malloc(sizeof(struct Btree));
+    struct Btree *tree = malloc(sizeof(struct Btree));
     if (!tree) {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for tree");
         return NULL;
     }
     // order -1 data and entry, but adding one child to make it B-tree node with one size_t
-    struct mway_header* root = mway_create(order - 1, sizeof(struct btree_node_footer_layout), ac);
+    struct mway_header *root = mway_create(order - 1, sizeof(struct btree_node_footer_layout), ac);
     if (!root) {
         LOG(LIB_LVL, CERROR, "Could not allocate B-tree root");
         return NULL;
@@ -216,7 +224,7 @@ void Btree_destroy(struct Btree *tree, struct object_concept *oc)
  * Operations
  * ========================================================================= */
 
-enum trees_status Btree_add(struct Btree* tree, void* new_data)
+enum trees_status Btree_add(struct Btree *tree, void *new_data)
 {
     enum trees_status status = TREES_SYSTEM_ERROR;
     // Anonymous struct to copy nodes and index together into the stack
@@ -228,7 +236,7 @@ enum trees_status Btree_add(struct Btree* tree, void* new_data)
         LOG(LIB_LVL, CERROR, "Could not allocate stack for backtracing");
         goto fail_stack;
     }
-    struct mway_header* curr = tree->root;
+    struct mway_header *curr = tree->root;
     while (curr != NULL) {
         size_t index = search_node(curr, new_data, tree->cmp);
         buffer.node = curr;
@@ -258,12 +266,12 @@ enum trees_status Btree_add(struct Btree* tree, void* new_data)
     }
     // new root needs to be created
     if (curr_entry.data != NULL || curr_entry.child != NULL) {
-        struct mway_header* new_root = mway_create(tree->root->capacity, sizeof(struct btree_node_footer_layout), &tree->ac);
+        struct mway_header *new_root = mway_create(tree->root->capacity, sizeof(struct btree_node_footer_layout), &tree->ac);
         if (!new_root) {
             LOG(LIB_LVL, CERROR, "Could not allocate new B-tree root");
             goto fail_root;
         }
-        struct mway_header* tmp = tree->root;
+        struct mway_header *tmp = tree->root;
         tree->root = new_root;
         // Set first child to previous root, which was remained in the left after the last split
         *get_node_first_child_ptr(tree->root) = tmp;
@@ -287,62 +295,179 @@ static int is_underflowed(struct mway_header *node)
     return get_node_size(node) < min_entries;
 }
 
-void* Btree_remove(struct Btree* tree, void* data)
+void *Btree_remove(struct Btree *tree, void *data)
 {
-    void* ref = NULL;
-    // Anonymous struct to copy nodes and index together into the stack
+    void *removed_data = NULL;
     struct btree_buffer buffer;
     struct object_concept oc = { .init = copy_bb, .deinit = deinit_bb };
     struct vstack bs;
-    // Initialize stack to store indexes of traversed nodes
     if (vstack_init(&bs, sizeof(buffer), &oc) != 0) {
-        LOG(LIB_LVL, CERROR, "Could not allocate stack for backtracing");
-        goto fail_stack;
+        LOG(LIB_LVL, CERROR, "Stack init failed");
+        return NULL;
     }
-    struct mway_header* curr = tree->root;
+    struct mway_header *curr = tree->root;
+    struct mway_header *leaf_to_fix = NULL; // The node where physical deletion happens
+    // ==========================================================
+    // PHASE 1: SEARCH & DESCEND (With Integrated Swap)
+    // ==========================================================
     while (curr != NULL) {
-        size_t index = search_node(curr, data, tree->cmp);
-        buffer.node = curr;
-        buffer.index = index;
-        // Found the data, stop traversing the tree.
-        if (index != (size_t) -1 && tree->cmp(mway_get_data_const(curr, index), data) == 0)
-            break;
-        if (vpush(&bs, &buffer) != 0) {
-            LOG(LIB_LVL, CERROR, "Could not push the buffer");
-            goto fail_push;
+        size_t index = 0;
+        int found = 0;
+        size_t size = get_node_size(curr);
+        // Find match or child path
+        // i represents the LOGICAL CHILD INDEX we will follow
+        size_t i = 0;
+        for (; i < size; i++) {
+            int cmp = tree->cmp(mway_get_data_const(curr, i), data);
+            if (cmp == 0) { found = 1; index = i; break; } // Found exact match
+            if (cmp > 0)  { break; }                       // Data is smaller, take child left of i
         }
-        // Update curr. If index is (size_t) -1, proceed with first child
-        curr = (index != (size_t) -1) ? mway_get_child(curr, index) : get_node_first_child(curr);
-    }
-    // Could not find the data
-    if (curr == NULL) {
-        LOG(LIB_LVL, CERROR, "Could not find the data to remove");
-        goto fail_find;
-    }
-    struct mway_entry removed = remove_entry(buffer.node, buffer.index);
-    while (!vstack_empty(&bs)) {
-        // Early exit
-        if (!is_underflowed(buffer.node))
-            break;
-        // Get parent of the node in which a ref removed
-        vpop(&bs, &buffer);
-        // Notice we should somehow fix the Btree, since is_underflowed returned true
-        // First borrow from left, buffers index - 1 will give right header to borrow over
-        // Then borrow from right, buffers index + 1 will give right header to borrow over
+        // If i == size, we take the rightmost child (logical index 'size')
 
+        buffer.node = curr;
+        buffer.index = i; // Save the child index we are about to follow
+
+        if (found) {
+            // Case A: Found in LEAF -> Simple delete
+            if (get_node_first_child(curr) == NULL) {
+                removed_data = remove_entry(curr, index);
+                leaf_to_fix = curr;
+                // Do NOT push to stack here; parent is already recorded
+                break; 
+            }
+            // Case B: Found in INTERNAL NODE -> Swap with Predecessor
+            else {
+                // 1. Push current node to stack.
+                // We treat this as descending into the Left Child of the found key (logical index 'index').
+                buffer.index = index; 
+                vpush(&bs, &buffer);
+
+                // 2. Traverse to Predecessor Leaf MANUALLY to record stack
+                // The predecessor is in the subtree to the left of the key (index)
+                struct mway_header *pred_node = get_child_at_logical_index(curr, index);
+                
+                // Go Right-Most until leaf
+                while (get_node_first_child(pred_node) != NULL) {
+                    size_t pred_size = get_node_size(pred_node);
+                    // Rightmost child is at logical index 'size'
+                    buffer.node = pred_node;
+                    buffer.index = pred_size; 
+                    vpush(&bs, &buffer);
+                    
+                    pred_node = get_child_at_logical_index(pred_node, pred_size);
+                }
+
+                // 3. Swap Data (Internal Key <-> Predecessor Leaf Key)
+                size_t pred_size = get_node_size(pred_node);
+                struct mway_entry *internal_entry = mway_get_entry_addr(curr, index);
+                // Predecessor is the last entry in the leaf
+                struct mway_entry *leaf_entry = mway_get_entry_addr(pred_node, pred_size - 1);
+
+                void *temp = internal_entry->data;
+                internal_entry->data = leaf_entry->data;
+                leaf_entry->data = temp;
+
+                // 4. Delete from Predecessor Leaf
+                removed_data = remove_entry(pred_node, pred_size - 1);
+                leaf_to_fix = pred_node;
+                break; // Proceed to rebalancing
+            }
+        } 
+        
+        // Not found, keep digging
+        if (vpush(&bs, &buffer) != 0) goto fail_stack;
+        
+        // Navigate down safely
+        curr = get_child_at_logical_index(curr, i);
     }
-    ref = NULL;
-    fail_find:
-    fail_push:
+
+    if (!leaf_to_fix) goto fail_find; // Data not in tree
+
+    // ==========================================================
+    // PHASE 2: REBALANCING (Bottom-Up)
+    // ==========================================================
+    struct mway_header *child_node = leaf_to_fix;
+
+    // We loop as long as we have a parent (stack not empty) and the current node is invalid
+    while (!vstack_empty(&bs) && is_underflowed(child_node)) {
+        vpop(&bs, &buffer);
+        struct mway_header *parent = buffer.node;
+        size_t starved_idx = buffer.index; // The logical index of 'child_node' in 'parent'
+
+        // Calculate Minimum Keys dynamically based on capacity
+        // Formula: ceil(Order / 2) - 1
+        size_t min_keys = (parent->capacity + 2) / 2 - 1;
+
+        int handled = 0;
+
+        // 1. Try Borrow Left
+        if (starved_idx > 0) {
+            struct mway_header *left_sib = get_child_at_logical_index(parent, starved_idx - 1);
+            
+            if (get_node_size(left_sib) > min_keys) {
+                // Pass the separator entry at index (starved_idx - 1)
+                // Its 'child' pointer points to our 'child_node' (the starving one)
+                borrow_from_left(left_sib, mway_get_entry_addr(parent, starved_idx - 1));
+                handled = 1;
+            }
+        }
+
+        // 2. Try Borrow Right
+        if (!handled && starved_idx < get_node_size(parent)) {
+            struct mway_header *right_sib = get_child_at_logical_index(parent, starved_idx + 1);
+            
+            if (get_node_size(right_sib) > min_keys) {
+                // Pass the separator entry at index (starved_idx)
+                // Its 'child' pointer points to 'right_sib' (the donor)
+                borrow_from_right(child_node, mway_get_entry_addr(parent, starved_idx));
+                handled = 1;
+            }
+        }
+
+        // 3. Merge
+        if (!handled) {
+            // If we are not the leftmost child, merge with Left Sibling.
+            // Otherwise, merge with Right Sibling.
+            if (starved_idx > 0) {
+                merge_starvings(parent, starved_idx - 1, &tree->ac);
+            } else {
+                merge_starvings(parent, starved_idx, &tree->ac);
+            }
+        }
+        
+        child_node = parent; // Move up to check if parent is now underflowed
+    }
+
+    // ==========================================================
+    // PHASE 3: ROOT MAINTENANCE
+    // ==========================================================
+    // If the root became empty (size 0) but still has children (because of a merge),
+    // the tree height must shrink. The first child becomes the new root.
+    if (get_node_size(tree->root) == 0) {
+        struct mway_header *old_root = tree->root;
+        struct mway_header *first_child = get_node_first_child(old_root);
+        
+        // If first_child exists, promote it. 
+        // If it's NULL, the tree is completely empty (0 items).
+        if (first_child != NULL) {
+            tree->root = first_child;
+            tree->ac.free(tree->ac.allocator, old_root);
+        }
+    }
+
     vstack_deinit(&bs);
-    fail_stack:
-    return ref;
+    return removed_data;
+
+fail_stack:
+fail_find:
+    vstack_deinit(&bs);
+    return NULL;
 }
 
-void* Btree_search(struct Btree* tree, const void* data)
+void *Btree_search(struct Btree *tree, const void *data)
 {
-    void* result;
-    struct mway_header* curr = tree->root;
+    void *result;
+    struct mway_header *curr = tree->root;
     while (curr != NULL) {
         size_t index = search_node(curr, data, tree->cmp);
         if (index == (size_t) -1) {
@@ -365,14 +490,14 @@ void* Btree_search(struct Btree* tree, const void* data)
  * Traversal
  * ========================================================================= */
  
-void Btree_walk(struct Btree* tree, void* context, void (*handler) (void* data, void* context))
+void Btree_walk(struct Btree *tree, void *context, void (*handler) (void *data, void *context))
 {
     walk_helper(tree->root, context, handler);
 }
 
 // *** Helper functions *** //
 
-static struct mway_entry insert_data(struct mway_header* node, struct mway_entry new_entry, size_t index)
+static struct mway_entry insert_data(struct mway_header *node, struct mway_entry new_entry, size_t index)
 {
     size_t* size_ptr = get_node_size_ptr(node);
     size_t size = *size_ptr;
@@ -398,9 +523,9 @@ static struct mway_entry insert_data(struct mway_header* node, struct mway_entry
     return (struct mway_entry) {.data = NULL, .child = NULL};
 }
 
-static struct mway_entry split_node(struct mway_header* node, struct mway_entry last_entry, struct allocator_concept *ac)
+static struct mway_entry split_node(struct mway_header *node, struct mway_entry last_entry, struct allocator_concept *ac)
 {
-    struct mway_header* new_node = mway_create(node->capacity, sizeof(struct btree_node_footer_layout), ac);
+    struct mway_header *new_node = mway_create(node->capacity, sizeof(struct btree_node_footer_layout), ac);
     if (!new_node) {
         LOG(LIB_LVL, CERROR, "Could not allocate new B-tree node");
         return (struct mway_entry) {.data = NULL, .child = NULL};
@@ -428,11 +553,11 @@ static struct mway_entry split_node(struct mway_header* node, struct mway_entry 
     return median;
 }
 
-static struct mway_entry remove_entry(struct mway_header *node, size_t index)
+static void *remove_entry(struct mway_header *node, size_t index)
 {
     size_t *size_ptr = get_node_size_ptr(node);
     assert(index < *size_ptr);
-    struct mway_entry removed = mway_get_entry(node, index);
+    void *removed = mway_get_child(node, index);
     // Shifth the buffer, deleting i, moving i + 1 into i, since i is 0 indexed, substracting -1 one more time from (size - i) to get the count of remaining
     // 0 elements are handled naturally, causing memmove to take 0 as the third parameter
     memmove(mway_get_entry_addr(node, index), mway_get_entry_addr(node, index + 1), sizeof(struct mway_entry) * (*size_ptr - (index + 1)));
@@ -440,55 +565,6 @@ static struct mway_entry remove_entry(struct mway_header *node, size_t index)
     return removed;
 }
 
-/**
- * @brief Swaps the internal entry with its in-order predecessor (stored in a leaf).
- * * @param target_node The internal node containing the key to remove.
- * @param index       The index of the key to remove.
- * @return struct mway_header* Pointer to the LEAF node that now contains the target key.
- */
-static struct mway_header* exchange_with_predecessor(struct mway_header *target_node, size_t index)
-{
-    // 1. Get reference to the internal data we want to remove
-    struct mway_entry *internal_entry = mway_get_entry_addr(target_node, index);
-
-    // 2. Go Left Once
-    // If index is 0, the left child is the 'first_child' in the footer.
-    // Otherwise, it is the child stored at index-1.
-    struct mway_header *curr = (index == 0) 
-        ? get_node_first_child(target_node) 
-        : mway_get_child(target_node, index - 1);
-
-    // 3. Go Right until we hit a leaf
-    // We check if the *next* step would be NULL. If so, 'curr' is the leaf.
-    while (1) {
-        // Optimization: Check the first child pointer to determine if leaf.
-        // If first child is NULL, all children are NULL (property of B-trees).
-        if (get_node_first_child(curr) == NULL) {
-            break; // Found the leaf
-        }
-        
-        // Move to the rightmost child
-        // In a node with N keys, the rightmost child is at index N.
-        size_t size = get_node_size(curr);
-        curr = mway_get_child(curr, size);
-    }
-
-    // 4. Perform the Swap
-    // We are now at the "Predecessor Leaf". The greatest value is the last entry.
-    size_t leaf_size = get_node_size(curr);
-    struct mway_entry *leaf_entry = mway_get_entry_addr(curr, leaf_size - 1);
-
-    // SWAP ONLY DATA (The structure of the tree must remain valid)
-    void *temp_data = internal_entry->data;
-    internal_entry->data = leaf_entry->data;
-    leaf_entry->data = temp_data;
-
-    // Return the leaf node so the caller can start deletion logic directly on it
-    return curr;
-}
-
-/*if (get_node_size(donor) <= (((donor->capacity + 1) + 1) / 2 - 1))
-        return 1; */
 static void borrow_from_left(struct mway_header *donor, struct mway_entry *entry)
 {
     struct mway_header *starving = entry->child;
@@ -557,7 +633,7 @@ static void merge_starvings(struct mway_header *parent_node, size_t index, struc
     remove_entry(parent_node, index);
 }
 
-static size_t search_node(struct mway_header* node, const void* data, int (*cmp) (const void* key, const void* data))
+static size_t search_node(struct mway_header *node, const void *data, int (*cmp) (const void *key, const void *data))
 {
     size_t size = get_node_size(node);
     for (size_t i = 0; i < size; i++) {
@@ -568,7 +644,7 @@ static size_t search_node(struct mway_header* node, const void* data, int (*cmp)
     return size - 1;
 }
 
-static void walk_helper(struct mway_header* root, void* context, void (*handler) (void* item, void* context))
+static void walk_helper(struct mway_header *root, void *context, void (*handler) (void *item, void *context))
 {
     if (!root)
         return;
@@ -580,7 +656,7 @@ static void walk_helper(struct mway_header* root, void* context, void (*handler)
     }
 }
 
-static struct mway_header* get_node_first_child(const struct mway_header *node)
+static struct mway_header *get_node_first_child(const struct mway_header *node)
 {
     const struct btree_node_footer_layout *footer = (const struct btree_node_footer_layout *) mway_get_footer_const(node);
     return footer->first_child;
@@ -592,13 +668,13 @@ static size_t get_node_size(const struct mway_header *node)
     return footer->current_size;
 }
 
-static struct mway_header** get_node_first_child_ptr(struct mway_header* node)
+static struct mway_header** get_node_first_child_ptr(struct mway_header *node)
 {
     struct btree_node_footer_layout *footer = (struct btree_node_footer_layout *) mway_get_footer_const(node);
     return &footer->first_child;
 }
 
-static size_t* get_node_size_ptr(struct mway_header* node)
+static size_t* get_node_size_ptr(struct mway_header *node)
 {
     struct btree_node_footer_layout *footer = (struct btree_node_footer_layout *) mway_get_footer_const(node);
     return &footer->current_size;

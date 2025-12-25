@@ -5,6 +5,7 @@
 #include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 #include <stddef.h>
+#include <assert.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,66 +124,75 @@ static inline size_t mway_capacity(struct mway_header* header);
 /** @return Copy of the entry at the specified index. */
 static inline struct mway_entry mway_get_entry(struct mway_header* header, size_t index)
 {
+    assert(index < header->capacity);
     return mway_base(header)[index];
 }
 
 /** @brief Writes a new entry structure to the specified index. */
 static inline void mway_set_entry(struct mway_header* header, size_t index, struct mway_entry* new_entry)
 {
+    assert(index < header->capacity);
     mway_base(header)[index] = *new_entry;
 }
 
 /** @return Pointer to the child node at the specified index. */
 static inline struct mway_header* mway_get_child(struct mway_header* header, size_t index)
 {
+    assert(index < header->capacity);
     return mway_base(header)[index].child;
 }
 
 /** @return Const pointer to the child node at the specified index. */
 static inline const struct mway_header* mway_get_child_const(const struct mway_header* header, size_t index)
 {
+    assert(index < header->capacity);
     return (const struct mway_header*) mway_base((struct mway_header*) header)[index].child;
 }
 
 /** @brief Sets the child pointer at the specified index. */
 static inline void mway_set_child(struct mway_header* header, size_t index, struct mway_header* child)
 {
+    assert(index < header->capacity);
     mway_base(header)[index].child = child;
 }
 
 /** @return Pointer to the data at the specified index. */
 static inline void* mway_get_data(struct mway_header* header, size_t index)
 {
+    assert(index < header->capacity);
     return mway_base(header)[index].data;
 }
 
 /** @return Const pointer to the data at the specified index. */
 static inline const void* mway_get_data_const(const struct mway_header* header, size_t index)
 {
+    assert(index < header->capacity);
     return mway_base((struct mway_header*) header)[index].data;
 }
 
 /** @brief Sets the data pointer at the specified index. */
 static inline void mway_set_data(struct mway_header* header, size_t index, void* data)
 {
+    assert(index < header->capacity);
     mway_base(header)[index].data = data;
 }
 
 /** @return Pointer to the custom footer area following the entries. */
 static inline void* mway_get_footer(struct mway_header* header)
 {
-    return (void*) (mway_base(header) + header->capacity);
+    return (void*) (mway_base(header) + sizeof(struct mway_entry) * header->capacity);
 }
 
 /** @return Const pointer to the custom footer area. */
 static inline const void* mway_get_footer_const(const struct mway_header* header)
 {
-    return (const void*) (mway_base((struct mway_header*) header) + header->capacity);
+    return (const void*) (mway_base((struct mway_header*) header) + sizeof(struct mway_entry) * header->capacity);
 }
 
 /** @return Address of the entry structure at the specified index. */
 static inline struct mway_entry* mway_get_entry_addr(struct mway_header* header, size_t index)
 {
+    assert(index < header->capacity);
     return &mway_base(header)[index];
 }
 
