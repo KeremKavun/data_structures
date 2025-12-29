@@ -1,0 +1,10 @@
+prefix=/home/kerem/code/c
+libdir=${prefix}/graphs/bin
+includedir=${prefix}/graphs/include
+
+Name: graphs
+Description: Graph library (depends on libarrays.a and liblinkedlists.a)
+Version: 1.0
+Requires: arrays, linkedlists
+Libs: -L${libdir} -lgraphs
+Cflags: -I${includedir}
