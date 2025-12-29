@@ -7,6 +7,10 @@
 #include "../include/bintree.h"
 #include "../internals/status.h"
 #include <stddef.h>
+#include <stdint.h>
+
+#define AVL_NODE(ptr) ((struct avl_node *)(ptr))
+#define BIN_NODE(ptr) ((struct bintree *)(ptr))
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +27,8 @@ extern "C" {
  * - objects in the tree.
  * @{
  */
+
+struct avl_node;
 
 /**
  * @struct avl
@@ -42,9 +48,26 @@ struct avl {
  * @{
  */
 
-// Creates avl and returns, NULL in case of error, if capacity_of_pool is 1, using malloc, else chunked_pool
+/**
+ * @brief Creates the avl.
+ * 
+ * @param[in] cmp Function pointer to compare keys.
+ * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
+ * 
+ * @return Avl, NULL if not successful.
+ */
 struct avl *avl_create(int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
+
+/**
+ * @brief Destroys the avl.
+ * 
+ * @param[in] oc object_concept to deinit data references.
+ */
 void avl_destroy(struct avl *btree, struct object_concept *oc);
+
+/**
+ * @return sizeof(struct avl_node)
+ */
 size_t avl_node_sizeof();
 
 /** @} */ // End of Create & Destroy group
@@ -55,8 +78,35 @@ size_t avl_node_sizeof();
  * @{
  */
 
+/**
+ * @brief Adds new data into the avl.
+ * 
+ * @param[in] new_data Reference to the new data.
+ * 
+ * @return enum tree_status, which might indicate
+ * duplicate or memory allocation failure.
+ */
 enum trees_status avl_add(struct avl *btree, void *new_data);
-enum trees_status avl_remove(struct avl *btree, void *data);
+
+/**
+ * @brief Removes data from the avl.
+ * 
+ * @param[in] data Data to be removed.
+ * 
+ * @return Data that was stored in the avl or NULL if doesnt exist.
+ * 
+ * @warning **Lifetime Management**: The tree did NOT take ownership of the memory pointed
+ * by `void *new_data` passed in insert functions. It is returned to you back.
+ */
+void *avl_remove(struct avl *btree, void *data);
+
+/**
+ * @brief Searches a given data in the avl.
+ * 
+ * @param[in] data Data that is going to be searched.
+ * 
+ * @return Data that was stored in the avl or NULL if doesnt exist.
+ */
 void *avl_search(struct avl *btree, const void *data);
 
 /** @} */ // End of Operations group
@@ -67,16 +117,25 @@ void *avl_search(struct avl *btree, const void *data);
  * @{
  */
 
+/**
+ * @return The root of the avl.
+ */
 static inline struct bintree *avl_root(struct avl *tree)
 {
     return (struct bintree*) tree->root;
 }
 
+/**
+ * @return 1 if empty, 0 otherwise.
+ */
 static inline int avl_empty(const struct avl *tree)
 {
     return tree->root == NULL;
 }
 
+/**
+ * @return size of the avl
+ */
 static inline size_t avl_size(const struct avl *tree)
 {
     return tree->size;
@@ -92,6 +151,16 @@ static inline size_t avl_size(const struct avl *tree)
 
 // Use generic binary tree algorithms, since this is aggregate
 // and technically inherits.
+
+/**
+ * @return prev node in inorder traversal.
+ */
+struct avl_node *avl_node_prev(struct avl_node *node);
+
+/**
+ * @return next node in inorder traversal.
+ */
+struct avl_node *avl_node_next(struct avl_node *node);
 
 /** @} */ // End of Traversal group
 

@@ -130,24 +130,6 @@ static void borrow_from_right(struct mway_header *starving, struct mway_entry *e
 static void merge_starvings(struct mway_header *parent_node, size_t index, struct allocator_concept *ac);
 
 /**
- * @brief Searches for the appropriate child pointer to traverse for a given data key.
- * * Performs a binary search ($O(\log N)$) to find the first entry where the node 
- * data is strictly greater than the input @p data.
- * * @param[in] node The node to search.
- * @param[in] data The key/data to search for.
- * @param[in] cmp  Comparison function (returns >0 if key > data).
- * @param[out] it  Output parameter. If the data is found exactly within the node's
- * data array, this is set to the index of that data, and the 
- * function returns NULL, (if not NULL).
- * * @return A pointer to the child node that should be traversed next.
- * - Returns the "first child" (footer) if @p data is smaller than the first key.
- * - Returns child[i-1] if @p data is smaller than key[i] but larger than key[i-1].
- * - Returns the last child if @p data is greater than all keys.
- * - Returns NULL if the @p data matches a key in this node (check @p it).
- */
-static struct mway_header *search_child(struct mway_header *node, const void *data, int (*cmp) (const void *key, const void *data), size_t *it);
-
-/**
  * @brief Searches for a specific data item within a node.
  * * Performs a binary search ($O(\log N)$) for the input @p data.
  * * @param[in] node The node to search.

@@ -1,8 +1,14 @@
 #include "../include/avl.h"
 #include "../internals/gbst.h"
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
+
+struct avl_node {
+    struct bintree      btree;
+    struct bintree      *parent;
+    int8_t              balance_factor;
+};
 
 enum avl_balance {
     LEFT_HIGH = 1,
@@ -10,18 +16,10 @@ enum avl_balance {
     RIGHT_HIGH = -1
 };
 
-struct avl_node {
-    struct bintree      btree;
-    int8_t              balance_factor;
-};
-
-static struct avl_node *avl_insert_helper(struct avl *tree, struct avl_node *root, struct avl_node *new_node, bool* taller);
-static struct avl_node *avl_insert_balance_left(struct avl_node *root, bool* taller);
-static struct avl_node *avl_insert_balance_right(struct avl_node *root, bool* taller);
-static struct avl_node *avl_remove_helper(struct avl *tree, struct avl_node *root, void *data, bool* shorter, bool* success);
-static struct avl_node *avl_remove_balance_left(struct avl_node *root, bool* shorter);
-static struct avl_node *avl_remove_balance_right(struct avl_node *root, bool* shorter);
-static struct avl_node *avl_remove_del_node(struct avl *tree, struct avl_node *root, bool* shorter, bool* success, struct bintree *(*it)(struct bintree *tree)); 
+static void avl_insert_balance_left(struct bintree **root_ptr);
+static void avl_insert_balance_right(struct bintree **root_ptr);
+static int avl_remove_balance_left(struct bintree **root_ptr);
+static int avl_remove_balance_right(struct bintree **root_ptr);
 static struct avl_node *rotate_left(struct avl_node *root);
 static struct avl_node *rotate_right(struct avl_node *root);
 
@@ -61,42 +59,179 @@ size_t avl_node_sizeof()
 
 enum trees_status avl_add(struct avl *tree, void *new_data)
 {
-    //raise(SIGUSR1); // Debug signal to track memory allocations
+    assert(tree != NULL);
+    struct avl_node **curr = &tree->root;
+    struct avl_node *parent = NULL;
+    while (*curr) {
+        parent = *curr;
+        int result = tree->cmp(new_data, (*curr)->btree.data);
+
+        if (result < 0) {
+            curr = (struct avl_node **)&(*curr)->btree.left;
+        } else if (result > 0) {
+            curr = (struct avl_node **)&(*curr)->btree.right;
+        } else {
+            return TREES_DUPLICATE_KEY;
+        }
+    }
     struct avl_node *new_node = (struct avl_node*) bintree_create(NULL, NULL, new_data, &tree->ac);
-    if (!new_node) {
-        LOG(LIB_LVL, CERROR, "Could not create avl_node");
+    if (!new_node)
         return TREES_SYSTEM_ERROR;
-    }
+    new_node->parent = (struct bintree*)parent;
     new_node->balance_factor = EVEN;
-    bool taller;
-    struct avl_node *new_root = avl_insert_helper(tree, tree->root, new_node, &taller);
-    if (!new_root) {
-        tree->ac.free(tree->ac.allocator, tree);
-        LOG(LIB_LVL, CERROR, "Error during inserting into avl");
-        return TREES_SYSTEM_ERROR;
-    }
-    tree->root = new_root;
+    *curr = new_node;
     tree->size++;
+    // Start from the new node and climb up
+    struct avl_node *child = new_node;
+    while (parent) {
+        // We need the double-pointer to 'parent' to pass to balance functions.
+        struct bintree **parent_ptr;
+        if (parent->parent) {
+            struct avl_node *grandparent = AVL_NODE(parent->parent);
+            if (grandparent->btree.left == (struct bintree*)parent)
+                parent_ptr = &grandparent->btree.left;
+            else
+                parent_ptr = &grandparent->btree.right;
+        } else {
+            parent_ptr = (struct bintree **)&tree->root;
+        }
+        // Check which side we added to
+        if (parent->btree.left == (struct bintree*)child) {
+            // Added to Left
+            switch (parent->balance_factor) {
+            case LEFT_HIGH:
+                avl_insert_balance_left(parent_ptr);
+                goto done;
+                
+            case EVEN:
+                parent->balance_factor = LEFT_HIGH;
+                break;
+
+            case RIGHT_HIGH:
+                parent->balance_factor = EVEN;
+                goto done;
+            }
+        } else {
+            // Added to Right
+            switch (parent->balance_factor) {
+            case LEFT_HIGH:
+                parent->balance_factor = EVEN;
+                goto done; 
+
+            case EVEN:
+                parent->balance_factor = RIGHT_HIGH;
+                break; 
+
+            case RIGHT_HIGH:
+                avl_insert_balance_right(parent_ptr);
+                goto done;
+            }
+        }
+        // Move Up
+        child = parent;
+        parent = AVL_NODE(parent->parent);
+    }
+done:
     return TREES_OK;
 }
 
-enum trees_status avl_remove(struct avl *tree, void *data)
+void *avl_remove(struct avl *tree, void *data)
 {
-    bool shorter;
-    bool success;
-    struct avl_node *new_root = avl_remove_helper(tree, tree->root, data, &shorter, &success);
-    if (!success) {
-        LOG(PROJ_LVL, CERROR, "Could not place data to remove");
-        return TREES_NOT_FOUND;
+    if (!tree || !tree->root)
+        return NULL;
+    struct avl_node *curr = tree->root;
+    while (curr) {
+        int cmp = tree->cmp(data, curr->btree.data);
+        if (cmp < 0) curr = AVL_NODE(curr->btree.left);
+        else if (cmp > 0) curr = AVL_NODE(curr->btree.right);
+        else break;
     }
-    tree->root = new_root;
+    if (!curr) {
+        LOG(PROJ_LVL, CWARNING, "Data not found in tree");
+        return NULL;
+    }
+    void *return_data = curr->btree.data;
+    // Handle Two Children (Swap Strategy)
+    if (curr->btree.left && curr->btree.right) {
+        struct avl_node *succ = AVL_NODE(curr->btree.right);
+        while (succ->btree.left) {
+            succ = AVL_NODE(succ->btree.left);
+        }
+        curr->btree.data = succ->btree.data;
+        curr = succ;
+    }
+    // Physical Unlink
+    struct avl_node *parent = AVL_NODE(curr->parent);
+    struct avl_node *child = AVL_NODE(curr->btree.left ? curr->btree.left : curr->btree.right);
+    bool is_left_child = false; 
+    if (parent) {
+        if (parent->btree.left == (struct bintree*)curr) {
+            parent->btree.left = (struct bintree*)child;
+            is_left_child = true;
+        } else {
+            parent->btree.right = (struct bintree*)child;
+            is_left_child = false;
+        }
+    } else {
+        tree->root = child;
+    }
+    if (child)
+        child->parent = (struct bintree*)parent;
+    tree->ac.free(tree->ac.allocator, curr);
     tree->size--;
-    return TREES_OK;
+    // Iterative Backtracking
+    while (parent) {
+        struct bintree **root_ptr;
+        if (parent->parent) {
+            if (AVL_NODE(parent->parent)->btree.left == (struct bintree*)parent)
+                root_ptr = &AVL_NODE(parent->parent)->btree.left;
+            else
+                root_ptr = &AVL_NODE(parent->parent)->btree.right;
+        } else {
+            root_ptr = (struct bintree **)&tree->root;
+        }
+        int height_reduced = 0;
+        if (is_left_child) {
+            switch (parent->balance_factor) {
+                case LEFT_HIGH:
+                    parent->balance_factor = EVEN;
+                    height_reduced = 1;
+                    break;
+                case EVEN:
+                    parent->balance_factor = RIGHT_HIGH;
+                    height_reduced = 0;
+                    break;
+                case RIGHT_HIGH:
+                    height_reduced = avl_remove_balance_left(root_ptr);
+                    break;
+            }
+        } else {
+            switch (parent->balance_factor) {
+                case RIGHT_HIGH:
+                    parent->balance_factor = EVEN;
+                    height_reduced = 1;
+                    break;
+                case EVEN:
+                    parent->balance_factor = LEFT_HIGH;
+                    height_reduced = 0;
+                    break;
+                case LEFT_HIGH:
+                    height_reduced = avl_remove_balance_right(root_ptr);
+                    break;
+            }
+        }
+        if (!height_reduced)
+            break;
+        struct avl_node *child_processed = AVL_NODE(*root_ptr);
+        parent = AVL_NODE(child_processed->parent);
+        if (parent)
+            is_left_child = (parent->btree.left == (struct bintree*)child_processed);
+    }
+    return return_data;
 }
 
 void *avl_search(struct avl *tree, const void *data)
 {
-    // struct avl_node is compatible with bintree, its first field is bintree, aggregation of bintree
     struct avl_node** target = (struct avl_node**) gbst_search((struct bintree**) &tree->root, data, tree->cmp);
     if (!(*target)) {
         LOG(LIB_LVL, CERROR, "Key not found");
@@ -106,330 +241,240 @@ void *avl_search(struct avl *tree, const void *data)
 }
 
 /* =========================================================================
- * Inspection
+ * Traversal
  * ========================================================================= */
+
+struct avl_node *avl_node_prev(struct avl_node *node)
+{
+    if (!node)
+        return NULL;
+    if (node->btree.left) {
+        struct bintree *curr = node->btree.left;
+        while (curr->right) {
+            curr = curr->right;
+        }
+        return AVL_NODE(curr);
+    }
+    struct bintree *curr = &node->btree;
+    struct bintree *parent = node->parent;
+    while (parent && curr == parent->left) {
+        curr = parent;
+        parent = AVL_NODE(parent)->parent;
+    }
+    return AVL_NODE(parent);
+}
+
+struct avl_node *avl_node_next(struct avl_node *node)
+{
+    if (!node)
+        return NULL;
+    if (node->btree.right) {
+        struct bintree *curr = node->btree.right;
+        while (curr->left) {
+            curr = curr->left;
+        }
+        return AVL_NODE(curr);
+    }
+    struct bintree *curr = &node->btree;
+    struct bintree *parent = node->parent;
+    while (parent && curr == parent->right) {
+        curr = parent;
+        parent = AVL_NODE(parent)->parent;
+    }
+    return AVL_NODE(parent);
+}
 
 // *** Helper functions *** //
 
-static struct avl_node *avl_insert_helper(struct avl *tree, struct avl_node *root, struct avl_node *new_node, bool* taller)
+static void avl_insert_balance_left(struct bintree **root_ptr)
 {
-    if (!root) {
-        *taller = true;
-        return new_node;
-    }
-    if (tree->cmp(root->btree.data, new_node->btree.data) > 0) {
-        root->btree.left = (struct bintree*) avl_insert_helper(tree, (struct avl_node*) root->btree.left, new_node, taller);
-        if (root->balance_factor > 1) {
-            if (*taller) {
-                switch (root->balance_factor) {
-                case LEFT_HIGH: // Was LEFT_HIGH and adding to the left again, rotate
-                    root = avl_insert_balance_left(root, taller);
-                    break;
-
-                case EVEN: // Was EVEN, now LEFT_HIGH
-                    root->balance_factor = LEFT_HIGH;
-                    break;
-
-                case RIGHT_HIGH: // Was RIGHT_HIGH and adding to the left, now EVEN
-                    root->balance_factor = EVEN;
-                    *taller = false;
-                    break;
-                }
-            }
-        }
-    } else {
-        root->btree.right = (struct bintree*) avl_insert_helper(tree, (struct avl_node*) root->btree.right, new_node, taller);
-        if (root->balance_factor < -1)
-        {
-            if (*taller) {
-                switch (root->balance_factor) {
-                case LEFT_HIGH: // Was LEFT_HIGH and adding to the right, now EVEN
-                    root->balance_factor = EVEN;
-                    *taller = false;
-                    break;
-
-                case EVEN: // Was EVEN, now RIGHT_HIGH
-                    root->balance_factor = RIGHT_HIGH;
-                    break;
-
-                case RIGHT_HIGH: // Was RIGHT_HIGH and adding to the right again, rotate
-                    root = avl_insert_balance_right(root, taller);
-                    break;
-                }
-            }
-        }
-    }
-    return root;
-}
-
-static struct avl_node *avl_insert_balance_left(struct avl_node *root, bool* taller)
-{
-    struct avl_node *left_node;
-    struct avl_node *right_of_left_node;
-    left_node = (struct avl_node*) root->btree.left;
-    // At least one left_node, doesnt check NULL so
+    struct avl_node *root = AVL_NODE(*root_ptr);
+    struct avl_node *left_node = AVL_NODE(root->btree.left);
+    assert(left_node != NULL);
     switch (left_node->balance_factor) {
-    case LEFT_HIGH:
+    case LEFT_HIGH: // LL Case: Single Right Rotation
     {
         root->balance_factor = EVEN;
         left_node->balance_factor = EVEN;
-        root = rotate_right(root);
-        *taller = false;
+        *root_ptr = (struct bintree*) rotate_right(root);
         break;
     }
 
-    case RIGHT_HIGH:
+    case RIGHT_HIGH: // LR Case: Double Rotation
     {
-        right_of_left_node = (struct avl_node*) left_node->btree.right;
-        // At least one right_node of the left_node, doesnt check NULL so
-        switch (right_of_left_node->balance_factor) {
+        struct avl_node *right_of_left = AVL_NODE(left_node->btree.right);
+        switch (right_of_left->balance_factor) {
         case LEFT_HIGH:
             root->balance_factor = RIGHT_HIGH;
             left_node->balance_factor = EVEN;
             break;
-
         case RIGHT_HIGH:
             root->balance_factor = EVEN;
             left_node->balance_factor = LEFT_HIGH;
             break;
-
-        // (Should not occur) case EVEN: LOG("Critical error, library error or avl invariants were changed!"), exit then
+        case EVEN:
+            root->balance_factor = EVEN;
+            left_node->balance_factor = EVEN;
+            break;
         }
-        root->btree.left = (struct bintree*) rotate_left(root);
-        right_of_left_node->balance_factor = EVEN;
-        root = rotate_right(right_of_left_node);
-        *taller = false;
+        right_of_left->balance_factor = EVEN;
+        root->btree.left = (struct bintree*) rotate_left(left_node);
+        AVL_NODE(root->btree.left)->parent = (struct bintree*)root;
+        *root_ptr = (struct bintree*) rotate_right(root);
         break;
     }
-
-    // (Should not occur) case EVEN: LOG("Critical error, library error or avl invariants were changed!"), exit then
     }
-    return root;
 }
 
-static struct avl_node *avl_insert_balance_right(struct avl_node *root, bool* taller)
+static void avl_insert_balance_right(struct bintree **root_ptr)
 {
-    struct avl_node *right_node;
-    struct avl_node *left_of_right_node;
-    right_node = (struct avl_node*) root->btree.right;
-    // At least one right_node, doesnt check NULL so
+    struct avl_node *root = AVL_NODE(*root_ptr);
+    struct avl_node *right_node = AVL_NODE(root->btree.right);
+    assert(right_node != NULL);
     switch (right_node->balance_factor) {
-    case RIGHT_HIGH:
+    case RIGHT_HIGH: // RR Case: Single Left Rotation
     {
         root->balance_factor = EVEN;
         right_node->balance_factor = EVEN;
-        root = rotate_left(root);
-        *taller = false;
+        *root_ptr = (struct bintree*) rotate_left(root);
         break;
     }
 
-    case LEFT_HIGH:
+    case LEFT_HIGH: // RL Case: Double Rotation
     {
-        left_of_right_node = (struct avl_node*) right_node->btree.left;
-        switch (left_of_right_node->balance_factor) {
+        struct avl_node *left_of_right = AVL_NODE(right_node->btree.left);
+        
+        switch (left_of_right->balance_factor) {
         case RIGHT_HIGH:
             root->balance_factor = LEFT_HIGH;
             right_node->balance_factor = EVEN;
             break;
-
         case LEFT_HIGH:
             root->balance_factor = EVEN;
             right_node->balance_factor = RIGHT_HIGH;
             break;
-
-        // (Should not occur) case EVEN: LOG("Critical error, library error or avl invariants were changed!"), exit then
+        case EVEN:
+            root->balance_factor = EVEN;
+            right_node->balance_factor = EVEN;
+            break;
         }
-        root->btree.right = (struct bintree*) rotate_right(root);
-        left_of_right_node->balance_factor = EVEN;
-        root = rotate_left(left_of_right_node);
-        *taller = false;
+        left_of_right->balance_factor = EVEN;
+        root->btree.right = (struct bintree*) rotate_right(right_node);
+        AVL_NODE(root->btree.right)->parent = (struct bintree*)root;
+        *root_ptr = (struct bintree*) rotate_left(root);
         break;
     }
-
-    // (Should not occur) case EVEN: LOG("Critical error, library error or avl invariants were changed!"), exit then
     }
-    return root;
 }
 
-static struct avl_node *avl_remove_helper(struct avl *tree, struct avl_node *root, void *data, bool* shorter, bool* success)
+static int avl_remove_balance_left(struct bintree **root_ptr)
 {
-    if (!root) {
-        *shorter = false;
-        *success = false;
-        return NULL;
-    }
-    if (tree->cmp(root->btree.data, data) > 0) { // using cmp twice to minimize stackoverflow risk
-        root->btree.left = (struct bintree*) avl_remove_helper(tree, (struct avl_node*) root->btree.left, data, shorter, success);
-        if (*shorter)
-            root = avl_remove_balance_right(root, shorter);
-    } else if (tree->cmp(root->btree.data, data) < 0) { // using cmp twice to minimize stackoverflow risk
-        root->btree.right = (struct bintree*) avl_remove_helper(tree, (struct avl_node*) root->btree.right, data, shorter, success);
-        if (*shorter)
-            root = avl_remove_balance_left(root, shorter);
-    } else {
-        // Just delete the root, leaf node
-        if (!root->btree.left) {
-            return avl_remove_del_node(tree, root, shorter, success, bintree_get_right);
-        } else if (!root->btree.right) {
-            return avl_remove_del_node(tree, root, shorter, success, bintree_get_left);
-        // Two subtree, exchange root with left max or right min and continue probing
-        } else {
-            struct avl_node *pred = (struct avl_node*) root->btree.left;
-            while (pred->btree.right) {
-                pred = (struct avl_node*) pred->btree.right;
-            }
-            void *tmp = root->btree.data;
-            root->btree.data = pred->btree.data;
-            pred->btree.data = tmp;
-            root->btree.left = (struct bintree*) avl_remove_helper(tree, (struct avl_node*) root->btree.left, tmp, shorter, success);
-            if (*shorter)
-                root = avl_remove_balance_left(root, shorter);
-        }
-    }
-    return root;
-}
-
-static struct avl_node *avl_remove_balance_left(struct avl_node *root, bool* shorter)
-{
-    switch (root->balance_factor)
-    {
-    case RIGHT_HIGH: // Was RIGHT_HIGH, deleted from RIGHT, now EVEN
+    struct avl_node *root = AVL_NODE(*root_ptr);
+    struct avl_node *right = AVL_NODE(root->btree.right);
+    if (right->balance_factor == RIGHT_HIGH) {
         root->balance_factor = EVEN;
-        break;
-
-    case EVEN: // Was EVEN, deleted from RIGHT, now LEFT_HIGH
-        root->balance_factor = LEFT_HIGH;
-        *shorter = false;
-        break;
-
-    case LEFT_HIGH: // Was LEFT_HIGH, deleted from RIGHT, need to rotate
-    {
-        struct avl_node *left_node = (struct avl_node*) root->btree.left;
-        // RIGHT of LEFT case, need double rotation
-        if (left_node->balance_factor == RIGHT_HIGH) {
-            struct avl_node *right_of_left_node = (struct avl_node*) left_node->btree.right;
-            switch (right_of_left_node->balance_factor) {
-                case RIGHT_HIGH:
-                    root->balance_factor = EVEN;
-                    left_node->balance_factor = LEFT_HIGH;
-                    break;
-                case EVEN:
-                    root->balance_factor = EVEN;
-                    left_node->balance_factor = EVEN;
-                    break;
-                case LEFT_HIGH:
-                    root->balance_factor = RIGHT_HIGH;
-                    left_node->balance_factor = EVEN;
-                    break;
-            }
-            right_of_left_node->balance_factor = EVEN;
-            root->btree.left = (struct bintree*) rotate_right((struct avl_node*) root->btree.left);
-            root = rotate_left(root);
-        // RIGHT of RIGHT case, single rotation
-        } else {
-            if (left_node->balance_factor == EVEN) {
-                root->balance_factor = LEFT_HIGH;
-                left_node->balance_factor = RIGHT_HIGH;
-                *shorter = false;
-                break;
-            } else {
-                root->balance_factor = EVEN;
-                left_node->balance_factor = EVEN;
-                break;
-            }
-            root = rotate_right(root);
-        }
-        break;
+        right->balance_factor = EVEN;
+        *root_ptr = (struct bintree*) rotate_left(root);
+        return 1;
     }
-    }
-    return root;
-}
-
-static struct avl_node *avl_remove_balance_right(struct avl_node *root, bool* shorter)
-{
-    switch (root->balance_factor) {
-    case LEFT_HIGH: // Was LEFT_HIGH, deleted from LEFT, now EVEN
-        root->balance_factor = EVEN;
-        break;
-
-    case EVEN: // Was EVEN, deleted from LEFT, now RIGHT_HIGH
+    
+    if (right->balance_factor == EVEN) {
         root->balance_factor = RIGHT_HIGH;
-        *shorter = false;
-        break;
-
-    case RIGHT_HIGH: // Was RIGHT_HIGH, deleted from LEFT, need to rotate
-    {
-        struct avl_node *right_node = (struct avl_node*) root->btree.right;
-        // LEFT of RIGHT case, need double rotation
-        if (right_node->balance_factor == LEFT_HIGH) {
-            struct avl_node *left_of_right_node = (struct avl_node*) right_node->btree.left;
-            switch (left_of_right_node->balance_factor) {
-                case LEFT_HIGH:
-                    root->balance_factor = EVEN;
-                    right_node->balance_factor = RIGHT_HIGH;
-                    break;
-
-                case EVEN:
-                    root->balance_factor = EVEN;
-                    right_node->balance_factor = EVEN;
-                    break;
-
-                case RIGHT_HIGH:
-                    root->balance_factor = LEFT_HIGH;
-                    right_node->balance_factor = EVEN;
-                    break;
-            }
-            left_of_right_node->balance_factor = EVEN;
-            root->btree.right = (struct bintree*) rotate_left((struct avl_node*) root->btree.right);
-            root = rotate_right(root);
-        // LEFT of LEFT case, single rotation
-        } else {
-            if (right_node->balance_factor == EVEN) {
-                root->balance_factor = RIGHT_HIGH;
-                right_node->balance_factor = LEFT_HIGH;
-                *shorter = false;
-                break;
-            }
-            else {
-                root->balance_factor = EVEN;
-                right_node->balance_factor = EVEN;
-                break;
-            }
-            root = rotate_left(root);
-        }
-        break;
+        right->balance_factor = LEFT_HIGH;
+        *root_ptr = (struct bintree*) rotate_left(root);
+        return 0;
     }
+    
+    struct avl_node *left_of_right = AVL_NODE(right->btree.left);
+    switch (left_of_right->balance_factor) {
+        case RIGHT_HIGH:
+            root->balance_factor = LEFT_HIGH;
+            right->balance_factor = EVEN;
+            break;
+        case LEFT_HIGH:
+            root->balance_factor = EVEN;
+            right->balance_factor = RIGHT_HIGH;
+            break;
+        case EVEN:
+            root->balance_factor = EVEN;
+            right->balance_factor = EVEN;
+            break;
     }
-    return root;
+    left_of_right->balance_factor = EVEN;
+    root->btree.right = (struct bintree*) rotate_right(right);
+    AVL_NODE(root->btree.right)->parent = (struct bintree*)root;
+    *root_ptr = (struct bintree*) rotate_left(root);
+    return 1;
 }
 
-static struct avl_node *avl_remove_del_node(struct avl *tree, struct avl_node *root, bool* shorter, bool* success, struct bintree *(*it) (struct bintree *tree))
+static int avl_remove_balance_right(struct bintree **root_ptr)
 {
-    struct avl_node *new_root = (struct avl_node*) it((struct bintree*) root);
-    *shorter = true;
-    *success = true;
-    //if (tree->oc->destruct)
-    //    tree->oc->destruct(root->btree.data, NULL);
-    tree->ac.free(tree->ac.allocator, root);
-    tree->size--;
-    return new_root;
+    struct avl_node *root = AVL_NODE(*root_ptr);
+    struct avl_node *left = AVL_NODE(root->btree.left);
+    if (left->balance_factor == LEFT_HIGH) {
+        root->balance_factor = EVEN;
+        left->balance_factor = EVEN;
+        *root_ptr = (struct bintree*) rotate_right(root);
+        return 1;
+    }
+    
+    if (left->balance_factor == EVEN) {
+        root->balance_factor = LEFT_HIGH;
+        left->balance_factor = RIGHT_HIGH;
+        *root_ptr = (struct bintree*) rotate_right(root);
+        return 0;
+    }
+    
+    struct avl_node *right_of_left = AVL_NODE(left->btree.right);
+    switch (right_of_left->balance_factor) {
+        case LEFT_HIGH:
+            root->balance_factor = RIGHT_HIGH;
+            left->balance_factor = EVEN;
+            break;
+        case RIGHT_HIGH:
+            root->balance_factor = EVEN;
+            left->balance_factor = LEFT_HIGH;
+            break;
+        case EVEN:
+            root->balance_factor = EVEN;
+            left->balance_factor = EVEN;
+            break;
+    }
+    right_of_left->balance_factor = EVEN;
+    root->btree.left = (struct bintree*) rotate_left(left);
+    AVL_NODE(root->btree.left)->parent = (struct bintree*)root;
+    *root_ptr = (struct bintree*) rotate_right(root);
+    return 1;
 }
 
 static struct avl_node *rotate_left(struct avl_node *root)
 {
-    struct avl_node *new_root = (struct avl_node*) root->btree.right;
-    struct avl_node *transfer = (new_root) ? (struct avl_node*) new_root->btree.left : NULL;
-    new_root->btree.left = &root->btree;
-    root->btree.right = transfer ? &transfer->btree : NULL;
+    struct avl_node *new_root = AVL_NODE(root->btree.right);
+    struct avl_node *transfer = AVL_NODE(new_root->btree.left);
+    // Update parent pointers
+    new_root->parent = root->parent;
+    root->parent = (struct bintree*)new_root;
+    // Perform rotation
+    new_root->btree.left = (struct bintree*)root;
+    root->btree.right = (struct bintree*)transfer;
+    // Update transfer's parent
+    if (transfer)
+        transfer->parent = (struct bintree*)root;
     return new_root;
 }
 
-
 static struct avl_node *rotate_right(struct avl_node *root)
 {
-    struct avl_node *new_root = (struct avl_node*) root->btree.left;
-    struct avl_node *transfer = (new_root) ? (struct avl_node*) new_root->btree.right : NULL;
-    new_root->btree.right = &root->btree;
-    root->btree.left = transfer ? &transfer->btree : NULL;
+    struct avl_node *new_root = AVL_NODE(root->btree.left);
+    struct avl_node *transfer = AVL_NODE(new_root->btree.right);
+    // Update parent pointers
+    new_root->parent = root->parent;
+    root->parent = (struct bintree*)new_root;
+    // Perform rotation
+    new_root->btree.right = (struct bintree*)root;
+    root->btree.left = (struct bintree*)transfer;
+    // Update transfer's parent
+    if (transfer)
+        transfer->parent = (struct bintree*)root;
     return new_root;
 }

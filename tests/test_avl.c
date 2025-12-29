@@ -24,7 +24,7 @@ static void int_deinit(void* data) {
 
 // Print status progress bar
 static void print_progress(size_t current, size_t total) {
-    if (current % (total / 10) == 0) {
+    if (total > 10 && current % (total / 10) == 0) {
         printf("... %zu%%", (current * 100) / total);
         fflush(stdout);
     }
@@ -38,7 +38,7 @@ int main(void) {
     printf("=== AVL STRESS TEST START (Size: %d) ===\n", STRESS_COUNT);
     srand((unsigned int)time(NULL));
 
-    // 1. Configure Syspool (using stack object)
+    // 1. Configure Syspool for AVL nodes
     struct syspool pool = { .obj_size = avl_node_sizeof() };
 
     struct allocator_concept ac = {
@@ -47,7 +47,7 @@ int main(void) {
         .free      = (GENERIC_FREE_SIGN) sysfree
     };
 
-    // 2. Configure Object Concept (for destruction only)
+    // 2. Configure Object Concept (only destructor for cleanup)
     struct object_concept oc = {
         .init   = NULL,
         .deinit = int_deinit 
@@ -65,28 +65,44 @@ int main(void) {
     //───────────────────────────────────────────────
     printf("\n[1/4] Inserting %d random integers...", STRESS_COUNT);
     
-    // We keep a shadow array to verify results later
+    // Shadow array to track what was successfully inserted
     int* shadow_data = malloc(STRESS_COUNT * sizeof(int));
+    if (!shadow_data) {
+        fprintf(stderr, "Failed to allocate shadow array.\n");
+        avl_destroy(tree, &oc);
+        return 1;
+    }
+    
     size_t added_count = 0;
 
     for (int i = 0; i < STRESS_COUNT; ++i) {
         int val = rand(); 
         
-        // Allocate memory for the tree data
+        // Allocate memory for the tree data (user owns this)
         int* data_ptr = malloc(sizeof(int));
+        if (!data_ptr) {
+            fprintf(stderr, "\nFailed to allocate data at iteration %d.\n", i);
+            break;
+        }
         *data_ptr = val;
 
         enum trees_status st = avl_add(tree, data_ptr);
         
         if (st == TREES_OK) {
             shadow_data[added_count++] = val;
-        } else {
-            // Duplicate or error: free the unused memory immediately
+        } else if (st == TREES_DUPLICATE_KEY) {
+            // Duplicate: free the unused memory immediately
             free(data_ptr);
+        } else {
+            // System error
+            free(data_ptr);
+            fprintf(stderr, "\nTree add failed at iteration %d.\n", i);
+            break;
         }
         
         print_progress(i, STRESS_COUNT);
     }
+    
     printf("\n      -> Requested: %d, Accepted (Unique): %zu", STRESS_COUNT, added_count);
     printf("\n      -> AVL Size Reported: %zu", avl_size(tree));
     
@@ -115,20 +131,17 @@ int main(void) {
     for (size_t i = 0; i < remove_target; ++i) {
         int key = shadow_data[i];
 
-        // SAFE REMOVE PATTERN:
-        // 1. Search to retrieve the pointer (so we can free it)
-        int* ptr = avl_search(tree, &key);
-        assert(ptr != NULL); // Should be there
+        // Remove and get the data pointer back
+        int* removed_data = avl_remove(tree, &key);
+        assert(removed_data != NULL); // Should be there
+        assert(*removed_data == key);
 
-        // 2. Remove node from tree
-        enum trees_status st = avl_remove(tree, &key);
-        assert(st == TREES_OK);
-
-        // 3. Free the user data manually
-        free(ptr);
+        // Free the user data manually
+        free(removed_data);
         
         print_progress(i, remove_target);
     }
+    
     printf("\n      -> AVL Size Reported: %zu", avl_size(tree));
     
     assert(avl_size(tree) == (added_count - remove_target));
@@ -146,7 +159,8 @@ int main(void) {
     printf("      -> verifying remaining items exist...");
     for (size_t i = remove_target; i < added_count; ++i) {
         int key = shadow_data[i];
-        assert(avl_search(tree, &key) != NULL);
+        int* res = avl_search(tree, &key);
+        assert(res != NULL && *res == key);
     }
     printf(" [OK]\n");
 
@@ -155,7 +169,7 @@ int main(void) {
     //───────────────────────────────────────────────
     printf("\n[4/4] Destroying tree (cleaning up remaining %zu nodes)...", avl_size(tree));
     
-    // This will iterate the remaining nodes and call oc.deinit (free) on the data
+    // This will iterate remaining nodes and call oc.deinit (int_deinit/free) on each data pointer
     avl_destroy(tree, &oc);
     
     free(shadow_data);
