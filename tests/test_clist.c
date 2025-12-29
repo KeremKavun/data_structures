@@ -82,7 +82,7 @@ void test_init_and_empty() {
     
     ASSERT_EQ(clist_empty(&cl), 1, "New list should be empty");
     ASSERT_EQ(clist_size(&cl), 0, "New list should have size 0");
-    ASSERT_NULL(get_clist_cursor(&cl), "New list cursor should be NULL");
+    ASSERT_NOT_NULL(get_clist_sentinel(&cl), "Sentinel should not be NULL");
 }
 
 void test_push_pop_front() {
@@ -99,7 +99,6 @@ void test_push_pop_front() {
     clist_push_front(&cl, &n1->hook);
     ASSERT_EQ(clist_size(&cl), 1, "Size should be 1 after first push");
     ASSERT_EQ(clist_empty(&cl), 0, "List should not be empty");
-    ASSERT_NOT_NULL(get_clist_cursor(&cl), "Cursor should not be NULL");
     
     clist_push_front(&cl, &n2->hook);
     ASSERT_EQ(clist_size(&cl), 2, "Size should be 2 after second push");
@@ -180,18 +179,28 @@ void test_insert_remove() {
     clist_push_back(&cl, &n2->hook);
     clist_push_back(&cl, &n3->hook);
     
-    /* Insert 4 before 2 */
+    /* Insert 4 before 2: 1 -> 4 -> 2 -> 3 */
     clist_insert_before(&cl, &n2->hook, &n4->hook);
     ASSERT_EQ(clist_size(&cl), 4, "Size should be 4 after insert");
+    
+    /* Verify order by iterating */
+    struct clist_item* pos;
+    int expected_ids[] = {1, 4, 2, 3};
+    int idx = 0;
+    clist_foreach_cw(pos, &cl) {
+        struct test_node* node = clist_entry(pos, struct test_node, hook);
+        ASSERT_EQ(node->id, expected_ids[idx], "Insert order verification");
+        idx++;
+    }
     
     /* Remove node 2 */
     clist_remove(&cl, &n2->hook);
     ASSERT_EQ(clist_size(&cl), 3, "Size should be 3 after remove");
     free_node(n2);
     
-    /* Remove node 1 (cursor) */
+    /* Remove node 1 */
     clist_remove(&cl, &n1->hook);
-    ASSERT_EQ(clist_size(&cl), 2, "Size should be 2 after removing cursor");
+    ASSERT_EQ(clist_size(&cl), 2, "Size should be 2 after second remove");
     free_node(n1);
     
     /* Clean up */
@@ -217,7 +226,7 @@ void test_iteration() {
     int count_cw = 0;
     int expected_id = 1;
     struct clist_item* pos;
-    clist_foreach_cw(pos, get_clist_cursor(&cl)) {
+    clist_foreach_cw(pos, &cl) {
         struct test_node* node = clist_entry(pos, struct test_node, hook);
         ASSERT_EQ(node->id, expected_id, "CW iteration order");
         expected_id++;
@@ -227,15 +236,25 @@ void test_iteration() {
     
     /* Test counter-clockwise iteration */
     int count_ccw = 0;
-    expected_id = 1;
-    clist_foreach_ccw(pos, get_clist_cursor(&cl)) {
+    expected_id = 5;
+    clist_foreach_ccw(pos, &cl) {
         struct test_node* node = clist_entry(pos, struct test_node, hook);
-        if (count_ccw == 0) {
-            ASSERT_EQ(node->id, 1, "CCW should start at cursor");
-        }
+        ASSERT_EQ(node->id, expected_id, "CCW iteration order");
+        expected_id--;
         count_ccw++;
     }
     ASSERT_EQ(count_ccw, 5, "CCW iteration should visit all 5 nodes");
+    
+    /* Test foreach_entry macro */
+    struct test_node* obj;
+    int count_entry = 0;
+    expected_id = 1;
+    clist_foreach_entry(obj, &cl, hook) {
+        ASSERT_EQ(obj->id, expected_id, "foreach_entry iteration order");
+        expected_id++;
+        count_entry++;
+    }
+    ASSERT_EQ(count_entry, 5, "foreach_entry should visit all 5 nodes");
     
     /* Clean up */
     for (int i = 0; i < 5; i++) {
@@ -256,28 +275,26 @@ void test_search() {
         clist_push_back(&cl, &nodes[i]->hook);
     }
     
-    /* Search forward for existing item */
+    /* Search forward for existing item using macro */
     struct test_node* result = NULL;
-    clist_find_entry_fr(result, get_clist_cursor(&cl), hook, lambda);
-    
-    /* Manual search test (since lambda may not work) */
-    struct clist_item* pos;
-    result = NULL;
-    clist_foreach_cw(pos, get_clist_cursor(&cl)) {
-        struct test_node* node = clist_entry(pos, struct test_node, hook);
-        if (node->id == 30) {
-            result = node;
-            break;
-        }
+    clist_find_entry_fr(result, &cl, hook, lambda);
+    ASSERT_NOT_NULL(result, "Should find node with id=30 using forward search");
+    if (result) {
+        ASSERT_EQ(result->id, 30, "Found node should have id=30");
     }
-    ASSERT_NOT_NULL(result, "Should find node with id=30");
+    
+    /* Search backward for existing item */
+    result = NULL;
+    clist_find_entry_bk(result, &cl, hook, lambda);
+    ASSERT_NOT_NULL(result, "Should find node with id=30 using backward search");
     if (result) {
         ASSERT_EQ(result->id, 30, "Found node should have id=30");
     }
     
     /* Search for non-existing item */
     result = NULL;
-    clist_foreach_cw(pos, get_clist_cursor(&cl)) {
+    struct clist_item* pos;
+    clist_foreach_cw(pos, &cl) {
         struct test_node* node = clist_entry(pos, struct test_node, hook);
         if (node->id == 99) {
             result = node;
@@ -293,8 +310,8 @@ void test_search() {
     }
 }
 
-void test_cursor_operations() {
-    TEST("Cursor Get/Set Operations");
+void test_sentinel_operations() {
+    TEST("Sentinel Operations");
     
     struct clist cl;
     clist_init(&cl);
@@ -307,18 +324,64 @@ void test_cursor_operations() {
     clist_push_back(&cl, &n2->hook);
     clist_push_back(&cl, &n3->hook);
     
-    /* Get cursor */
-    struct clist_item* cursor = get_clist_cursor(&cl);
-    ASSERT_NOT_NULL(cursor, "Cursor should not be NULL");
+    /* Get sentinel */
+    struct clist_item* sentinel = get_clist_sentinel(&cl);
+    ASSERT_NOT_NULL(sentinel, "Sentinel should not be NULL");
     
-    struct test_node* cursor_node = clist_entry(cursor, struct test_node, hook);
-    ASSERT_EQ(cursor_node->id, 1, "Initial cursor should point to first node");
+    /* Verify sentinel.next points to first node */
+    struct clist_item* first = clist_item_next(sentinel);
+    struct test_node* first_node = clist_entry(first, struct test_node, hook);
+    ASSERT_EQ(first_node->id, 1, "Sentinel.next should point to first node");
     
-    /* Set cursor to n2 */
-    set_clist_cursor(&cl, &n2->hook);
-    cursor = get_clist_cursor(&cl);
-    cursor_node = clist_entry(cursor, struct test_node, hook);
-    ASSERT_EQ(cursor_node->id, 2, "Cursor should now point to node 2");
+    /* Verify sentinel.prev points to last node */
+    struct clist_item* last = clist_item_prev(sentinel);
+    struct test_node* last_node = clist_entry(last, struct test_node, hook);
+    ASSERT_EQ(last_node->id, 3, "Sentinel.prev should point to last node");
+    
+    /* Test item navigation */
+    struct clist_item* second = clist_item_next(first);
+    struct test_node* second_node = clist_entry(second, struct test_node, hook);
+    ASSERT_EQ(second_node->id, 2, "Navigation to second node");
+    
+    struct clist_item* back_to_first = clist_item_prev(second);
+    struct test_node* back_node = clist_entry(back_to_first, struct test_node, hook);
+    ASSERT_EQ(back_node->id, 1, "Backward navigation to first node");
+    
+    /* Clean up */
+    for (int i = 0; i < 3; i++) {
+        clist_pop_front(&cl);
+    }
+    free_node(n1);
+    free_node(n2);
+    free_node(n3);
+}
+
+void test_insert_after() {
+    TEST("Insert After Operations");
+    
+    struct clist cl;
+    clist_init(&cl);
+    
+    struct test_node* n1 = create_node(1, "one");
+    struct test_node* n2 = create_node(2, "two");
+    struct test_node* n3 = create_node(3, "three");
+    
+    clist_push_back(&cl, &n1->hook);
+    clist_push_back(&cl, &n3->hook);
+    
+    /* Insert n2 after n1: 1 -> 2 -> 3 */
+    clist_insert_after(&cl, &n1->hook, &n2->hook);
+    ASSERT_EQ(clist_size(&cl), 3, "Size should be 3 after insert_after");
+    
+    /* Verify order */
+    struct clist_item* pos;
+    int expected_ids[] = {1, 2, 3};
+    int idx = 0;
+    clist_foreach_cw(pos, &cl) {
+        struct test_node* node = clist_entry(pos, struct test_node, hook);
+        ASSERT_EQ(node->id, expected_ids[idx], "Insert after order verification");
+        idx++;
+    }
     
     /* Clean up */
     for (int i = 0; i < 3; i++) {
@@ -381,9 +444,10 @@ int main(void) {
     test_push_pop_front();
     test_push_pop_back();
     test_insert_remove();
+    test_insert_after();
     test_iteration();
     test_search();
-    test_cursor_operations();
+    test_sentinel_operations();
     test_mixed_operations();
     
     printf("\n");

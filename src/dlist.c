@@ -23,7 +23,7 @@ void dlist_init(struct dlist *dl, struct allocator_concept *ac)
     assert(ac != NULL);
     dlist_item_init(&dl->sentinel, &dl->sentinel, &dl->sentinel, NULL);
     dl->size = 0;
-    dl->ac = ac;
+    dl->ac = *ac;
 }
 
 void dlist_deinit(struct dlist *dl, struct object_concept *oc)
@@ -46,8 +46,8 @@ int dlist_insert_between(struct dlist *dl, struct dlist_item *prev_node, struct 
 {
     assert(dl != NULL);
     assert(prev_node != NULL && next_node != NULL);
-    assert(dl->ac != NULL && dl->ac->alloc != NULL && dl->ac->allocator != NULL);
-    struct dlist_item *new_item = dl->ac->alloc(dl->ac->allocator);
+    assert(dl->ac.alloc != NULL && dl->ac.allocator != NULL);
+    struct dlist_item *new_item = dl->ac.alloc(dl->ac.allocator);
     if (!new_item) {
         LOG(LIB_LVL, CERROR, "Allocator failed");
         return 1;
@@ -78,7 +78,7 @@ void *dlist_remove(struct dlist *dl, struct dlist_item *item)
 {
     assert(dl != NULL);
     assert(item != NULL);
-    assert(dl->ac != NULL && dl->ac->free != NULL && dl->ac->allocator != NULL);
+    assert(dl->ac.free != NULL && dl->ac.allocator != NULL);
     if (item == &dl->sentinel)
         return NULL; 
     struct dlist_item *prev = item->prev;
@@ -86,7 +86,7 @@ void *dlist_remove(struct dlist *dl, struct dlist_item *item)
     prev->next = next;
     next->prev = prev;
     void* data = item->data;
-    dl->ac->free(dl->ac->allocator, item);
+    dl->ac.free(dl->ac.allocator, item);
     dl->size--;
     return data;
 }

@@ -22,7 +22,7 @@ void slist_init(struct slist *sl, struct allocator_concept *ac)
     assert(ac != NULL);
     slist_item_init(&sl->sentinel, NULL, NULL);
     sl->size = 0;
-    sl->ac = ac;
+    sl->ac = *ac;
 }
 
 void slist_deinit(struct slist *sl, struct object_concept *oc)
@@ -41,7 +41,7 @@ void slist_deinit(struct slist *sl, struct object_concept *oc)
 
 int slist_insert(struct slist *sl, struct slist_item **pos, void *new_data)
 {
-    struct slist_item *new_item = sl->ac->alloc(sl->ac->allocator);
+    struct slist_item *new_item = sl->ac.alloc(sl->ac.allocator);
     if (!new_item) {
         LOG(LIB_LVL, CERROR, "Allocator failed");
         return 1;
@@ -65,7 +65,7 @@ void *slist_remove(struct slist *sl, struct slist_item **item)
         return NULL; 
     *item = del->next;
     void *data = del->data;
-    sl->ac->free(sl->ac->allocator, del);
+    sl->ac.free(sl->ac.allocator, del);
     sl->size--;
     return data;
 }

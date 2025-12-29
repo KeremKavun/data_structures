@@ -51,7 +51,7 @@ void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dl
 struct dlist {
     struct dlist_item               sentinel;
     size_t                          size;
-    struct allocator_concept        *ac;
+    struct allocator_concept        ac;
 };
 
 /**

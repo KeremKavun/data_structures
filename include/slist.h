@@ -53,7 +53,7 @@ void slist_item_init(struct slist_item *item, struct slist_item *next, void *dat
 struct slist {
     struct slist_item               sentinel;
     size_t                          size;
-    struct allocator_concept*       ac;
+    struct allocator_concept        ac;
 };
 
 /**
@@ -124,7 +124,7 @@ int slist_insert(struct slist *sl, struct slist_item **pos, void *new_data);
  * 
  * @param[in,out] sl Pointer to the list instance.
  * @param[in] item Item to be removed from the list.
- * got by find algorithms at some point.
+ * got by find algorithms at some point. Must not be NULL.
  * 
  * @return Data that was stored by `item`, or NULL if list was empty.
  * 
