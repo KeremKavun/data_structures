@@ -6,32 +6,36 @@
 
 #define INITAL_CAPACITY 2
 
+struct vstack {
+    struct dynarray         contents;
+};
+
 /* =========================================================================
  * Initialization & Deinitialization
  * ========================================================================= */
 
-int vstack_init(struct vstack *vs, size_t obj_size, struct object_concept *oc)
+struct vstack *vstack_create(size_t obj_size, struct object_concept *oc)
 {
-    assert(vs != NULL);
     assert(obj_size != 0);
     assert(oc != NULL);
-    struct dynarray* contents = malloc(sizeof(struct dynarray));
-    if (!contents)
-    {
+    struct vstack *vs = malloc(sizeof(struct vstack));
+    if (!vs) {
         LOG(LIB_LVL, CERROR, "Allocation failure");
-        return 1;
+        return NULL;
     }
-    vs->contents = contents;
-    dynarray_init(vs->contents, INITAL_CAPACITY, obj_size, *oc);
-    return 0;
+    if (dynarray_init(&vs->contents, INITAL_CAPACITY, obj_size, *oc) != 0) {
+        LOG(LIB_LVL, CERROR, "Could not initialize underlying dynarray");
+        free(vs);
+        return NULL;
+    }
+    return vs;
 }
 
-void vstack_deinit(struct vstack *vs)
+void vstack_destroy(struct vstack *vs)
 {
     assert(vs != NULL);
-    dynarray_deinit(vs->contents);
-    free(vs->contents);
-    vs->contents = NULL;
+    dynarray_deinit(&vs->contents);
+    free(vs);
 }
 
 /* =========================================================================
@@ -41,20 +45,20 @@ void vstack_deinit(struct vstack *vs)
 int vpush(struct vstack *vs, void *new_item)
 {
     assert(vs != NULL);
-    return dynarray_push_back(vs->contents, new_item);
+    return dynarray_push_back(&vs->contents, new_item);
 }
 
 int vpop(struct vstack *vs, void *popped_item)
 {
     assert(vs != NULL);
-    if (dynarray_empty(vs->contents))
+    if (dynarray_empty(&vs->contents))
         return -1;
     if (popped_item) {
-        int result = vs->contents->oc.init(popped_item, dynarray_back(vs->contents));
+        int result = vs->contents.oc.init(popped_item, dynarray_back(&vs->contents));
         if (result != 0)
             return result;
     }
-    dynarray_pop_back(vs->contents);
+    dynarray_pop_back(&vs->contents);
     return 0;
 }
 
@@ -65,21 +69,22 @@ int vpop(struct vstack *vs, void *popped_item)
 int vtop(struct vstack *vs, void *top_item)
 {
     assert(vs != NULL);
-    if (dynarray_empty(vs->contents))
+    void *data = dynarray_back(&vs->contents);
+    if (data == NULL)
         return -1;
-    return vs->contents->oc.init(top_item, dynarray_back(vs->contents));
+    return vs->contents.oc.init(top_item, dynarray_back(&vs->contents));
 }
 
 int vstack_empty(const struct vstack *vs)
 {
     assert(vs != NULL);
-    return dynarray_empty(vs->contents);
+    return dynarray_empty(&vs->contents);
 }
 
 size_t vstack_size(const struct vstack *vs)
 {
     assert(vs != NULL);
-    return dynarray_size(vs->contents);
+    return dynarray_size(&vs->contents);
 }
 
 /*───────────────────────────────────────────────
@@ -88,11 +93,11 @@ size_t vstack_size(const struct vstack *vs)
 
 void vstack_walk(struct vstack *vs, void *context, void (*handler) (void *item, void *context))
 {
-    assert(vs && vs->contents);
-    void *begin = dynarray_iterator_begin(vs->contents);
-    void *end = dynarray_iterator_end(vs->contents);
+    assert(vs);
+    void *begin = dynarray_iterator_begin(&vs->contents);
+    void *end = dynarray_iterator_end(&vs->contents);
     while (begin != end) {
         handler(begin, context);
-        begin = dynarray_iterator_next(vs->contents, begin);
+        begin = dynarray_iterator_next(&vs->contents, begin);
     }
 }

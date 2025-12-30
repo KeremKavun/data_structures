@@ -29,38 +29,35 @@ extern "C" {
  * @warning **Null Safety**: All functions taking `struct vstack *` 
  * expect a valid, initialized by @ref vstack_init, non-NULL pointer. Behavior is undefined otherwise.
  */
-struct vstack {
-    struct dynarray         *contents;
-};
+struct vstack;
 
 /**
- * @name Initialization & Deinitialization
+ * @name Create & Destroy
  * Functions for setting up the stack.
  * @{
  */
 
 /**
- * @brief Initializes the stack ADT.
+ * @brief Creates the stack ADT.
  * 
- * @param[in, out] vs Pointer to the stack instance.
  * @param[in] obj_size Size of object type to be stored.
  * @param[in] oc copy concept of object to init and deinit objects.
  * 
- * @return 0 on success, non-zero otherwise.
+ * @return vstack, NULL otherwise.
  * 
  * @see object_concept
  * @see dynarray_init
  */
-int vstack_init(struct vstack *vs, size_t obj_size, struct object_concept *oc);
+struct vstack *vstack_create(size_t obj_size, struct object_concept *oc);
 
 /**
- * @brief Deinitializes the stack ADT.
+ * @brief Destroy the stack ADT.
  * 
  * @param[in, out] vs Pointer to the stack instance.
  */
-void vstack_deinit(struct vstack *vs);
+void vstack_destroy(struct vstack *vs);
 
-/** @} */ // End of Initialization & Deinitialization group
+/** @} */ // End of Create & Destroy group
 
 /**
  * @name Push & Pop

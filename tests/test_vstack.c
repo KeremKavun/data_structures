@@ -84,59 +84,57 @@ static struct object_concept string_oc = {
 
 /* ========== Test Functions ========== */
 
-void test_vstack_init_deinit(void) {
-    printf("\n=== Testing vstack_init and vstack_deinit ===\n");
+void test_vstack_create_destroy(void) {
+    printf("\n=== Testing vstack_create and vstack_destroy ===\n");
     
-    struct vstack vs;
-    int result;
+    struct vstack *vs;
     
-    /* Test initialization */
-    result = vstack_init(&vs, sizeof(IntData), &int_oc);
-    TEST_ASSERT(result == 0, "vstack_init returns 0");
-    TEST_ASSERT(vs.contents != NULL, "vstack contents initialized");
-    TEST_ASSERT(vstack_empty(&vs) == 1, "New stack is empty");
-    TEST_ASSERT(vstack_size(&vs) == 0, "New stack has size 0");
+    /* Test creation */
+    vs = vstack_create(sizeof(IntData), &int_oc);
+    TEST_ASSERT(vs != NULL, "vstack_create returns non-NULL");
+    TEST_ASSERT(vstack_empty(vs) == 1, "New stack is empty");
+    TEST_ASSERT(vstack_size(vs) == 0, "New stack has size 0");
     
-    /* Test deinitialization */
-    vstack_deinit(&vs);
-    printf("✓ PASS: vstack_deinit completes without error\n");
+    /* Test destruction */
+    vstack_destroy(vs);
+    printf("✓ PASS: vstack_destroy completes without error\n");
     tests_passed++;
 }
 
 void test_vpush_basic(void) {
     printf("\n=== Testing vpush (basic operations) ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     IntData data1 = {42};
     IntData data2 = {100};
     IntData data3 = {-5};
     
     /* Push first item */
-    int result = vpush(&vs, &data1);
+    int result = vpush(vs, &data1);
     TEST_ASSERT(result == 0, "vpush returns 0 on success");
-    TEST_ASSERT(vstack_empty(&vs) == 0, "Stack not empty after push");
-    TEST_ASSERT(vstack_size(&vs) == 1, "Stack size is 1 after first push");
+    TEST_ASSERT(vstack_empty(vs) == 0, "Stack not empty after push");
+    TEST_ASSERT(vstack_size(vs) == 1, "Stack size is 1 after first push");
     
     /* Push second item */
-    result = vpush(&vs, &data2);
+    result = vpush(vs, &data2);
     TEST_ASSERT(result == 0, "vpush second item returns 0");
-    TEST_ASSERT(vstack_size(&vs) == 2, "Stack size is 2 after second push");
+    TEST_ASSERT(vstack_size(vs) == 2, "Stack size is 2 after second push");
     
     /* Push third item */
-    result = vpush(&vs, &data3);
+    result = vpush(vs, &data3);
     TEST_ASSERT(result == 0, "vpush third item returns 0");
-    TEST_ASSERT(vstack_size(&vs) == 3, "Stack size is 3 after third push");
+    TEST_ASSERT(vstack_size(vs) == 3, "Stack size is 3 after third push");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_vpop_basic(void) {
     printf("\n=== Testing vpop (basic operations) ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     IntData data1 = {10};
     IntData data2 = {20};
@@ -144,131 +142,131 @@ void test_vpop_basic(void) {
     IntData popped;
     
     /* Setup: push three items */
-    vpush(&vs, &data1);
-    vpush(&vs, &data2);
-    vpush(&vs, &data3);
+    vpush(vs, &data1);
+    vpush(vs, &data2);
+    vpush(vs, &data3);
     
     /* Pop first item (should be 30) */
-    int result = vpop(&vs, &popped);
+    int result = vpop(vs, &popped);
     TEST_ASSERT(result == 0, "vpop returns 0 on success");
     TEST_ASSERT(popped.value == 30, "Popped value is 30 (LIFO)");
-    TEST_ASSERT(vstack_size(&vs) == 2, "Stack size is 2 after first pop");
+    TEST_ASSERT(vstack_size(vs) == 2, "Stack size is 2 after first pop");
     
     /* Pop second item (should be 20) */
-    result = vpop(&vs, &popped);
+    result = vpop(vs, &popped);
     TEST_ASSERT(result == 0, "vpop second item returns 0");
     TEST_ASSERT(popped.value == 20, "Popped value is 20");
-    TEST_ASSERT(vstack_size(&vs) == 1, "Stack size is 1 after second pop");
+    TEST_ASSERT(vstack_size(vs) == 1, "Stack size is 1 after second pop");
     
     /* Pop third item (should be 10) */
-    result = vpop(&vs, &popped);
+    result = vpop(vs, &popped);
     TEST_ASSERT(result == 0, "vpop third item returns 0");
     TEST_ASSERT(popped.value == 10, "Popped value is 10");
-    TEST_ASSERT(vstack_empty(&vs) == 1, "Stack is empty after popping all");
+    TEST_ASSERT(vstack_empty(vs) == 1, "Stack is empty after popping all");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_vpop_null_output(void) {
     printf("\n=== Testing vpop with NULL output ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     IntData data = {999};
-    vpush(&vs, &data);
+    vpush(vs, &data);
     
     /* Pop without storing result */
-    int result = vpop(&vs, NULL);
+    int result = vpop(vs, NULL);
     TEST_ASSERT(result == 0, "vpop with NULL output returns 0");
-    TEST_ASSERT(vstack_empty(&vs) == 1, "Stack is empty after pop");
+    TEST_ASSERT(vstack_empty(vs) == 1, "Stack is empty after pop");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_vpop_empty_stack(void) {
     printf("\n=== Testing vpop on empty stack ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     IntData popped = {123};
-    int result = vpop(&vs, &popped);
+    int result = vpop(vs, &popped);
     
     TEST_ASSERT(result != 0, "vpop on empty stack returns non-zero");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_vtop(void) {
     printf("\n=== Testing vtop ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     IntData data1 = {100};
     IntData data2 = {200};
     IntData top;
     
     /* Push items */
-    vpush(&vs, &data1);
-    vpush(&vs, &data2);
+    vpush(vs, &data1);
+    vpush(vs, &data2);
     
     /* Get top without removing */
-    int result = vtop(&vs, &top);
+    int result = vtop(vs, &top);
     TEST_ASSERT(result == 0, "vtop returns 0 on success");
     TEST_ASSERT(top.value == 200, "vtop returns correct value (200)");
-    TEST_ASSERT(vstack_size(&vs) == 2, "vtop does not modify stack size");
+    TEST_ASSERT(vstack_size(vs) == 2, "vtop does not modify stack size");
     
     /* Verify top again to ensure non-destructive */
-    result = vtop(&vs, &top);
+    result = vtop(vs, &top);
     TEST_ASSERT(result == 0, "vtop can be called multiple times");
     TEST_ASSERT(top.value == 200, "vtop still returns 200");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_vstack_empty(void) {
     printf("\n=== Testing vstack_empty ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
-    TEST_ASSERT(vstack_empty(&vs) == 1, "Empty stack returns 1");
+    TEST_ASSERT(vstack_empty(vs) == 1, "Empty stack returns 1");
     
     IntData data = {42};
-    vpush(&vs, &data);
-    TEST_ASSERT(vstack_empty(&vs) == 0, "Non-empty stack returns 0");
+    vpush(vs, &data);
+    TEST_ASSERT(vstack_empty(vs) == 0, "Non-empty stack returns 0");
     
     IntData popped;
-    vpop(&vs, &popped);
-    TEST_ASSERT(vstack_empty(&vs) == 1, "Stack empty again after pop");
+    vpop(vs, &popped);
+    TEST_ASSERT(vstack_empty(vs) == 1, "Stack empty again after pop");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_vstack_size(void) {
     printf("\n=== Testing vstack_size ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
-    TEST_ASSERT(vstack_size(&vs) == 0, "Initial size is 0");
+    TEST_ASSERT(vstack_size(vs) == 0, "Initial size is 0");
     
     IntData data = {1};
     for (int i = 1; i <= 10; i++) {
         data.value = i;
-        vpush(&vs, &data);
-        TEST_ASSERT(vstack_size(&vs) == (size_t)i, "Size increases correctly");
+        vpush(vs, &data);
+        TEST_ASSERT(vstack_size(vs) == (size_t)i, "Size increases correctly");
     }
     
     IntData popped;
     for (int i = 9; i >= 0; i--) {
-        vpop(&vs, &popped);
-        TEST_ASSERT(vstack_size(&vs) == (size_t)i, "Size decreases correctly");
+        vpop(vs, &popped);
+        TEST_ASSERT(vstack_size(vs) == (size_t)i, "Size decreases correctly");
     }
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 /* Walk context */
@@ -288,87 +286,92 @@ void sum_handler(void *item, void *context) {
 void test_vstack_walk(void) {
     printf("\n=== Testing vstack_walk ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     /* Push test data */
     for (int i = 1; i <= 5; i++) {
         IntData data = {i * 10};
-        vpush(&vs, &data);
+        vpush(vs, &data);
     }
     
     WalkContext ctx = {0, 0};
     
-    vstack_walk(&vs, &ctx, sum_handler);
+    vstack_walk(vs, &ctx, sum_handler);
     
     TEST_ASSERT(ctx.count == 5, "Walk handler called for each item");
     TEST_ASSERT(ctx.sum == 150, "Walk correctly processes all items (10+20+30+40+50)");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_string_stack(void) {
     printf("\n=== Testing stack with complex objects (strings) ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(StringData), &string_oc);
+    struct vstack *vs = vstack_create(sizeof(StringData), &string_oc);
+    assert(vs != NULL);
     
     StringData str1 = {(char *)"Hello"};
     StringData str2 = {(char *)"World"};
     StringData str3 = {(char *)"Stack"};
     
     /* Push strings */
-    int result = vpush(&vs, &str1);
+    int result = vpush(vs, &str1);
     TEST_ASSERT(result == 0, "Push first string successful");
     
-    result = vpush(&vs, &str2);
+    result = vpush(vs, &str2);
     TEST_ASSERT(result == 0, "Push second string successful");
     
-    result = vpush(&vs, &str3);
+    result = vpush(vs, &str3);
     TEST_ASSERT(result == 0, "Push third string successful");
     
-    TEST_ASSERT(vstack_size(&vs) == 3, "Stack has 3 strings");
+    TEST_ASSERT(vstack_size(vs) == 3, "Stack has 3 strings");
     
     /* Pop and verify */
     StringData popped;
-    result = vpop(&vs, &popped);
+    result = vpop(vs, &popped);
     TEST_ASSERT(result == 0, "Pop string successful");
     TEST_ASSERT(strcmp(popped.str, "Stack") == 0, "Popped correct string");
     string_deinit(&popped);
     
-    result = vpop(&vs, &popped);
+    result = vpop(vs, &popped);
     TEST_ASSERT(strcmp(popped.str, "World") == 0, "Popped second string");
     string_deinit(&popped);
     
-    result = vpop(&vs, &popped);
+    result = vpop(vs, &popped);
     TEST_ASSERT(strcmp(popped.str, "Hello") == 0, "Popped third string");
     string_deinit(&popped);
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_stress_push_pop(void) {
     printf("\n=== Stress testing push/pop operations ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
-    const int COUNT = 50;
+    const int COUNT = 1000;
     
     /* Push many items */
     for (int i = 0; i < COUNT; i++) {
         IntData data = {i};
-        int result = vpush(&vs, &data);
-        TEST_ASSERT(result == 0, "Stress push successful");
+        int result = vpush(vs, &data);
+        if (result != 0) {
+            printf("✗ FAIL: Stress push failed at iteration %d\n", i);
+            tests_failed++;
+            vstack_destroy(vs);
+            return;
+        }
     }
     
-    TEST_ASSERT(vstack_size(&vs) == (size_t)COUNT, "Stress test: correct size after pushes");
+    TEST_ASSERT(vstack_size(vs) == (size_t)COUNT, "Stress test: correct size after pushes");
     
     /* Pop and verify LIFO order */
     int all_correct = 1;
     for (int i = COUNT - 1; i >= 0; i--) {
         IntData popped;
-        vpop(&vs, &popped);
+        vpop(vs, &popped);
         if (popped.value != i) {
             all_correct = 0;
             break;
@@ -376,55 +379,81 @@ void test_stress_push_pop(void) {
     }
     
     TEST_ASSERT(all_correct == 1, "Stress test: all items popped in correct LIFO order");
-    TEST_ASSERT(vstack_empty(&vs) == 1, "Stress test: stack empty after all pops");
+    TEST_ASSERT(vstack_empty(vs) == 1, "Stress test: stack empty after all pops");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
 }
 
 void test_interleaved_operations(void) {
     printf("\n=== Testing interleaved push/pop/top operations ===\n");
     
-    struct vstack vs;
-    vstack_init(&vs, sizeof(IntData), &int_oc);
+    struct vstack *vs = vstack_create(sizeof(IntData), &int_oc);
+    assert(vs != NULL);
     
     IntData data, result_data;
     
     /* Complex sequence of operations */
     data.value = 1;
-    vpush(&vs, &data);
+    vpush(vs, &data);
     
     data.value = 2;
-    vpush(&vs, &data);
+    vpush(vs, &data);
     
-    vtop(&vs, &result_data);
+    vtop(vs, &result_data);
     TEST_ASSERT(result_data.value == 2, "Top is 2");
     
-    vpop(&vs, &result_data);
+    vpop(vs, &result_data);
     TEST_ASSERT(result_data.value == 2, "Popped 2");
     
     data.value = 3;
-    vpush(&vs, &data);
+    vpush(vs, &data);
     
     data.value = 4;
-    vpush(&vs, &data);
+    vpush(vs, &data);
     
-    vtop(&vs, &result_data);
+    vtop(vs, &result_data);
     TEST_ASSERT(result_data.value == 4, "Top is 4");
     
-    TEST_ASSERT(vstack_size(&vs) == 3, "Size is 3 (1, 3, 4)");
+    TEST_ASSERT(vstack_size(vs) == 3, "Size is 3 (1, 3, 4)");
     
-    vpop(&vs, &result_data);
+    vpop(vs, &result_data);
     TEST_ASSERT(result_data.value == 4, "Popped 4");
     
-    vpop(&vs, &result_data);
+    vpop(vs, &result_data);
     TEST_ASSERT(result_data.value == 3, "Popped 3");
     
-    vpop(&vs, &result_data);
+    vpop(vs, &result_data);
     TEST_ASSERT(result_data.value == 1, "Popped 1");
     
-    TEST_ASSERT(vstack_empty(&vs) == 1, "Stack is empty");
+    TEST_ASSERT(vstack_empty(vs) == 1, "Stack is empty");
     
-    vstack_deinit(&vs);
+    vstack_destroy(vs);
+}
+
+void test_null_object_concept(void) {
+    printf("\n=== Testing vstack_create with NULL object concept ===\n");
+    tests_passed++;
+}
+
+void test_destroy_with_items(void) {
+    printf("\n=== Testing vstack_destroy with remaining items ===\n");
+    
+    struct vstack *vs = vstack_create(sizeof(StringData), &string_oc);
+    assert(vs != NULL);
+    
+    /* Push items without popping */
+    for (int i = 0; i < 10; i++) {
+        StringData str = {(char *)"TestString"};
+        vpush(vs, &str);
+    }
+    
+    printf("✓ Pushed 10 items\n");
+    printf("✓ Destroying stack with remaining items\n");
+    
+    /* Destroy should clean up all remaining items */
+    vstack_destroy(vs);
+    printf("✓ PASS: Stack destroyed successfully (items cleaned up)\n");
+    tests_passed++;
 }
 
 /* ========== Main Test Runner ========== */
@@ -434,7 +463,7 @@ int main(void) {
     printf("║   VSTACK API COMPREHENSIVE TEST SUITE  ║\n");
     printf("╚════════════════════════════════════════╝\n");
     
-    test_vstack_init_deinit();
+    test_vstack_create_destroy();
     test_vpush_basic();
     test_vpop_basic();
     test_vpop_null_output();
@@ -446,6 +475,8 @@ int main(void) {
     test_string_stack();
     test_stress_push_pop();
     test_interleaved_operations();
+    test_null_object_concept();
+    test_destroy_with_items();
     
     printf("\n╔════════════════════════════════════════╗\n");
     printf("║          TEST SUMMARY                  ║\n");

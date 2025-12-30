@@ -31,40 +31,37 @@ extern "C" {
  * @warning **Null Safety**: All functions taking `struct lstack *` 
  * expect a valid, initialized by @ref lstack_init, non-NULL pointer. Behavior is undefined otherwise.
  */
-struct lstack {
-    struct slist        *contents;
-};
+struct lstack;
 
 /**
- * @name Initialization & Deinitialization
+ * @name Create & Destroy
  * Functions for setting up the stack.
  * @{
  */
 
 /**
- * @brief Initializes the stack ADT.
+ * @brief Creates the stack ADT.
  * 
- * @param[in, out] ls Pointer to the stack instance.
  * @param[in] ac Pointer to an allocator_concept used to allocate nodes. Must not be NULL or invalid.
  * 
- * @return 0 on success, non-zero otherwise.
+ * @return lstack if successfull, NULL otherwise
  * 
  * @see allocator_concept
  * @see slist_init
  */
-int lstack_init(struct lstack *ls, struct allocator_concept *ac);
+struct lstack *lstack_create(struct allocator_concept *ac);
 
 /**
- * @brief Deinitializes the stack ADT.
+ * @brief Destroys the stack ADT.
  * 
  * @param[in, out] ls Pointer to the stack instance.
  * @param[in] oc Pointer to an object_concept used to deinit objects.
  * 
  * @see object_concept
  */
-void lstack_deinit(struct lstack *ls, struct object_concept *oc);
+void lstack_destroy(struct lstack *ls, struct object_concept *oc);
 
-/** @} */ // End of Initialization & Deinitialization group
+/** @} */ // End of Create & Destroy group
 
 /**
  * @name Push & Pop

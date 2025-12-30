@@ -6,36 +6,35 @@
 
 const size_t node_size = sizeof(struct slist_item);
 
+struct lstack {
+    struct slist        contents;
+};
+
 /* =========================================================================
  * Initialization & Deinitialization
  * ========================================================================= */
 
-int lstack_init(struct lstack *ls, struct allocator_concept *ac)
+struct lstack *lstack_create(struct allocator_concept *ac)
 {
-    assert(ls != NULL);
     assert(ac != NULL);
-    struct slist* contents = malloc(sizeof(struct slist));
-    if (!contents)
-    {
-        LOG(LIB_LVL, CERROR, "Allocation failure");
-        return 1;
+    struct lstack *ls = malloc(sizeof(struct lstack));
+    if (!ls) {
+        LOG(LIB_LVL, CERROR, "Could not allocate lstack");
+        return NULL;
     }
-    ls->contents = contents;
-    slist_init(ls->contents, ac);
-    return 0;
+    slist_init(&ls->contents, ac);
+    return ls;
 }
 
-void lstack_deinit(struct lstack *ls, struct object_concept *oc)
+void lstack_destroy(struct lstack *ls, struct object_concept *oc)
 {
     assert(ls != NULL);
     void *data;
-    while ((data = lpop(ls)))
-    {
+    while ((data = lpop(ls))) {
         if (oc && oc->deinit)
             oc->deinit(data);
     }
-    free(ls->contents);
-    ls->contents = NULL;
+    free(ls);
 }
 
 /* =========================================================================
@@ -45,14 +44,14 @@ void lstack_deinit(struct lstack *ls, struct object_concept *oc)
 int lpush(struct lstack *ls, void *new_item)
 {
     assert(ls != NULL);
-    return slist_insert(ls->contents, slist_head(ls->contents), new_item);
+    return slist_insert(&ls->contents, slist_head(&ls->contents), new_item);
 }
 
 void *lpop(struct lstack *ls)
 {
     assert(ls != NULL);
-    struct slist_item** head = slist_head(ls->contents);
-    return (*head) ? slist_remove(ls->contents, head) : NULL;
+    struct slist_item** head = slist_head(&ls->contents);
+    return (*head) ? slist_remove(&ls->contents, head) : NULL;
 }
 
 /* =========================================================================
@@ -62,20 +61,20 @@ void *lpop(struct lstack *ls)
 void *ltop(struct lstack *ls)
 {
     assert(ls != NULL);
-    struct slist_item** peek = slist_head(ls->contents);
+    struct slist_item** peek = slist_head(&ls->contents);
     return (*peek) ? (*peek)->data : NULL;
 }
 
 int lstack_empty(const struct lstack *ls)
 {
     assert(ls != NULL);
-    return slist_empty(ls->contents);
+    return slist_empty(&ls->contents);
 }
 
 size_t lstack_size(const struct lstack *ls)
 {
     assert(ls != NULL);
-    return slist_size(ls->contents);
+    return slist_size(&ls->contents);
 }
 
 /* =========================================================================
@@ -84,9 +83,9 @@ size_t lstack_size(const struct lstack *ls)
 
 void lstack_walk(struct lstack *ls, void *context, void (*handler) (void *item, void *context))
 {
-    assert(ls && ls->contents);
+    assert(ls);
     struct slist_item **iter;
-    slist_foreach(ls->contents, iter, slist_head(ls->contents), NULL) {
+    slist_foreach(&ls->contents, iter, slist_head(&ls->contents), NULL) {
         void *data = slist_item_data(iter);
         handler(data, context);
     }
