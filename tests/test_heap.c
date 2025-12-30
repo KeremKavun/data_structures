@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "../include/heap.h" 
-#include "../../utils/include/stack_alloc.h"
+#include "../include/array_heap.h" 
 
 /*───────────────────────────────────────────────
  * Test Helpers & Mock Data
  *───────────────────────────────────────────────*/
 
-// We will store pointers to integers in the heap
+// We will store the struct BY VALUE in the heap
 typedef struct {
     int value;
 } item_t;
@@ -21,33 +20,24 @@ int compare_ints(const void* a, const void* b) {
     return item_a->value - item_b->value;
 }
 
-// 2. Deallocator Function
-// Used to verify heap_destroy cleans up user data
-int free_counter = 0;
-void custom_deallocator(void* data, void* context) {
-    if (data) {
-        free(data);
-        free_counter++;
-    }
-}
-
-// 3. Walker Handler
-// Used to test heap_walk
+// 2. Walker Handler
 void print_node(void* data, void* userdata) {
     item_t* item = (item_t*)data;
     printf("Heap Node Value: %d\n", item->value);
     (void)userdata; 
-    // printf("Walking node: %d\n", item->value);
 }
 
-// Helper to allocate an integer for the heap
-item_t* create_item(int value) {
-    item_t* item = malloc(sizeof(item_t));
-    assert(item != NULL);
-    item->value = value;
-    LOG(LIB_LVL, CINFO, "Created item %d at %p", value, item);
-    return item;
+/*───────────────────────────────────────────────
+ * Object concept
+ *───────────────────────────────────────────────*/
+
+int copy_item(void *dest, void *src)
+{
+    *(item_t *) dest = *(const item_t *) src;
+    return 0;
 }
+
+struct object_concept oc = { .init = copy_item, .deinit = NULL };
 
 /*───────────────────────────────────────────────
  * Test Cases
@@ -56,82 +46,90 @@ item_t* create_item(int value) {
 void test_lifecycle_and_properties() {
     printf("Test: Lifecycle and Heap Property...\n");
 
-    // Initialize Heap (Capacity 10, Resize 1/True)
-    char array[10 * sizeof(void*)];
-    STACK_ALLOC(struct heap, h, heap_sizeof());
-    heap_init(h, array, sizeof(array) / (sizeof(array[0]) * sizeof(void*)), NO_RESIZE, compare_ints);
-    assert(h != NULL);
-    assert(heap_empty(h) == 1);
-    assert(heap_size(h) == 0);
+    struct array_heap h;
+    
+    // Initialize Heap
+    // We pass NULL for object_concept assuming POD (Plain Old Data) copy semantics
+    int status = array_heap_init(&h, sizeof(item_t), &oc, compare_ints);
+    assert(status == 0);
+    assert(array_heap_empty(&h) == 1);
+    assert(array_heap_size(&h) == 0);
 
     // Add items in random order
-    // We expect them to come out: 100, 20, 30, 10
-    heap_add(h, create_item(30));
-    heap_add(h, create_item(10));
-    heap_add(h, create_item(100));
-    heap_add(h, create_item(20));
+    // We expect Max-Heap order: 100, 30, 20, 10
+    item_t items[] = { {30}, {10}, {100}, {20} };
+    
+    array_heap_add(&h, &items[0]);
+    array_heap_add(&h, &items[1]);
+    array_heap_add(&h, &items[2]);
+    array_heap_add(&h, &items[3]);
 
-    heap_walk(h, NULL, print_node);
+    printf("--- Current Heap Content ---\n");
+    array_heap_walk(&h, NULL, print_node);
+    printf("----------------------------\n");
 
-    assert(heap_size(h) == 4);
-    assert(heap_empty(h) == 0);
+    assert(array_heap_size(&h) == 4);
+    assert(array_heap_empty(&h) == 0);
 
-    // Verify Min-Heap Property (Pop items)
-    item_t* popped;
+    // Verify Max-Heap Property (Pop items)
+    item_t popped;
 
     // 1st Pop -> 100
-    popped = (item_t*)heap_remove(h);
-    assert(popped->value == 100);
-    free(popped); 
+    array_heap_remove(&h, &popped);
+    assert(popped.value == 100);
+    printf("Popped: %d\n", popped.value);
 
     // 2nd Pop -> 30
-    popped = (item_t*)heap_remove(h);
-    assert(popped->value == 30);
-    free(popped);
+    array_heap_remove(&h, &popped);
+    assert(popped.value == 30);
+    printf("Popped: %d\n", popped.value);
 
     // 3rd Pop -> 20
-    popped = (item_t*)heap_remove(h);
-    assert(popped->value == 20);
-    free(popped);
+    array_heap_remove(&h, &popped);
+    assert(popped.value == 20);
+    printf("Popped: %d\n", popped.value);
 
     // 4th Pop -> 10
-    popped = (item_t*)heap_remove(h);
-    assert(popped->value == 10);
-    free(popped);
+    array_heap_remove(&h, &popped);
+    assert(popped.value == 10);
+    printf("Popped: %d\n", popped.value);
 
-    assert(heap_empty(h) == 1);
+    assert(array_heap_empty(&h) == 1);
 
-    // Destroy empty heap
-    heap_deinit(h, NULL, custom_deallocator);
+    // Cleanup
+    array_heap_deinit(&h);
     
     printf("PASSED\n");
 }
 
-void test_resizing_and_cleanup() {
-    printf("Test: Resizing and Cleanup... \n");
+void test_resizing_stress() {
+    printf("Test: Resizing and Stress... \n");
     
-    // Reset counter
-    free_counter = 0;
+    struct array_heap h;
+    // Initialize
+    array_heap_init(&h, sizeof(item_t), &oc, compare_ints);
+    
+    int count = 50;
 
-    // Create small heap (Capacity 2)
-    STACK_ALLOC(struct heap, h, heap_sizeof());
-    heap_init(h, NULL, 2, AUTO_RESIZE, compare_ints);
-    
-    // Add 5 items (triggering resize)
-    for (int i = 0; i < 5; i++) {
-        heap_add(h, create_item(i));
+    // Add 50 items (0 to 49)
+    // The underlying dynarray should handle resizing automatically
+    for (int i = 0; i < count; i++) {
+        item_t item = { i };
+        array_heap_add(&h, &item);
     }
 
-    assert(heap_size(h) == 5);
+    assert(array_heap_size(&h) == (size_t)count);
 
-    // Test Walker
-    heap_walk(h, NULL, print_node);
+    // Removing them should yield 49 down to 0
+    item_t popped;
+    for (int i = count - 1; i >= 0; i--) {
+        array_heap_remove(&h, &popped);
+        assert(popped.value == i);
+    }
 
-    // Destroy heap with items still in it
-    // This should trigger custom_deallocator 5 times
-    heap_deinit(h, NULL, custom_deallocator);
+    assert(array_heap_empty(&h) == 1);
 
-    assert(free_counter == 5);
+    array_heap_deinit(&h);
 
     printf("PASSED\n");
 }
@@ -142,11 +140,11 @@ void test_resizing_and_cleanup() {
 
 int main() {
     printf("================================\n");
-    printf("Starting Heap API Tests\n");
+    printf("Starting Array Heap API Tests\n");
     printf("================================\n");
 
     test_lifecycle_and_properties();
-    test_resizing_and_cleanup();
+    test_resizing_stress();
 
     printf("================================\n");
     printf("All Tests Passed Successfully.\n");
