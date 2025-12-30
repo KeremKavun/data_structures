@@ -25,6 +25,10 @@ GRAPHS_BIN_DIRS := $(patsubst $(GRAPHS_SRC_DIR)/%, $(GRAPHS_BIN_DIR)/%, $(GRAPHS
 $(GRAPHS_BIN_DIR)/libgraphs.a: $(GRAPHS_OBJ_FILES)
 	ar rcs $@ $^
 
+.PHONY:
+test_adjl_graph: $(GRAPHS_TEST_DIR)/test_adjl_graph.c $(GRAPHS_BIN_DIR)/libgraphs.a
+	$(GRAPHS_CC) $(GRAPHS_CFLAGS) -o $(GRAPHS_BIN_DIR)/test_adjl_graph $^ $(shell pkg-config --cflags --libs linkedlists stack queue concepts)
+
 $(GRAPHS_BIN_DIR)/%.o: $(GRAPHS_SRC_DIR)/%.c | $(GRAPHS_BIN_DIRS)
 	$(GRAPHS_CC) $(GRAPHS_CFLAGS) -I$(GRAPHS_INCLUDE_DIR) -I$(GRAPHS_INTERNAL_DIR) -c $< -o $@
 
