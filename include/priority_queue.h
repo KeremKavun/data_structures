@@ -10,21 +10,20 @@ extern "C" {
 #include <stddef.h>
 
 struct priority_queue;
-typedef struct priority_queue priority_queue_t;
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int priority_queue_init(struct priority_queue* pq, int (*cmp) (const void* a, const void* b));
-void priority_queue_deinit(struct priority_queue* pq, void* context, struct object_concept* oc);
+struct priority_queue *priority_queue_create(size_t obj_size, struct object_concept *oc, int (*cmp) (const void *a, const void *b));
+void priority_queue_destroy(struct priority_queue* pq);
 
 /*───────────────────────────────────────────────
  * Operations
  *───────────────────────────────────────────────*/
 
 int priority_queue_enqueue(struct priority_queue* pq, void* item);
-void* priority_queue_dequeue(struct priority_queue* pq);
+int priority_queue_dequeue(struct priority_queue* pq,void *removed);
 
 /*───────────────────────────────────────────────
  * Accessors

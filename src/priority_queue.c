@@ -1,30 +1,36 @@
 #include "../include/priority_queue.h"
-#include "../../trees/src/heap.c"
-#include "../../trees/internals/heap_definition.h"
+#include "../../trees/src/array_heap.c"
+#include "../../arrays/include/dynarray.h"
 #include <stdlib.h>
 
 struct priority_queue
 {
-    struct heap heap;
+    struct array_heap heap;
 };
 
 /*───────────────────────────────────────────────
  * Lifecycle
  *───────────────────────────────────────────────*/
 
-int priority_queue_init(struct priority_queue* pq, int (*cmp) (const void* a, const void* b))
+struct priority_queue *priority_queue_create(size_t obj_size, struct object_concept *oc, int (*cmp) (const void *a, const void *b))
 {
-    if (heap_init(&pq->heap, 1, cmp) != 0)
-    {
-        LOG(LIB_LVL, CERROR, "Failed to create heap for priority queue");
-        return 1;
+    struct priority_queue *pq = malloc(sizeof(struct priority_queue));
+    if (!pq) {
+        LOG(LIB_LVL, CERROR, "Allocation failure");
+        return NULL;
     }
-    return 0;
+    if (array_heap_init(&pq->heap, obj_size, oc, cmp) != 0) {
+        LOG(LIB_LVL, CERROR, "Failed to create heap for priority queue");
+        free(pq);
+        return NULL;
+    }
+    return pq;
 }
 
-void priority_queue_deinit(struct priority_queue* pq, void* context, struct object_concept* oc)
+void priority_queue_destroy(struct priority_queue* pq)
 {
-    heap_deinit(&pq->heap, context, oc);
+    array_heap_deinit(&pq->heap);
+    free(pq);
 }
 
 /*───────────────────────────────────────────────
@@ -33,12 +39,12 @@ void priority_queue_deinit(struct priority_queue* pq, void* context, struct obje
 
 int priority_queue_enqueue(struct priority_queue* pq, void* item)
 {
-    return heap_add(&pq->heap, item);
+    return array_heap_add(&pq->heap, item);
 }
 
-void* priority_queue_dequeue(struct priority_queue* pq)
+int priority_queue_dequeue(struct priority_queue* pq, void *removed)
 {
-    return heap_remove(&pq->heap);
+    return array_heap_remove(&pq->heap, removed);
 }
 
 /*───────────────────────────────────────────────
@@ -47,22 +53,22 @@ void* priority_queue_dequeue(struct priority_queue* pq)
 
 const void* priority_queue_front(const struct priority_queue* pq)
 {
-    return *(void**)lbuffer_at((struct lbuffer*) &pq->heap.buffer, 0);
+    return dynarray_front((struct dynarray*) &pq->heap.contents);
 }
 
 const void* priority_queue_rear(const struct priority_queue* pq)
 {
-    return *(void**)lbuffer_at((struct lbuffer*) &pq->heap.buffer, lbuffer_size((struct lbuffer*) &pq->heap.buffer) - 1);
+    return dynarray_back((struct dynarray*) &pq->heap.contents);
 }
 
 int priority_queue_empty(const struct priority_queue* pq)
 {
-    return heap_empty(&pq->heap);
+    return array_heap_empty(&pq->heap);
 }
 
 size_t priority_queue_size(const struct priority_queue* pq)
 {
-    return heap_size(&pq->heap);
+    return array_heap_size(&pq->heap);
 }
 
 /*───────────────────────────────────────────────
@@ -71,5 +77,5 @@ size_t priority_queue_size(const struct priority_queue* pq)
 
 void priority_queue_walk(struct priority_queue* pq, void* userdata, void (*handler) (void* data, void* userdata))
 {
-    heap_walk(&pq->heap, userdata, handler);
+    array_heap_walk(&pq->heap, userdata, handler);
 }
