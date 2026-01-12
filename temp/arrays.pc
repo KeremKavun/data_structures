@@ -1,0 +1,9 @@
+prefix=/home/kerem/code/c
+libdir=${prefix}/arrays/bin
+includedir=${prefix}/arrays/include
+
+Name: arrays
+Description: Array utilities
+Version: 1.0
+Libs: -L${libdir} -larrays
+Cflags: -I${includedir}
