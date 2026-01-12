@@ -1,0 +1,10 @@
+prefix=/home/kerem/code/c
+libdir=${prefix}/hashes/bin
+includedir=${prefix}/hashes/include
+
+Name: hashes
+Description: Hash table library (Depends on libprime.a)
+Version: 1.0
+Requires: prime
+Libs: -L${libdir} -lhashes
+Cflags: -I${includedir}
