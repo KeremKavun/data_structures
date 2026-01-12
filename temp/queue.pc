@@ -1,0 +1,10 @@
+prefix=/home/kerem/code/c
+libdir=${prefix}/queue/bin
+includedir=${prefix}/queue/include
+
+Name: queue
+Description: Queue library (depends on liblinkedlists.a)
+Version: 1.0
+Requires: linkedlists
+Libs: -L${libdir} -lqueue
+Cflags: -I${includedir}
