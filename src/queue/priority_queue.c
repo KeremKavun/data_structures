@@ -1,6 +1,6 @@
-#include "../include/priority_queue.h"
-#include "../../trees/src/array_heap.c"
-#include "../../arrays/include/dynarray.h"
+#include <ds/queue/priority_queue.h>
+#include <ds/trees/array_heap.h>
+#include <ds/arrays/dynarray.h>
 #include <stdlib.h>
 
 struct priority_queue
@@ -75,7 +75,7 @@ size_t priority_queue_size(const struct priority_queue* pq)
  * Iterations
  *───────────────────────────────────────────────*/
 
-void priority_queue_walk(struct priority_queue* pq, void* userdata, void (*handler) (void* data, void* userdata))
+void priority_queue_walk(struct priority_queue* pq, void* context, void (*handler) (void* item, void* context))
 {
-    array_heap_walk(&pq->heap, userdata, handler);
+    array_heap_walk(&pq->heap, context, handler);
 }

@@ -1,4 +1,4 @@
-#include "../include/clist.h"
+#include <ds/linkedlists/clist.h>
 #include <stdlib.h>
 #include <assert.h>
 

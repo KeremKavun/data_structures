@@ -1,5 +1,5 @@
-#include "../include/lqueue.h"
-#include "../../linkedlists/include/slist.h"
+#include <ds/queue/lqueue.h>
+#include <ds/linkedlists/slist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

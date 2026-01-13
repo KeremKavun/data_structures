@@ -10,7 +10,7 @@
  * - Memory management
  */
 
-#include "../include/Btree.h"
+#include <ds/trees/Btree.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

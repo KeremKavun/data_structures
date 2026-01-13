@@ -4,7 +4,7 @@
 #include <string.h>
 #include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
-#include "../include/dlist.h"
+#include <ds/linkedlists/dlist.h>
 
 /* * =================================================================================
  * 1. DEPENDENCY MOCKS

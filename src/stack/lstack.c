@@ -1,5 +1,5 @@
-#include "../include/lstack.h"
-#include "../../linkedlists/include/slist.h"
+#include <ds/stack/lstack.h>
+#include <ds/linkedlists/slist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

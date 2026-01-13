@@ -1,4 +1,4 @@
-#include "../internals/gbst.h"
+#include "gbst.h"
 #include <assert.h>
 
 struct bintree** gbst_search(struct bintree **tree, const void *data, int (*cmp) (const void *key, const void *data))

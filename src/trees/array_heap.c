@@ -1,5 +1,5 @@
-#include "../include/array_heap.h"
-#include "../../arrays/include/dynarray.h"
+#include <ds/trees/array_heap.h>
+#include <ds/arrays/dynarray.h>
 #include <stdlib.h>
 #include <inttypes.h>
 

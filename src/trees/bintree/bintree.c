@@ -1,4 +1,4 @@
-#include "../../include/bintree.h"
+#include <ds/trees/bintree.h>
 
 /* =========================================================================
  * Create & Destroy

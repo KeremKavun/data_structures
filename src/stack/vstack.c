@@ -1,5 +1,5 @@
-#include "../include/vstack.h"
-#include "../../arrays/include/dynarray.h"
+#include <ds/stack/vstack.h>
+#include <ds/arrays/dynarray.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

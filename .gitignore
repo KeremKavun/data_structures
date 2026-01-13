@@ -1,2 +1,6 @@
 # ignore bin
 bin/
+
+#ignore Doxygen generated outputs
+docs/html/
+docs/latex/

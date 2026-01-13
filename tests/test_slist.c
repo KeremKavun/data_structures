@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "../include/slist.h"
+#include <ds/linkedlists/slist.h>
 #include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 

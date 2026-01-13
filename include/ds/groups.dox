@@ -1,0 +1,40 @@
+/**
+ * @defgroup ARRAYS Arrays
+ * @brief Defines array viewer and vector like dynarray.
+ */
+
+/**
+ * @defgroup GRAPHS Graphs
+ * @brief Collection of graph implementations (Adjacency List, Matrix, etc.).
+ */
+
+/**
+ * @defgroup LINKEDLISTS Linked Lists
+ * @brief Collection of linked list implementations (Intrusive, Doubly Linked, etc.).
+ */
+
+/**
+ * @defgroup QUEUE Queue
+ * @brief Collection of queue implementations using lists or arrays,
+ * priority queue is here but i dont know if this is a cathegory error.
+ */
+
+/**
+ * @defgroup STACK Stack
+ * @brief Collection of stack implementations using lists or arrays or macros.
+ */
+
+/**
+ * @defgroup TREES Trees
+ * @brief Collection of various tree data structures and ADTs (bst, avl, Btree etc).
+ */
+
+/**
+ * @defgroup UTILS Utilities & Concepts
+ * @brief Common abstractions and helper tools used across the library.
+ */
+
+/**
+ * @defgroup HASHS Hash Data Structures and ADTs
+ * @brief Provides hash table and hash set for now.
+ */

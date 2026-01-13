@@ -9,19 +9,24 @@ extern "C" {
 #endif
 
 /**
- * @defgroup Array API
- * 
+ * @file array.h
+ * @brief Defines the interface for the builtin C array viewer.
+ */
+
+/**
+ * @defgroup ARRAY_VIEWER Array View API
+ * @ingroup ARRAYS
  * @brief Very simple array wrapper around built-in arrays.
- * * ### Global Constraints
+ * 
+ * @details
+ * ### Global Constraints
  * - **NULL Pointers**: All `struct array *arr` must be non-NULL
  * @{
  */
 
 /**
  * @struct array
- * 
  * @brief Very simple array wrapper.
- * 
  * @warning **Buffer Ownership**: You provide buffer. So do not
  * export arrays whose buffers were allocated in the stack.
  * @warning **NULL Buffer**: BUffer cannot be NULL. You are requested
@@ -29,9 +34,9 @@ extern "C" {
  * otherwise assertions will fail.
  */
 struct array {
-    void        *buffer;
-    size_t      size;
-    size_t      obj_size;
+    void        *buffer;        ///< Pointer to builtin array.
+    size_t      size;           ///< Size of the array, might be called capacity too.
+    size_t      obj_size;       ///< Size of the object in bytes of type builtin array stores.
 };
 
 /**
@@ -47,9 +52,7 @@ struct array {
 // int raw[] = {1, 2, 3};
 // struct array view = ARRAY_VIEW(raw);
 
-/**
- * @brief Get pointer to element at index.
- */
+/** @brief Get pointer to element at index. */
 static inline void *array_at(const struct array *arr, size_t index)
 {
     assert(arr != NULL && arr->buffer != NULL);
@@ -57,27 +60,21 @@ static inline void *array_at(const struct array *arr, size_t index)
     return (void*) ((char*) arr->buffer + index * arr->obj_size);
 }
 
-/**
- * @return Number of elements in the array.
- */
+/** @return Number of elements in the array. */
 static inline size_t array_size(const struct array* arr)
 {
     assert(arr != NULL && arr->buffer != NULL);
     return arr->size;
 }
 
-/**
- * @return Object size (stride).
- */
+/** @return Object size (stride). */
 static inline size_t array_obj_size(const struct array* arr)
 {
     assert(arr != NULL && arr->buffer != NULL);
 	return arr->obj_size;
 }
 
-/**
- * @return iterator at @p index.
- * 
+/** @return iterator at @p index.
  * @warning **Array Bounds**: Bound checks are done by assert, you
  * can obtain an iterator if max index is dynarray_size(arr).
  */
@@ -88,18 +85,14 @@ static inline void *array_iterator_at(struct array *arr, size_t index)
     return (void *) ((char *) arr->buffer + index * arr->obj_size);
 }
 
-/**
- * @return begin iterator.
- */
+/** @return begin iterator. */
 static inline void *array_iterator_begin(struct array *arr)
 {
     assert(arr != NULL && arr->buffer != NULL);
     return arr->buffer;
 }
 
-/**
- * @return end iterator.
- */
+/** @return end iterator. */
 static inline void *array_iterator_end(struct array *arr)
 {
     assert(arr != NULL && arr->buffer != NULL);
@@ -108,7 +101,6 @@ static inline void *array_iterator_end(struct array *arr)
 
 /**
  * @return next iterator.
- * 
  * @warning passing end iterator will invalidate assert.
  */
 static inline void *array_iterator_next(struct array *arr, void *current)
@@ -120,7 +112,6 @@ static inline void *array_iterator_next(struct array *arr, void *current)
 
 /**
  * @return prev iterator.
- * 
  * @warning passing begin iterator will invalidate assert.
  */
 static inline void *array_iterator_prev(struct array *arr, void *current)
@@ -130,9 +121,9 @@ static inline void *array_iterator_prev(struct array *arr, void *current)
     return (char *) current - ((long) arr->obj_size);
 }
 
-/** @} */ // End of Implementation group
+/** @} */ // End of Implementation
 
-/** @} */ // End of Global group
+/** @} */ // End of ARRAY_VIEW group
 
 #ifdef __cplusplus
 }

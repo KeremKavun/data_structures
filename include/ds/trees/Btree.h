@@ -1,12 +1,12 @@
-#ifndef BTREE_H
-#define BTREE_H
+#ifndef TREES_BTREE_H
+#define TREES_BTREE_H
 
-#include "../../debug/include/debug.h"
-#include "../../concepts/include/allocator_concept.h"
-#include "../../concepts/include/object_concept.h"
-#include "../internals/traversals.h"
-#include "../internals/status.h"
-#include "../include/mwaytree.h"
+#include <ds/utils/debug.h>
+#include <ds/utils/allocator_concept.h>
+#include <ds/utils/object_concept.h>
+#include "common/traversals.h"
+#include "common/status.h"
+#include "mwaytree.h"
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -14,10 +14,17 @@ extern "C" {
 #endif
 
 /**
- * @defgroup B-Tree API
- * 
+ * @file Btree.h
+ * @brief Defines the interface for B-trees.
+ */
+
+/**
+ * @defgroup BTREE B-Tree
+ * @ingroup MWAYTREE_CORE
  * @brief Basic operations for B-trees.
- * * ### Global Constraints
+ * 
+ * @details
+ * ### Global Constraints
  * - **NULL Pointers**: All `struct Btree *tree` arguments must be non-NULL.
  * - **Ownership**: Internal nodes are owned by allocator_concept given by user, stored in the avl,
  * - void *references to data are entirely owned by user. @ref avl_destroy might be helpful to destruct remaining
@@ -29,10 +36,10 @@ extern "C" {
  * @struct Btree
  */
 struct Btree {
-    struct mway_header              *root;
-    struct allocator_concept        ac;
-    int (*cmp) (const void *key, const void *data);
-    size_t                          size;
+    struct mway_header              *root;              ///< Root of the tree.
+    struct allocator_concept        ac;                 ///< Used by the tree to allocate new nodes to maintain the tree.
+    int (*cmp) (const void *key, const void *data);     ///< Pointer to function that returns negative if a<b, 0 if a==b, positive if a>b. 
+    size_t                          size;               ///< Count of the objects whose references are stored here.
 };
 
 /**
@@ -43,25 +50,21 @@ struct Btree {
 
 /**
  * @brief Creates B-tree.
- * 
  * @param[in] order Order of B-tree.
  * @param[in] cmp Function pointer to compare keys.
  * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
- * 
  * @return Btree instance.
  */
 struct Btree *Btree_create(size_t order, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
 
 /**
  * @brief Destroys the B-tree.
- * 
  * @param[in] oc object_concept to deinit data references.
  */
 void Btree_destroy(struct Btree *tree, struct object_concept *oc);
 
 /**
  * @return @ref mway_sizeof(order - 1, sizeof(struct mway_header*) + sizeof(size_t))
- * 
  * @see mway_sizeof
  */
 static inline size_t Btree_node_sizeof(size_t order)
@@ -70,7 +73,7 @@ static inline size_t Btree_node_sizeof(size_t order)
     return mway_sizeof(order - 1, sizeof(struct mway_header*) + sizeof(size_t));
 }
 
-/** @} */ // End of Create & Destroy group
+/** @} */ // End of Create & Destroy
 
 /**
  * @name Operations
@@ -78,14 +81,33 @@ static inline size_t Btree_node_sizeof(size_t order)
  * @{
  */
 
-// Add item into the B-tree, classic return types in status.h 
-// Unfortunately, i cant provide strong guarantee here, in case of any failure, tree will be fucked up, not just here but in helpers
+/**
+ * @brief Adds new data into the Btree.
+ * @param[in] new_data Reference to the new data.
+ * @return enum tree_status, which might indicate
+ * duplicate or memory allocation failure.
+ * @warning Unfortunately, i cant provide strong guarantee here,
+ * in case of any memory allocaton failure, tree will be corrupted.
+ */
 enum trees_status Btree_add(struct Btree *tree, void *new_data);
-// Remove item from the B-tree and return
+
+/**
+ * @brief Removes data from the Btree.
+ * @param[in] data Data to be removed.
+ * @return Data that was stored in the Btree or NULL if doesnt exist.
+ * @warning **Lifetime Management**: The tree did NOT take ownership of the memory pointed
+ * by `void *new_data` passed in insert functions. It is returned to you back.
+ */
 void *Btree_remove(struct Btree *tree, void *data);
+
+/**
+ * @brief Searches a given data in the Btree.
+ * @param[in] data Data that is going to be searched.
+ * @return Data that was stored in the Btree or NULL if doesnt exist.
+ */
 void *Btree_search(struct Btree *tree, const void *data);
 
-/** @} */ // End of Operations group
+/** @} */ // End of Operations
 
 /**
  * @name Inspection
@@ -93,27 +115,31 @@ void *Btree_search(struct Btree *tree, const void *data);
  * @{
  */
 
+/** @return The root of the Btree. */
 static inline const struct mway_header* Btree_root(const struct Btree* tree)
 {
     return tree->root;
 }
 
+/** @return 1 if the tree is empty, 0 otherwise. */
 static inline int Btree_empty(const struct Btree* tree)
 {
     return tree->size == 0;
 }
 
+/** @return The count of the object references stored here. */
 static inline size_t Btree_size(const struct Btree* tree)
 {
     return tree->size;
 }
 
+/** @return Order of the Btree. */
 static inline size_t Btree_order(const struct Btree* tree)
 {
     return tree->root->capacity + 1;
 }
 
-/** @} */ // End of Inspection group
+/** @} */ // End of Inspection
 
 /**
  * @name Traversal
@@ -123,19 +149,18 @@ static inline size_t Btree_order(const struct Btree* tree)
 
 /**
  * @brief Traverses tree in the inorder.
- * 
  * @param[in] context Context pointer for ease.
  * @param[in] handler Pointer to a function pointer that executes
  * taking data reference and context pointer.
  */
 void Btree_walk(struct Btree *tree, void *context, void (*handler) (void *data, void *context));
 
-/** @} */ // End of Traversal group
+/** @} */ // End of Traversal
 
-/** @} */ // End of Global group
+/** @} */ // End of BTREE group
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // BTREE_H
+#endif // TREES_BTREE_H

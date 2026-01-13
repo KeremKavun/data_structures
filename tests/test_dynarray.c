@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "../include/dynarray.h" 
+#include <ds/arrays/dynarray.h>
 
 /* =========================================================================
  * MOCK OBJECT & CONCEPTS

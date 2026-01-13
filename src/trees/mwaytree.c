@@ -1,4 +1,4 @@
-#include "../include/mwaytree.h"
+#include <ds/trees/mwaytree.h>
 #include <stdlib.h>
 #include <string.h>
 

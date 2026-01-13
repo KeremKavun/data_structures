@@ -1,5 +1,5 @@
-#include "../include/bst.h"
-#include "../internals/gbst.h"
+#include <ds/trees/bst.h>
+#include "gbst.h"
 #include <stdlib.h>
 #include <assert.h>
 

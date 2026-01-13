@@ -1,8 +1,8 @@
-#include "../include/Btree.h"
+#include <ds/trees/Btree.h>
 #include <stdlib.h>
 #include <assert.h>
 
-#define BTREE_MAX_HEIGHT 32
+#define BTREE_MAX_HEIGHT 64
 
 /*
     Btree nodes are classic mway node concept introduced in mwaytree.h + first node + size_t size to track the count of data

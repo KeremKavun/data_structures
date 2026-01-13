@@ -1,7 +1,7 @@
-#include "../include/adjl_graph.h"
-#include "../../linkedlists/include/clist.h"
-#include "../../stack/include/lstack.h"
-#include "../../queue/include/lqueue.h"
+#include <ds/graphs/adjl_graph.h>
+#include <ds/linkedlists/clist.h>
+#include <ds/stack/lstack.h>
+#include <ds/queue/lqueue.h>
 #include <stdlib.h>
 
 struct adjl_vertex {
@@ -188,13 +188,13 @@ void *adjl_v_iter_next(adjl_vertex_iterator *it)
 
 // === Neighbour Iterators === //
 
-void adjl_n_iter_init(struct adjl_vertex *v, adjl_neighbor_iterator *it)
+void adjl_out_iter_init(const struct adjl_vertex *v, adjl_out_iter *it)
 {
     assert(v != NULL && it != NULL);
     it->current_arc = v->adj_list;
 }
 
-void *adjl_n_iter_next(adjl_neighbor_iterator *it)
+void *adjl_out_iter_next(adjl_out_iter *it)
 {
     assert(it != NULL);
     if (it->current_arc == NULL)
@@ -203,6 +203,37 @@ void *adjl_n_iter_next(adjl_neighbor_iterator *it)
     void *neighbor_data = arc->dest->data;
     it->current_arc = arc->next_arc;
     return neighbor_data;
+}
+
+void adjl_in_iter_init(const struct adjl_graph *gr, const struct adjl_vertex *v, adjl_in_iter *it)
+{
+    assert(gr != NULL && v != NULL && it != NULL);
+    it->graph = gr;
+    it->target = v;
+    it->curr_v_node = gr->vertices.sentinel.next;
+    it->curr_arc = NULL;
+}
+
+void *adjl_in_iter_next(adjl_in_iter *it) {
+    assert(it != NULL);
+    struct clist_item *sentinel = (struct clist_item *) &it->graph->vertices.sentinel;
+    while (it->curr_v_node != sentinel) {
+        struct adjl_vertex *scanner = clist_entry(it->curr_v_node, struct adjl_vertex, hook);
+        if (it->curr_arc == NULL)
+            it->curr_arc = scanner->adj_list;
+        while (it->curr_arc != NULL) {
+            struct adjl_vertex *dest = it->curr_arc->dest;
+            it->curr_arc = it->curr_arc->next_arc; 
+            if (dest == it->target) {
+                if (it->curr_arc == NULL)
+                    it->curr_v_node = clist_item_next(it->curr_v_node);
+                return scanner->data;
+            }
+        }
+        it->curr_v_node = clist_item_next(it->curr_v_node);
+        it->curr_arc = NULL;
+    }
+    return NULL;
 }
 
 /* =========================================================================

@@ -1,9 +1,9 @@
-#ifndef CLIST_H
-#define CLIST_H
+#ifndef LINKEDLISTS_CLIST_H
+#define LINKEDLISTS_CLIST_H
 
-#include "../../concepts/include/allocator_concept.h"
-#include "../../utils/include/macros.h"
-#include "../../debug/include/debug.h"
+#include <ds/utils/allocator_concept.h>
+#include "../../../../utils/include/macros.h"
+#include <ds/utils/debug.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -11,12 +11,20 @@ extern "C" {
 #endif
 
 /**
- * @defgroup Circular list (intrusive) API
- * * @brief Basic operations for the intrusive list using a Sentinel (Dummy Head).
- * * * ### Global Constraints
+ * @file clist.h
+ * @brief Defines the interface for circular & intrusive linked list.
+ */
+
+/**
+ * @defgroup CIRCINTRLIST Circular & Intrusive Linked List
+ * @ingroup LINKEDLISTS
+ * @brief Basic operations for the intrusive list using a Sentinel (Dummy Head).
+ * 
+ * @details
+ * ### Global Constraints
  * - **NULL Pointers**: All `struct clist*` and `struct clist_item*` arguments must be non-NULL.
  * - **Ownership**: This is an intrusive list; the user manages all memory.
- * * * ### Sentinel Logic
+ * * ### Sentinel Logic
  * This implementation uses a permanent "sentinel" node embedded in the `clist` struct.
  * - An **Empty** list is a sentinel pointing to itself (next == &sentinel).
  * - **Iterating**: Start at `sentinel.next`. Stop when you reach `&sentinel`.
@@ -34,8 +42,8 @@ extern "C" {
  * linked into a @ref clist.
  */
 struct clist_item {
-    struct clist_item       *prev;
-    struct clist_item       *next;
+    struct clist_item       *prev;      ///< Previous item.
+    struct clist_item       *next;      ///< Next item.
 };
 
 /**
@@ -45,9 +53,7 @@ struct clist_item {
  */
 void clist_item_init(struct clist_item *item);
 
-/**
- * @brief Recovers the parent structure pointer from an embedded clist_item.
- */
+/** @brief Recovers the parent structure pointer from an embedded clist_item. */
 #define clist_entry(ptr, type, member) \
     container_of(ptr, type, member)
 
@@ -61,8 +67,8 @@ void clist_item_init(struct clist_item *item);
  * * @warning **Null Safety**: All functions expect a valid, initialized pointer.
  */
 struct clist {
-    struct clist_item       sentinel;
-    size_t                  size;
+    struct clist_item       sentinel;       ///< Sentinel for less NULL checks and ensuring list wont be empty.
+    size_t                  size;           ///< Count of the objects whose references are stored here.
 };
 
 /**
@@ -76,7 +82,7 @@ struct clist {
  */
 void clist_init(struct clist *cl);
 
-/** @} */
+/** @} End of the Initialization */
 
 /**
  * @name Insertion
@@ -105,7 +111,7 @@ void clist_push_front(struct clist *cl, struct clist_item *new_item);
  */
 void clist_push_back(struct clist *cl, struct clist_item *new_item);
 
-/** @} */
+/** @} End of the Insertion */
 
 /**
  * @name Removal
@@ -130,24 +136,20 @@ struct clist_item *clist_pop_front(struct clist *cl);
  */
 struct clist_item *clist_pop_back(struct clist *cl);
 
-/** @} */
+/** @} End of the Removal */
 
 /**
  * @name Iteration
  * @{
  */
 
-/**
- * @return prev item.
- */
+/** @return prev item. */
 static inline struct clist_item *clist_item_prev(struct clist_item *item)
 {
     return item->prev;
 }
 
-/**
- * @return next item.
- */
+/** @return next item. */
 static inline struct clist_item *clist_item_next(struct clist_item *item)
 {
     return item->next;
@@ -171,7 +173,7 @@ static inline struct clist_item *clist_item_next(struct clist_item *item)
 
 /**
  * @brief Iterates over parent structures safe against removal.
- * * @param obj Iterator variable for parent structure pointer.
+ * @param obj Iterator variable for parent structure pointer.
  * @param head Pointer to the list (`struct clist*`).
  * @param member Name of the `struct clist_item` member within parent.
  */
@@ -180,7 +182,7 @@ static inline struct clist_item *clist_item_next(struct clist_item *item)
          _iter != &(head)->sentinel && (obj = clist_entry(_iter, typeof(*obj), member)); \
          _iter = _iter->next)
 
-/** @} */
+/** @} End of the Iteration */
 
 /**
  * @name Search
@@ -221,38 +223,34 @@ static inline struct clist_item *clist_item_next(struct clist_item *item)
     } \
 } while(0)
 
-/** @} */
+/** @} End of the Search */
 
 /**
  * @name Inspection
  * @{
  */
 
-/**
- * @brief Returns the sentinel item.
- */
+/** @brief Returns the sentinel item. */
 static inline struct clist_item *get_clist_sentinel(struct clist *cl) {
     return &cl->sentinel;
 }
 
-/**
- * @brief Checks if the list is empty.
- */
+/** @brief Checks if the list is empty. */
 static inline int clist_empty(const struct clist *cl) {
     return (cl->sentinel.next == &cl->sentinel);
 }
 
-/**
- * @brief Returns the number of items.
- */
+/** @brief Returns the number of items. */
 static inline size_t clist_size(const struct clist *cl) {
     return cl->size;
 }
 
-/** @} */
+/** @} End of the Inspection */
+
+/** @} */ // End of CIRCINTRLIST group
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // CLIST_H
+#endif // LINKEDLISTS_CLIST_H

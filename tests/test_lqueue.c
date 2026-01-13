@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "../include/lqueue.h"
+#include <ds/queue/lqueue.h>
 #include "../../concepts/include/object_concept.h"
 #include "../../concepts/include/allocator_concept.h"
 

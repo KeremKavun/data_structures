@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "../include/bintree.h"
+#include <ds/trees/bintree.h>
 
 struct bintree** gbst_search(struct bintree **tree, const void *data, int (*cmp) (const void *key, const void *data));
 

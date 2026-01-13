@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "../../debug/include/debug.h"
+#include <ds/utils/debug.h>
 #include <stddef.h>
 
 struct hash_set;

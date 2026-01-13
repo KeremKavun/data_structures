@@ -1,9 +1,9 @@
 #ifndef TREES_MWAYTREE_H
 #define TREES_MWAYTREE_H
 
-#include "../../debug/include/debug.h"
-#include "../../concepts/include/allocator_concept.h"
-#include "../../concepts/include/object_concept.h"
+#include <ds/utils/debug.h>
+#include <ds/utils/allocator_concept.h>
+#include <ds/utils/object_concept.h>
 #include <stddef.h>
 #include <assert.h>
 
@@ -12,35 +12,49 @@ extern "C" {
 #endif
 
 /**
- * @defgroup Generic M-Way Tree API
- * 
+ * @file mwaytree.h
+ * @brief Defines the interface for M-way trees.
+ */
+
+/**
+ * @defgroup MWAYTREE_CORE M-Way Trees
+ * @ingroup TREES
+ * @brief Collection of m-way trees (generic & basic mway, Btree)
+ */
+
+/**
+ * @defgroup MWAYTREE Basic M-Way Tree
+ * @ingroup MWAYTREE_CORE
  * @brief Basic utilites that can be used for mway tree implementations.
- * * ### Global Constraints
+ * 
+ * @details
+ * ### Global Constraints
  * - **NULL Pointers**: All `struct mway_header *header` arguments must be non-NULL.
  * @{
  */
 
 /**
  * @struct mway_header
- * 
  * @brief Generic header that allows diferent types of
  * mway tree nodes to operate on same functionality. All
  * mway tree nodes derives from this struct, it should be
  * at first field.
  */
 struct mway_header {
-    size_t capacity;
+    size_t capacity;        ///< Specifies the number of struct mway_entries.
 };
 
 /**
  * @struct mway_entry
- * 
  * @brief Stores child pointers and data associated
  * with them
+ * 
+ * @details
+ * This struct is used in custom struct definitions as shown in sample macro.
  */
 struct mway_entry {
-    void                    *data;
-    struct mway_header      *child;
+    void                    *data;      ///< Reference to the object.
+    struct mway_header      *child;     ///< Pointer to the child node (note that struct mway_header is generic and super parent)
 };
 
 // This is sample macro to generate mwaytree types, not a must to use.
@@ -69,26 +83,20 @@ struct mway_entry {
  
 /**
  * @brief Creates a mway tree node with given properties.
- * 
  * @param[in] capacity Capacity of @ref mway_entry array in an mway tree node.
  * @param[in] footer_size Additional field to generalize more.
  * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
- * 
  * @return mway_header of created mway tree node.
- * 
  * @note The mway tree node will look like
  * 
  * [struct mway_header; struct mway_entry[capacity]; footer_size bytes]
  */
 struct mway_header *mway_create(size_t capacity, size_t footer_size, struct allocator_concept *ac);
-// This function only destroys datas and nodes in the 'entries' (see sample) array
 
 /**
  * @brief 
- * 
  * @param[in, out] header Pointer to an mway tree node instance.
  * @param[in] oc object_concept to deinit data references.
- * 
  * @warning This function only deletes references stored in @ref struct mway_entry.
  * If you store a pointer to a heap memory in the footer, it is you responsibility
  * to free it. You should free it first, and then call this.
@@ -98,7 +106,6 @@ void mway_destroy(struct mway_header *header, struct object_concept *oc, struct 
 /**
  * @param[in] capacity Capacity of @ref mway_entry array in an mway tree node.
  * @param[in] footer_size Additional field to generalize more.
- * 
  * @return sizeof an mway tree node. 
  */
 static inline size_t mway_sizeof(size_t capacity, size_t footer_size)
@@ -107,7 +114,7 @@ static inline size_t mway_sizeof(size_t capacity, size_t footer_size)
     return ALIGN_UP(raw_size, ALIGN_REQ);
 }
 
-/** @} */ // End of Create & Destroy group
+/** @} */ // End of Create & Destroy
 
 /**
  * @name Getters & Setters
@@ -196,6 +203,8 @@ static inline struct mway_entry* mway_get_entry_addr(struct mway_header* header,
     return &mway_base(header)[index];
 }
 
+/** @} */ // End of Getters & Setters
+
 // *** Helper functions *** //
 
 /** @return Pointer to the start of the entry array. */
@@ -214,7 +223,7 @@ static inline size_t mway_capacity(struct mway_header* header)
     return header->capacity;
 }
 
-/** @} */ 
+/** @} */ // End of MWAYTREE group
 
 #ifdef __cplusplus
 }

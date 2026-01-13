@@ -1,4 +1,4 @@
-#include "../include/bst.h"
+#include <ds/trees/bst.h>
 #include "../../concepts/include/allocator_concept.h"
 #include "../../concepts/include/object_concept.h"
 #include <stdio.h>

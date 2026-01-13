@@ -8,7 +8,7 @@
     ((type *)((char *)(ptr) - offsetof(type, member)))
 
 /* Include the header */
-#include "../include/clist.h"
+#include <ds/linkedlists/clist.h>
 
 /* Test data structure */
 struct test_node {

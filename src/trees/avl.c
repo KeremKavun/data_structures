@@ -1,5 +1,5 @@
-#include "../include/avl.h"
-#include "../internals/gbst.h"
+#include <ds/trees/avl.h>
+#include "gbst.h"
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>

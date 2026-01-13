@@ -1,4 +1,4 @@
-#include "../include/dynarray.h"
+#include <ds/arrays/dynarray.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -40,7 +40,8 @@ void dynarray_deinit(struct dynarray *arr)
         // Deinit all inner objects
         for (size_t i = 0; i < arr->base.size; i++) {
             void *item_ptr = &((char *) arr->base.buffer)[i * arr->base.obj_size];
-            arr->oc.deinit(item_ptr);
+            if (arr->oc.deinit != NULL)
+                arr->oc.deinit(item_ptr);
         }
         free(arr->base.buffer);
         arr->base.buffer = NULL;
@@ -48,7 +49,7 @@ void dynarray_deinit(struct dynarray *arr)
 }
 
 /* =========================================================================
- * Insertion
+ * Insertion & Removal
  * ========================================================================= */
 
 int dynarray_insert(struct dynarray *arr, size_t index, void *begin, void *end)
@@ -85,7 +86,8 @@ int dynarray_insert(struct dynarray *arr, size_t index, void *begin, void *end)
             size_t j = bytes_done / arr->base.obj_size;
             while (j-- > 0) {
                 dest_begin = ptr_add(dest_begin, -((long)arr->base.obj_size));
-                arr->oc.deinit(dest_begin);
+                if (arr->oc.deinit != NULL)
+                    arr->oc.deinit(dest_begin);
             }
             memmove(dest_begin, dest_end, bytes_to_move);
             dynarray_shrink_to_fit(arr);
@@ -109,7 +111,8 @@ int dynarray_set(struct dynarray *arr, size_t index, void *value)
     assert(arr != NULL && arr->base.buffer != NULL);
     assert(index < dynarray_size(arr));
     void *target = dynarray_iterator_at(arr, index);
-    arr->oc.deinit(target);
+    if (arr->oc.deinit != NULL)
+        arr->oc.deinit(target);
     if (arr->oc.init(target, value) != 0) {
         memset(target, 0, arr->base.obj_size); 
         return 1;
@@ -128,7 +131,8 @@ void dynarray_delete(struct dynarray *arr, size_t begin, size_t end)
     void *target_end = dynarray_iterator_at(arr, end);
     size_t bytes_to_move = (dynarray_size(arr) - end) * arr->base.obj_size;
     while (target_begin != target_end) {
-        arr->oc.deinit(target_begin);
+        if (arr->oc.deinit != NULL)
+            arr->oc.deinit(target_begin);
         target_begin = dynarray_iterator_next(arr, target_begin);
     }
     memmove(dest, target_end, bytes_to_move);

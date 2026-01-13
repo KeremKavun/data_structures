@@ -1,4 +1,4 @@
-#include "../include/dlist.h"
+#include <ds/linkedlists/dlist.h>
 #include <stdlib.h>
 
 // *** dlist_item implementation *** //

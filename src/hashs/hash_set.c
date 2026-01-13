@@ -1,5 +1,5 @@
-#include "../../prime/include/primes.h"
-#include "../include/hash_set.h"
+#include "../../../prime/include/primes.h"
+#include <ds/hashs/hash_set.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

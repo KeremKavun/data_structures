@@ -1,6 +1,6 @@
-#include "../../include/bintree.h"
-#include "../../../queue/include/lqueue.h"
-#include "../../../stack/include/lstack.h"
+#include <ds/trees/bintree.h>
+#include <ds/queue/lqueue.h>
+#include <ds/stack/lstack.h>
 #include <limits.h>
 #include <stdlib.h>
 

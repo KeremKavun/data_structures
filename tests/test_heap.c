@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "../include/array_heap.h" 
+#include <ds/trees/array_heap.h>
 
 /*───────────────────────────────────────────────
  * Test Helpers & Mock Data
@@ -33,6 +33,7 @@ void print_node(void* data, void* userdata) {
 
 int copy_item(void *dest, void *src)
 {
+    assert(dest != NULL && src != NULL);
     *(item_t *) dest = *(const item_t *) src;
     return 0;
 }
