@@ -7,15 +7,15 @@ ALL_TESTS += $(BIN_DIR)/tests/test_clist $(BIN_DIR)/tests/test_dlist $(BIN_DIR)/
 
 $(BIN_DIR)/tests/test_clist: tests/test_clist.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 $(BIN_DIR)/tests/test_dlist: tests/test_dlist.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 $(BIN_DIR)/tests/test_slist: tests/test_slist.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 .PHONY: test_clist
 test_clist: $(BIN_DIR)/tests/test_clist

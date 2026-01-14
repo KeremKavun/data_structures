@@ -1,4 +1,3 @@
-#include "../../../prime/include/primes.h"
 #include <ds/hashs/hash_table.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +52,9 @@ static int resize_up(struct hash_table* ht, float load);
 // Decrease hash_table size, returns 0 if it succeeds, 1 otherwise
 // Leaves object's state the same as before the function call in case of failure, provided by init_size_ht
 static int resize_down(struct hash_table* ht, float load);
+// Mock my prime lib, https://github.com/jamesroutley/write-a-hash-table/tree/master/06-resizing
+static int is_prime(const int x);
+static int next_prime(int x);
 
 static void* deleted;
 
@@ -258,33 +260,24 @@ static inline int is_deleted(struct ht_item* item)
 
 static int resize(struct hash_table* ht, float factor)
 {
-    FILE* db = dbopen();
-    if (!db) {
-        LOG(LIB_LVL, CWARNING, "dbborrow failed, cannot access prime database");
-        return 1;
+    size_t target_size = (size_t)((float)ht->capacity * factor);
+    // Ensure we don't go below the minimum base prime
+    if (target_size < BASE_PRIME) {
+        target_size = BASE_PRIME;
     }
-    size_t current_pi = pi(db, ht->capacity);
-    long target_index = (long)(current_pi * factor);
-    if (target_index < 1) target_index = 1;
-    size_t new_capacity = nthprime(db, target_index);
-    // FIX 1: Allow shrinking. 
-    // Only skip if we are growing but calculated a smaller size (impossible with factor > 1)
-    // or if we are shrinking but calculated a larger size (impossible with factor < 1)
-    // Simplified: Just ensure we don't go below BASE_PRIME.
-    if (new_capacity < BASE_PRIME)
-        new_capacity = BASE_PRIME;
+    size_t new_capacity = next_prime((int)target_size);
     if (new_capacity == ht->capacity) {
         LOG(LIB_LVL, CINFO, "Resize resulted in same capacity, skipping.");
-        dbclose(db);
         return 0;
     }
     struct ht_item* old_items = ht->items;
     size_t old_capacity = ht->capacity;
     if (init_size_ht(ht, new_capacity) != 0) {
         LOG(LIB_LVL, CERROR, "init_size_ht failed");
-        dbclose(db);
         return 1;
     }
+    // Could not reuse hash_table_insert code because objects pointed to by key value pairs are already owned by this hash_table
+    // So it is okay to copy, nothing redundant dynamic allocation and copy here
     for (size_t i = 0; i < old_capacity; i++) {
         struct ht_item* curr_item = &old_items[i];
         if (!is_null(curr_item) && !is_deleted(curr_item)) {
@@ -301,7 +294,6 @@ static int resize(struct hash_table* ht, float factor)
         }
     }
     free(old_items);
-    dbclose(db);
     return 0;
 }
 
@@ -319,29 +311,34 @@ static int resize_down(struct hash_table* ht, float load)
     return resize(ht, FACTOR_DOWN);
 }
 
-// *** Considerations *** //
+// https://github.com/jamesroutley/write-a-hash-table/tree/master/06-resizing
 
 /*
-
-// Set either key or value, set_key and set_value wrap this, returns 0 if it succeeds, 1 otherwise
-// Dont pass variables that would cause UB because they are passed into memcpy without sanitization
-// Will introduce realloc for resetting objects later
-// Leaves object's state the same as before the function call in case of failure, provided by init_item
-
-static int set_field(void** _dest, size_t* _dest_size, const void* _src, size_t _src_size)
-{
-    void* new_field = malloc(_src_size);
-    if (!new_field)
-    {
-        LOG(LIB_LVL, CERROR, "Allocation failure");
-        return 1;
+ * Return whether x is prime or not
+ *
+ * Returns:
+ *   1  - prime
+ *   0  - not prime
+ *   -1 - undefined (i.e. x < 2)
+ */
+static int is_prime(const int x) {
+    if (x < 2) { return -1; }
+    if (x < 4) { return 1; }
+    if ((x % 2) == 0) { return 0; }
+    for (int i = 3; i * i <= x; i += 2) {
+        if ((x % i) == 0)
+            return 0;
     }
-
-    memcpy(new_field, _src, _src_size);
-    free(*_dest);
-    *_dest = new_field;
-    *_dest_size = _src_size;
-    return 0;
+    return 1;
 }
 
-*/
+
+/*
+ * Return the next prime after x, or x if x is prime
+ */
+static int next_prime(int x) {
+    while (is_prime(x) != 1) {
+        x++;
+    }
+    return x;
+}

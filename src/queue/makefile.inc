@@ -7,7 +7,7 @@ ALL_TESTS += $(BIN_DIR)/tests/test_lqueue
 
 $(BIN_DIR)/tests/test_lqueue: tests/test_lqueue.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INC_FLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $(INC_FLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 .PHONY: test_lqueue
 test_lqueue: $(BIN_DIR)/tests/test_lqueue

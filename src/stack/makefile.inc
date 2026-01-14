@@ -7,11 +7,11 @@ ALL_TESTS += $(BIN_DIR)/tests/test_lstack
 
 $(BIN_DIR)/tests/test_lstack: tests/test_lstack.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 $(BIN_DIR)/tests/test_vstack: tests/test_vstack.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 .PHONY: test_lstack
 test_lstack: $(BIN_DIR)/tests/test_lstack

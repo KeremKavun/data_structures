@@ -7,7 +7,7 @@ ALL_TESTS += $(BIN_DIR)/tests/test_adjl_graph
 
 $(BIN_DIR)/tests/test_adjl_graph: tests/test_adjl_graph.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 .PHONY: test_adjl_graph
 test_adjl_graph: $(BIN_DIR)/tests/test_adjl_graph

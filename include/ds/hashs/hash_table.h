@@ -63,7 +63,7 @@ void hash_table_destroy(struct hash_table* ht, struct object_concept *oc);
 /**
  * @brief Inserts new key-value pair into the hash table.
  * @param[in] key Reference to key object.
- * @param[in] vaue Reference to value object.
+ * @param[in] value Reference to value object.
  * @return 0 if succeeds, non-zero otherwise. Resizing might cause
  * error (system error).
  * @note This function provides strong guarantee

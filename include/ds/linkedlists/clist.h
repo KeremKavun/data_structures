@@ -2,7 +2,7 @@
 #define LINKEDLISTS_CLIST_H
 
 #include <ds/utils/allocator_concept.h>
-#include "../../../../utils/include/macros.h"
+#include <ds/utils/macros.h>
 #include <ds/utils/debug.h>
 #include <stddef.h>
 

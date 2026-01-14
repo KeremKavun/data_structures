@@ -33,8 +33,6 @@ test_all: $(ALL_TESTS)
 	@echo "Running all tests..."
 	@for test in $(ALL_TESTS); do ./$$test; done
 
--include $(ALL_OBJS:.o=.d)
-
 list_tests:
 	@echo "Available specific tests:"
 	@for test in $(ALL_TESTS); do \
@@ -49,3 +47,5 @@ docs:
 
 clean:
 	rm -rf $(BIN_DIR)
+
+-include $(ALL_OBJS:.o=.d)

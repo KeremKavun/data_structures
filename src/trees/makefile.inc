@@ -7,19 +7,19 @@ ALL_TESTS += $(BIN_DIR)/tests/test_avl $(BIN_DIR)/tests/test_bst $(BIN_DIR)/test
 
 $(BIN_DIR)/tests/test_avl: tests/test_avl.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 $(BIN_DIR)/tests/test_bst: tests/test_bst.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 $(BIN_DIR)/tests/test_Btree: tests/test_Btree.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 $(BIN_DIR)/tests/test_heap: tests/test_heap.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds $(shell pkg-config --cflags --libs concepts) -o $@
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
 .PHONY: test_avl
 test_avl: $(BIN_DIR)/tests/test_avl
