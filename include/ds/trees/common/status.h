@@ -23,8 +23,11 @@ extern "C" {
  */
 enum trees_status {
     TREES_OK,                   ///< Operation successful.
+    TREES_FAIL,                 ///< General error indicator.
     TREES_NOT_FOUND,            ///< Key was not found in the tree.
     TREES_DUPLICATE_KEY,        ///< Insertion failed; key already exists.
+    TREES_OVERFLOW,             ///< Max stack depth exceeded.
+    TREES_UNKNOWN_INPUT,        ///< Unknown input.
     TREES_SYSTEM_ERROR          ///< Malloc failed or other system issue.
 };
 

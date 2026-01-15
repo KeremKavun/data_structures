@@ -21,6 +21,10 @@ $(BIN_DIR)/tests/test_heap: tests/test_heap.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
 
+$(BIN_DIR)/tests/test_trie: tests/test_trie.c $(BIN_DIR)/$(LIB_NAME)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
+
 .PHONY: test_avl
 test_avl: $(BIN_DIR)/tests/test_avl
 	@echo "Running Avl Tree Test..."
@@ -39,4 +43,9 @@ test_Btree: $(BIN_DIR)/tests/test_Btree
 .PHONY: test_heap
 test_heap: $(BIN_DIR)/tests/test_heap
 	@echo "Running Heap Test..."
+	@./$<
+
+.PHONY: test_trie
+test_trie: $(BIN_DIR)/tests/test_trie
+	@echo "Running Trie Test..."
 	@./$<
