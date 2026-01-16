@@ -48,6 +48,7 @@ struct lqueue;
 /**
  * @brief Creates the queue ADT.
  * @param[in] ac Pointer to an allocator_concept used to allocate nodes. Must not be NULL or invalid.
+ * Use @ref lqueue_node_sizeof to pass object size into your allocator that will allocate lqueue nodes.
  * @return lqueue, NULL otherwise.
  * @see allocator_concept
  * @see slist_init
@@ -61,6 +62,9 @@ struct lqueue *lqueue_create(struct allocator_concept* ac);
  * @see object_concept
  */
 void lqueue_destroy(struct lqueue *lq, struct object_concept* oc);
+
+/** @return Size of the node in bytes allocated by allocator_concept */
+size_t lqueue_node_sizeof();
 
 /** @} */ // End of Create & Destroy
 

@@ -8,6 +8,8 @@
  * - Large datasets (10k+ elements)
  * - Split and merge operations
  * - Memory management
+ * 
+ * Updated to use Btree_init/Btree_deinit instead of create/destroy
  */
 
 #include <ds/trees/Btree.h>
@@ -152,30 +154,33 @@ static int is_sorted_descending(int *arr, size_t n) {
  * Test Cases
  * ======================================================================== */
 
-void test_create_destroy(void) {
-    printf("\n%s Test: Create and Destroy\n", TEST_SECTION);
+void test_init_deinit(void) {
+    printf("\n%s Test: Initialize and Deinitialize\n", TEST_SECTION);
     
     struct object_concept oc = create_int_object_concept();
     
-    // Test creation with various orders
+    // Test initialization with various orders
     struct allocator_concept ac3 = create_btree_allocator(3);
-    struct Btree *tree3 = Btree_create(3, int_compare, &ac3);
-    ASSERT_TEST(tree3 != NULL, "Create B-tree of order 3");
-    ASSERT_TEST(Btree_empty(tree3), "New tree is empty");
-    ASSERT_TEST(Btree_size(tree3) == 0, "New tree has size 0");
-    Btree_destroy(tree3, &oc);
+    struct Btree tree3;
+    int status3 = Btree_init(&tree3, 3, int_compare, &ac3);
+    ASSERT_TEST(status3 == 0, "Initialize B-tree of order 3");
+    ASSERT_TEST(Btree_empty(&tree3), "New tree is empty");
+    ASSERT_TEST(Btree_size(&tree3) == 0, "New tree has size 0");
+    Btree_deinit(&tree3, &oc);
     destroy_allocator(&ac3);
     
     struct allocator_concept ac5 = create_btree_allocator(5);
-    struct Btree *tree5 = Btree_create(5, int_compare, &ac5);
-    ASSERT_TEST(tree5 != NULL, "Create B-tree of order 5");
-    Btree_destroy(tree5, &oc);
+    struct Btree tree5;
+    int status5 = Btree_init(&tree5, 5, int_compare, &ac5);
+    ASSERT_TEST(status5 == 0, "Initialize B-tree of order 5");
+    Btree_deinit(&tree5, &oc);
     destroy_allocator(&ac5);
     
     struct allocator_concept ac100 = create_btree_allocator(100);
-    struct Btree *tree100 = Btree_create(100, int_compare, &ac100);
-    ASSERT_TEST(tree100 != NULL, "Create B-tree of order 100");
-    Btree_destroy(tree100, &oc);
+    struct Btree tree100;
+    int status100 = Btree_init(&tree100, 100, int_compare, &ac100);
+    ASSERT_TEST(status100 == 0, "Initialize B-tree of order 100");
+    Btree_deinit(&tree100, &oc);
     destroy_allocator(&ac100);
 }
 
@@ -184,31 +189,32 @@ void test_single_element(void) {
     
     struct allocator_concept ac = create_btree_allocator(3);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(3, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 3, int_compare, &ac);
     
     int *val = create_int(42);
-    enum trees_status status = Btree_add(tree, val);
+    enum trees_status status = Btree_add(&tree, val);
     
     ASSERT_TEST(status == TREES_OK, "Add single element");
-    ASSERT_TEST(!Btree_empty(tree), "Tree not empty after add");
-    ASSERT_TEST(Btree_size(tree) == 1, "Size is 1 after add");
+    ASSERT_TEST(!Btree_empty(&tree), "Tree not empty after add");
+    ASSERT_TEST(Btree_size(&tree) == 1, "Size is 1 after add");
     
     int search_key = 42;
-    void *found = Btree_search(tree, &search_key);
+    void *found = Btree_search(&tree, &search_key);
     ASSERT_TEST(found != NULL && *(int*)found == 42, "Search finds element");
     
     int not_found_key = 99;
-    found = Btree_search(tree, &not_found_key);
+    found = Btree_search(&tree, &not_found_key);
     ASSERT_TEST(found == NULL, "Search returns NULL for missing element");
     
     int remove_key = 42;
-    void *removed = Btree_remove(tree, &remove_key);
+    void *removed = Btree_remove(&tree, &remove_key);
     ASSERT_TEST(removed != NULL && *(int*)removed == 42, "Remove returns element");
-    ASSERT_TEST(Btree_empty(tree), "Tree empty after remove");
-    ASSERT_TEST(Btree_size(tree) == 0, "Size is 0 after remove");
+    ASSERT_TEST(Btree_empty(&tree), "Tree empty after remove");
+    ASSERT_TEST(Btree_size(&tree) == 0, "Size is 0 after remove");
     
     free(removed);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -217,23 +223,24 @@ void test_sequential_insertion(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     const int N = 100;
     for (int i = 0; i < N; i++) {
         int *val = create_int(i);
-        enum trees_status status = Btree_add(tree, val);
+        enum trees_status status = Btree_add(&tree, val);
         if (status != TREES_OK) {
             printf("Failed to add %d, status: %d\n", i, status);
         }
     }
     
-    ASSERT_TEST(Btree_size(tree) == N, "All sequential elements added");
+    ASSERT_TEST(Btree_size(&tree) == N, "All sequential elements added");
     
     // Verify all elements are searchable
     int all_found = 1;
     for (int i = 0; i < N; i++) {
-        void *found = Btree_search(tree, &i);
+        void *found = Btree_search(&tree, &i);
         if (found == NULL || *(int*)found != i) {
             all_found = 0;
             break;
@@ -245,13 +252,13 @@ void test_sequential_insertion(void) {
     TraversalContext ctx;
     ctx.values = (int*)malloc(N * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     
     ASSERT_TEST(ctx.count == N, "Traversal visits all elements");
     ASSERT_TEST(is_sorted_ascending(ctx.values, ctx.count), "Traversal is in order");
     
     free(ctx.values);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -260,26 +267,27 @@ void test_reverse_insertion(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     const int N = 100;
     for (int i = N - 1; i >= 0; i--) {
         int *val = create_int(i);
-        Btree_add(tree, val);
+        Btree_add(&tree, val);
     }
     
-    ASSERT_TEST(Btree_size(tree) == N, "All reverse elements added");
+    ASSERT_TEST(Btree_size(&tree) == N, "All reverse elements added");
     
     // Test traversal order
     TraversalContext ctx;
     ctx.values = (int*)malloc(N * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     
     ASSERT_TEST(is_sorted_ascending(ctx.values, ctx.count), "Traversal is still in order");
     
     free(ctx.values);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -288,7 +296,8 @@ void test_random_insertion(void) {
     
     struct allocator_concept ac = create_btree_allocator(7);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(7, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 7, int_compare, &ac);
     
     const int N = 500;
     int *expected = (int*)malloc(N * sizeof(int));
@@ -297,22 +306,22 @@ void test_random_insertion(void) {
     for (int i = 0; i < N; i++) {
         expected[i] = rand() % 10000;
         int *val = create_int(expected[i]);
-        Btree_add(tree, val);
+        Btree_add(&tree, val);
     }
     
-    ASSERT_TEST(Btree_size(tree) == N, "All random elements added");
+    ASSERT_TEST(Btree_size(&tree) == N, "All random elements added");
     
     // Test traversal produces sorted output
     TraversalContext ctx;
     ctx.values = (int*)malloc(N * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     
     ASSERT_TEST(is_sorted_ascending(ctx.values, ctx.count), "Random insertion still sorted");
     
     free(ctx.values);
     free(expected);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -321,12 +330,13 @@ void test_duplicate_handling(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     // Add duplicate values
     for (int i = 0; i < 5; i++) {
         int *val = create_int(42);
-        enum trees_status status = Btree_add(tree, val);
+        enum trees_status status = Btree_add(&tree, val);
         if (i == 0) {
             ASSERT_TEST(status == TREES_OK, "First duplicate added");
         } else {
@@ -340,7 +350,7 @@ void test_duplicate_handling(void) {
         }
     }
     
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -349,19 +359,20 @@ void test_removal_patterns(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     // Insert elements
     const int N = 50;
     for (int i = 0; i < N; i++) {
         int *val = create_int(i);
-        Btree_add(tree, val);
+        Btree_add(&tree, val);
     }
     
     // Remove every other element
     int removed_count = 0;
     for (int i = 0; i < N; i += 2) {
-        void *removed = Btree_remove(tree, &i);
+        void *removed = Btree_remove(&tree, &i);
         if (removed != NULL) {
             free(removed);
             removed_count++;
@@ -369,12 +380,12 @@ void test_removal_patterns(void) {
     }
     
     ASSERT_TEST(removed_count == N/2, "Removed half elements");
-    ASSERT_TEST(Btree_size(tree) == N - removed_count, "Size correct after removals");
+    ASSERT_TEST(Btree_size(&tree) == N - removed_count, "Size correct after removals");
     
     // Verify remaining elements
     int all_correct = 1;
     for (int i = 1; i < N; i += 2) {
-        void *found = Btree_search(tree, &i);
+        void *found = Btree_search(&tree, &i);
         if (found == NULL) {
             all_correct = 0;
             break;
@@ -385,7 +396,7 @@ void test_removal_patterns(void) {
     // Verify removed elements are gone
     int all_gone = 1;
     for (int i = 0; i < N; i += 2) {
-        void *found = Btree_search(tree, &i);
+        void *found = Btree_search(&tree, &i);
         if (found != NULL) {
             all_gone = 0;
             break;
@@ -393,7 +404,7 @@ void test_removal_patterns(void) {
     }
     ASSERT_TEST(all_gone, "Removed elements not found");
     
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -402,7 +413,8 @@ void test_large_dataset(void) {
     
     struct allocator_concept ac = create_btree_allocator(20);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(20, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 20, int_compare, &ac);
     
     const int N = 10000;
     printf("Inserting %d elements...\n", N);
@@ -410,19 +422,19 @@ void test_large_dataset(void) {
     clock_t start = clock();
     for (int i = 0; i < N; i++) {
         int *val = create_int(i);
-        Btree_add(tree, val);
+        Btree_add(&tree, val);
     }
     clock_t end = clock();
     double insert_time = ((double)(end - start)) / CLOCKS_PER_SEC;
     
-    ASSERT_TEST(Btree_size(tree) == N, "Large dataset: all elements added");
+    ASSERT_TEST(Btree_size(&tree) == N, "Large dataset: all elements added");
     printf("Insertion time: %.3f seconds\n", insert_time);
     
     // Search test
     start = clock();
     int search_success = 1;
     for (int i = 0; i < N; i += 100) {
-        void *found = Btree_search(tree, &i);
+        void *found = Btree_search(&tree, &i);
         if (found == NULL) {
             search_success = 0;
             break;
@@ -439,7 +451,7 @@ void test_large_dataset(void) {
     TraversalContext ctx;
     ctx.values = (int*)malloc(N * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     end = clock();
     double traversal_time = ((double)(end - start)) / CLOCKS_PER_SEC;
     
@@ -448,7 +460,7 @@ void test_large_dataset(void) {
     printf("Traversal time: %.3f seconds\n", traversal_time);
     
     free(ctx.values);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -457,39 +469,40 @@ void test_stress_add_remove(void) {
     
     struct allocator_concept ac = create_btree_allocator(10);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(10, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 10, int_compare, &ac);
     
     const int OPERATIONS = 5000;
     srand(54321);
     
     int current_max = 0;
     for (int i = 0; i < OPERATIONS; i++) {
-        if (rand() % 2 == 0 || Btree_empty(tree)) {
+        if (rand() % 2 == 0 || Btree_empty(&tree)) {
             // Add
             int *val = create_int(current_max++);
-            Btree_add(tree, val);
+            Btree_add(&tree, val);
         } else {
             // Remove random element
             int remove_key = rand() % current_max;
-            void *removed = Btree_remove(tree, &remove_key);
+            void *removed = Btree_remove(&tree, &remove_key);
             if (removed) free(removed);
         }
     }
     
-    ASSERT_TEST(Btree_size(tree) > 0, "Stress test: tree not empty");
+    ASSERT_TEST(Btree_size(&tree) > 0, "Stress test: tree not empty");
     
     // Verify integrity via traversal
     TraversalContext ctx;
-    size_t size = Btree_size(tree);
+    size_t size = Btree_size(&tree);
     ctx.values = (int*)malloc(size * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     
     ASSERT_TEST(ctx.count == size, "Stress test: traversal count matches size");
     ASSERT_TEST(is_sorted_ascending(ctx.values, ctx.count), "Stress test: still sorted");
     
     free(ctx.values);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -505,20 +518,21 @@ void test_different_orders(void) {
     
     for (size_t i = 0; i < num_orders; i++) {
         struct allocator_concept ac = create_btree_allocator(orders[i]);
-        struct Btree *tree = Btree_create(orders[i], int_compare, &ac);
+        struct Btree tree;
+        Btree_init(&tree, orders[i], int_compare, &ac);
         
         for (int j = 0; j < N; j++) {
             int *val = create_int(j);
-            Btree_add(tree, val);
+            Btree_add(&tree, val);
         }
         
-        int ok = (Btree_size(tree) == N);
+        int ok = (Btree_size(&tree) == N);
         
         if (ok) {
             TraversalContext ctx;
             ctx.values = (int*)malloc(N * sizeof(int));
             ctx.count = 0;
-            Btree_walk(tree, &ctx, collect_handler);
+            Btree_walk(&tree, &ctx, collect_handler);
             ok = is_sorted_ascending(ctx.values, ctx.count);
             free(ctx.values);
         }
@@ -527,7 +541,7 @@ void test_different_orders(void) {
         snprintf(msg, sizeof(msg), "Order %zu: correct behavior", orders[i]);
         ASSERT_TEST(ok, msg);
         
-        Btree_destroy(tree, &oc);
+        Btree_deinit(&tree, &oc);
         destroy_allocator(&ac);
     }
 }
@@ -537,28 +551,29 @@ void test_boundary_values(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     // Test with extreme values
     int *min_val = create_int(INT_MIN);
     int *max_val = create_int(INT_MAX);
     int *zero_val = create_int(0);
     
-    Btree_add(tree, min_val);
-    Btree_add(tree, max_val);
-    Btree_add(tree, zero_val);
+    Btree_add(&tree, min_val);
+    Btree_add(&tree, max_val);
+    Btree_add(&tree, zero_val);
     
-    ASSERT_TEST(Btree_size(tree) == 3, "Boundary values added");
+    ASSERT_TEST(Btree_size(&tree) == 3, "Boundary values added");
     
     int search_min = INT_MIN;
-    void *found_min = Btree_search(tree, &search_min);
+    void *found_min = Btree_search(&tree, &search_min);
     ASSERT_TEST(found_min != NULL && *(int*)found_min == INT_MIN, "Found INT_MIN");
     
     int search_max = INT_MAX;
-    void *found_max = Btree_search(tree, &search_max);
+    void *found_max = Btree_search(&tree, &search_max);
     ASSERT_TEST(found_max != NULL && *(int*)found_max == INT_MAX, "Found INT_MAX");
     
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -567,23 +582,24 @@ void test_empty_operations(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     int key = 42;
-    void *result = Btree_search(tree, &key);
+    void *result = Btree_search(&tree, &key);
     ASSERT_TEST(result == NULL, "Search on empty tree returns NULL");
     
-    result = Btree_remove(tree, &key);
+    result = Btree_remove(&tree, &key);
     ASSERT_TEST(result == NULL, "Remove on empty tree returns NULL");
     
     TraversalContext ctx;
     ctx.values = (int*)malloc(10 * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     ASSERT_TEST(ctx.count == 0, "Walk on empty tree visits nothing");
     
     free(ctx.values);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -608,17 +624,18 @@ void test_extreme_removal(void) {
     
     struct allocator_concept ac = create_btree_allocator(7);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(7, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 7, int_compare, &ac);
     
     const int N = 100;
     
     // Insert elements
     for (int i = 0; i < N; i++) {
         int *val = create_int(i);
-        Btree_add(tree, val);
+        Btree_add(&tree, val);
     }
     
-    ASSERT_TEST(Btree_size(tree) == N, "All elements inserted");
+    ASSERT_TEST(Btree_size(&tree) == N, "All elements inserted");
     
     // Remove all elements in random order
     int *removal_order = (int*)malloc(N * sizeof(int));
@@ -638,7 +655,7 @@ void test_extreme_removal(void) {
     // Remove all
     int all_removed = 1;
     for (int i = 0; i < N; i++) {
-        void *removed = Btree_remove(tree, &removal_order[i]);
+        void *removed = Btree_remove(&tree, &removal_order[i]);
         if (removed == NULL) {
             all_removed = 0;
             printf("Failed to remove %d\n", removal_order[i]);
@@ -648,11 +665,11 @@ void test_extreme_removal(void) {
     }
     
     ASSERT_TEST(all_removed, "All elements removed successfully");
-    ASSERT_TEST(Btree_empty(tree), "Tree empty after removing all");
-    ASSERT_TEST(Btree_size(tree) == 0, "Size is 0 after removing all");
+    ASSERT_TEST(Btree_empty(&tree), "Tree empty after removing all");
+    ASSERT_TEST(Btree_size(&tree) == 0, "Size is 0 after removing all");
     
     free(removal_order);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -661,7 +678,8 @@ void test_alternating_ops(void) {
     
     struct allocator_concept ac = create_btree_allocator(5);
     struct object_concept oc = create_int_object_concept();
-    struct Btree *tree = Btree_create(5, int_compare, &ac);
+    struct Btree tree;
+    Btree_init(&tree, 5, int_compare, &ac);
     
     // Add, remove, add, remove pattern
     const int CYCLES = 50;
@@ -671,13 +689,13 @@ void test_alternating_ops(void) {
         // Add 10 elements
         for (int i = 0; i < 10; i++) {
             int *val = create_int(cycle * 10 + i);
-            Btree_add(tree, val);
+            Btree_add(&tree, val);
         }
         
         // Remove 5 elements
         for (int i = 0; i < 5; i++) {
             int key = cycle * 10 + i;
-            void *removed = Btree_remove(tree, &key);
+            void *removed = Btree_remove(&tree, &key);
             if (removed) {
                 free(removed);
             } else {
@@ -687,18 +705,18 @@ void test_alternating_ops(void) {
     }
     
     ASSERT_TEST(integrity_ok, "Alternating operations maintain integrity");
-    ASSERT_TEST(Btree_size(tree) == CYCLES * 5, "Correct size after alternating ops");
+    ASSERT_TEST(Btree_size(&tree) == CYCLES * 5, "Correct size after alternating ops");
     
     // Verify remaining elements
     TraversalContext ctx;
-    ctx.values = (int*)malloc(Btree_size(tree) * sizeof(int));
+    ctx.values = (int*)malloc(Btree_size(&tree) * sizeof(int));
     ctx.count = 0;
-    Btree_walk(tree, &ctx, collect_handler);
+    Btree_walk(&tree, &ctx, collect_handler);
     
     ASSERT_TEST(is_sorted_ascending(ctx.values, ctx.count), "Still sorted after alternating ops");
     
     free(ctx.values);
-    Btree_destroy(tree, &oc);
+    Btree_deinit(&tree, &oc);
     destroy_allocator(&ac);
 }
 
@@ -710,10 +728,10 @@ int main(void) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════╗\n");
     printf("║         B-TREE COMPREHENSIVE TEST SUITE                ║\n");
-    printf("║              (Using syspool allocator)                 ║\n");
+    printf("║        (Using init/deinit with syspool)                ║\n");
     printf("╚════════════════════════════════════════════════════════╝\n");
     
-    test_create_destroy();
+    test_init_deinit();
     test_node_sizeof();
     test_empty_operations();
     test_single_element();
@@ -737,6 +755,6 @@ int main(void) {
     printf("║  Passed:       %3d                                     ║\n", tests_passed);
     printf("║  Failed:       %3d                                     ║\n", tests_failed);
     printf("╚════════════════════════════════════════════════════════╝\n");
-    
+
     return tests_failed > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

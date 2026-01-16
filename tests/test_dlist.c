@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "../../concepts/include/allocator_concept.h"
-#include "../../concepts/include/object_concept.h"
+#include <ds/utils/allocator_concept.h>
+#include <ds/utils/object_concept.h>
 #include <ds/linkedlists/dlist.h>
 
 /* * =================================================================================

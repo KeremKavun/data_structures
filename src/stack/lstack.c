@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-const size_t node_size = sizeof(struct slist_item);
-
 struct lstack {
     struct slist        contents;
 };
@@ -35,6 +33,11 @@ void lstack_destroy(struct lstack *ls, struct object_concept *oc)
             oc->deinit(data);
     }
     free(ls);
+}
+
+size_t lstack_node_sizeof()
+{
+    return sizeof(struct slist_item);
 }
 
 /* =========================================================================

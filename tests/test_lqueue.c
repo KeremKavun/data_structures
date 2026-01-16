@@ -2,13 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ds/queue/lqueue.h>
-#include "../../concepts/include/object_concept.h"
-#include "../../concepts/include/allocator_concept.h"
-
-/* * The queue implementation likely exposes the size of its internal node
- * so users can configure fixed-size block allocators (pools) correctly.
- */
-extern const size_t queue_node_size;
+#include <ds/utils/allocator_concept.h>
+#include <ds/utils/object_concept.h>
 
 /*───────────────────────────────────────────────
  * Test Helpers & Mock Data
@@ -42,7 +37,7 @@ void test_lqueue_with_pool() {
     printf("Testing lqueue with chunked_pool...\n");
     // 2. Setup Allocator Concept
     // This tells lqueue how to allocate its internal nodes
-    struct syspool pool = { queue_node_size };
+    struct syspool pool = { lqueue_node_sizeof() };
     struct allocator_concept ac = {
         .allocator = &pool,
         .alloc = sysalloc,

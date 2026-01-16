@@ -6,28 +6,23 @@
 struct bintree **bintree_findmin(struct bintree **node_ref);
 
 /* =========================================================================
- * Create & Destroy
+ * Initialize & Deinitialize
  * ========================================================================= */
 
-struct bst* bst_create(int (*cmp) (const void *key, const void *data), struct allocator_concept *ac)
+void bst_init(struct bst *tree, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac)
 {   
-    struct bst* tree = malloc(sizeof(struct bst));
-    if (!tree) {
-        LOG(LIB_LVL, CERROR, "Failed to allocate memory for tree");
-        return NULL;
-    }
+    assert(tree != NULL && cmp != NULL && ac != NULL);
     tree->root = NULL;
     tree->ac = *ac;
     tree->cmp = cmp;
     tree->size = 0;
-    return tree;
 }
 
-void bst_destroy(struct bst *tree, struct object_concept *oc)
+void bst_deinit(struct bst *tree, struct object_concept *oc)
 {
     assert(tree != NULL);
     bintree_destroy(tree->root, oc, &tree->ac);
-    free(tree);
+    tree->root = NULL;
 }
 
 size_t bst_node_sizeof()

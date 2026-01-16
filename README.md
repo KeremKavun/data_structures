@@ -4,7 +4,7 @@
 ![Language](https://img.shields.io/badge/language-C-orange.svg)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
-A collection of high-performance, modular data structure implementations developed during a formal Data Structures course, featuring professional C idioms and pointer safety.
+A collection of modular data structure implementations developed during a formal Data Structures course for educational purposes.
 
 ---
 
@@ -68,6 +68,10 @@ make test_<module_name>
 ```sh
 make docs
 ```
+
+## Current Status
+
+I am considering to make trees (bst, avl) to intrusive, by which users embeds tree hook to use their data in the data structure.
 
 ## 📧 Contact
 If you have questions or want to discuss the implementations, feel free to reach out:

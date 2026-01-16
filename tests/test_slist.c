@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <string.h>
 #include <ds/linkedlists/slist.h>
-#include "../../concepts/include/allocator_concept.h"
-#include "../../concepts/include/object_concept.h"
+#include <ds/utils/allocator_concept.h>
+#include <ds/utils/object_concept.h>
 
 #include <stdio.h>
 #include <stdlib.h>

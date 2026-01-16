@@ -4,8 +4,6 @@
 #include <string.h>
 #include <assert.h>
 
-extern const size_t node_size;
-
 /* Test data structure */
 typedef struct {
     int id;
@@ -41,7 +39,7 @@ static test_data_t* create_test_data(int id, const char* name) {
 
 /* Helper to create allocator concept */
 static struct allocator_concept create_allocator(struct syspool* pool) {
-    pool->obj_size = node_size;
+    pool->obj_size = lstack_node_sizeof();
     struct allocator_concept ac = {
         .allocator = pool,
         .alloc = sysalloc,

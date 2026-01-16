@@ -1,6 +1,6 @@
 #include <ds/trees/avl.h>
-#include "../../concepts/include/allocator_concept.h"
-#include "../../concepts/include/object_concept.h"
+#include <ds/utils/allocator_concept.h>
+#include <ds/utils/object_concept.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -54,11 +54,8 @@ int main(void) {
     };
 
     // 3. Create Tree
-    struct avl* tree = avl_create(cmp_int, &ac);
-    if (!tree) {
-        fprintf(stderr, "Failed to create tree.\n");
-        return 1;
-    }
+    struct avl tree;
+    avl_init(&tree, cmp_int, &ac);
 
     //───────────────────────────────────────────────
     // A. Insertion Phase
@@ -69,7 +66,7 @@ int main(void) {
     int* shadow_data = malloc(STRESS_COUNT * sizeof(int));
     if (!shadow_data) {
         fprintf(stderr, "Failed to allocate shadow array.\n");
-        avl_destroy(tree, &oc);
+        avl_deinit(&tree, &oc);
         return 1;
     }
     
@@ -86,7 +83,7 @@ int main(void) {
         }
         *data_ptr = val;
 
-        enum trees_status st = avl_add(tree, data_ptr);
+        enum trees_status st = avl_add(&tree, data_ptr);
         
         if (st == TREES_OK) {
             shadow_data[added_count++] = val;
@@ -104,10 +101,10 @@ int main(void) {
     }
     
     printf("\n      -> Requested: %d, Accepted (Unique): %zu", STRESS_COUNT, added_count);
-    printf("\n      -> AVL Size Reported: %zu", avl_size(tree));
+    printf("\n      -> AVL Size Reported: %zu", avl_size(&tree));
     
     // Validate size
-    assert(avl_size(tree) == added_count);
+    assert(avl_size(&tree) == added_count);
     printf(" [OK]\n");
 
     //───────────────────────────────────────────────
@@ -116,7 +113,7 @@ int main(void) {
     printf("\n[2/4] Verifying all inserted keys exist...");
     for (size_t i = 0; i < added_count; ++i) {
         int key = shadow_data[i];
-        int* res = avl_search(tree, &key);
+        int* res = avl_search(&tree, &key);
         assert(res != NULL && *res == key);
         print_progress(i, added_count);
     }
@@ -132,7 +129,7 @@ int main(void) {
         int key = shadow_data[i];
 
         // Remove and get the data pointer back
-        int* removed_data = avl_remove(tree, &key);
+        int* removed_data = avl_remove(&tree, &key);
         assert(removed_data != NULL); // Should be there
         assert(*removed_data == key);
 
@@ -142,16 +139,16 @@ int main(void) {
         print_progress(i, remove_target);
     }
     
-    printf("\n      -> AVL Size Reported: %zu", avl_size(tree));
+    printf("\n      -> AVL Size Reported: %zu", avl_size(&tree));
     
-    assert(avl_size(tree) == (added_count - remove_target));
+    assert(avl_size(&tree) == (added_count - remove_target));
     printf(" [OK]\n");
 
     // Verify removed items are gone
     printf("      -> verifying removed items are gone...");
     for (size_t i = 0; i < remove_target; ++i) {
         int key = shadow_data[i];
-        assert(avl_search(tree, &key) == NULL);
+        assert(avl_search(&tree, &key) == NULL);
     }
     printf(" [OK]\n");
 
@@ -159,7 +156,7 @@ int main(void) {
     printf("      -> verifying remaining items exist...");
     for (size_t i = remove_target; i < added_count; ++i) {
         int key = shadow_data[i];
-        int* res = avl_search(tree, &key);
+        int* res = avl_search(&tree, &key);
         assert(res != NULL && *res == key);
     }
     printf(" [OK]\n");
@@ -167,10 +164,10 @@ int main(void) {
     //───────────────────────────────────────────────
     // D. Cleanup Phase
     //───────────────────────────────────────────────
-    printf("\n[4/4] Destroying tree (cleaning up remaining %zu nodes)...", avl_size(tree));
+    printf("\n[4/4] Destroying tree (cleaning up remaining %zu nodes)...", avl_size(&tree));
     
     // This will iterate remaining nodes and call oc.deinit (int_deinit/free) on each data pointer
-    avl_destroy(tree, &oc);
+    avl_deinit(&tree, &oc);
     
     free(shadow_data);
     printf(" [OK]\n");

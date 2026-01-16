@@ -27,8 +27,6 @@ struct adjl_graph {
 static void adjl_vertex_init(struct adjl_vertex *v, void *new_data);
 static void set_processeds(struct adjl_graph *gr);
 
-extern const size_t node_size;
-
 /* =========================================================================
  * Create & Destroy
  * ========================================================================= */
@@ -214,7 +212,8 @@ void adjl_in_iter_init(const struct adjl_graph *gr, const struct adjl_vertex *v,
     it->curr_arc = NULL;
 }
 
-void *adjl_in_iter_next(adjl_in_iter *it) {
+void *adjl_in_iter_next(adjl_in_iter *it)
+{
     assert(it != NULL);
     struct clist_item *sentinel = (struct clist_item *) &it->graph->vertices.sentinel;
     while (it->curr_v_node != sentinel) {
@@ -263,7 +262,7 @@ void adjl_graph_bfs(struct adjl_graph *gr, void *start_key, void *context, void 
     if (adjl_graph_empty(gr))
         return;
     // TODO: Use a real pool after updating allocators repository.
-    struct syspool item_pool = { node_size };
+    struct syspool item_pool = { lqueue_node_sizeof() };
     struct allocator_concept ac = { .allocator = &item_pool, .alloc = sysalloc, .free = sysfree };
     struct lqueue *lq = lqueue_create(&ac);
     set_processeds(gr);
@@ -295,7 +294,7 @@ void adjl_graph_dfs(struct adjl_graph *gr, void *start_key, void *context, void 
     if (adjl_graph_empty(gr))
         return;
     // TODO: Use a real pool after updating allocators repository.
-    struct syspool item_pool = { node_size };
+    struct syspool item_pool = { lstack_node_sizeof() };
     struct allocator_concept ac = { .allocator = &item_pool, .alloc = sysalloc, .free = sysfree };
     struct lstack *ls = lstack_create(&ac);
     set_processeds(gr);

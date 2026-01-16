@@ -43,25 +43,28 @@ struct Btree {
 };
 
 /**
- * @name Create & Destroy
+ * @name Initialize & Deinitialize
  * Functions for setting up the tree.
  * @{
  */
 
 /**
- * @brief Creates B-tree.
+ * @brief Initializes B-tree.
+ * @param[in, out] tree Pointer to Btree instance.
  * @param[in] order Order of B-tree.
  * @param[in] cmp Function pointer to compare keys.
  * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
- * @return Btree instance.
+ * Use @ref Btree_node_sizeof() to pass object size into your allocator that will allocate Btree nodes.
+ * @return 0 on success, non-zero otherwise.
  */
-struct Btree *Btree_create(size_t order, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
+int Btree_init(struct Btree *tree, size_t order, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
 
 /**
- * @brief Destroys the B-tree.
+ * @brief Deinitializes the B-tree.
  * @param[in] oc object_concept to deinit data references.
+ * @warning Only root is set to NULL after freeing the internal tree.
  */
-void Btree_destroy(struct Btree *tree, struct object_concept *oc);
+void Btree_deinit(struct Btree *tree, struct object_concept *oc);
 
 /**
  * @return @ref mway_sizeof(order - 1, sizeof(struct mway_header*) + sizeof(size_t))
@@ -73,7 +76,7 @@ static inline size_t Btree_node_sizeof(size_t order)
     return mway_sizeof(order - 1, sizeof(struct mway_header*) + sizeof(size_t));
 }
 
-/** @} */ // End of Create & Destroy
+/** @} */ // End of Initialize & Deinitialize
 
 /**
  * @name Operations

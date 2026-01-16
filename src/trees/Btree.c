@@ -175,33 +175,29 @@ static size_t* get_node_size_ptr(struct mway_header *node);
 static void destroy_helper(struct mway_header* header, struct object_concept *oc, struct allocator_concept *ac);
 
 /* =========================================================================
- * Create & Destroy
+ * Initialize & Deinitialize
  * ========================================================================= */
 
-struct Btree *Btree_create(size_t order, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac)
+int Btree_init(struct Btree *tree, size_t order, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac)
 {
-    struct Btree *tree = malloc(sizeof(struct Btree));
-    if (!tree) {
-        LOG(LIB_LVL, CERROR, "Failed to allocate memory for tree");
-        return NULL;
-    }
+    assert(tree != NULL && cmp != NULL && ac != NULL);
     // order -1 data and entry, but adding one child to make it B-tree node with one size_t
     struct mway_header *root = mway_create(order - 1, sizeof(struct btree_node_footer_layout), ac);
     if (!root) {
         LOG(LIB_LVL, CERROR, "Could not allocate B-tree root");
-        return NULL;
+        return 1;
     }
     tree->root = root;
     tree->ac = *ac;
     tree->cmp = cmp;
     tree->size = 0;
-    return tree;
+    return 0;
 }
 
-void Btree_destroy(struct Btree *tree, struct object_concept *oc)
+void Btree_deinit(struct Btree *tree, struct object_concept *oc)
 {
     destroy_helper(tree->root, oc, &tree->ac);
-    free(tree);
+    tree->root = NULL;
 }
 
 /* =========================================================================
@@ -210,6 +206,7 @@ void Btree_destroy(struct Btree *tree, struct object_concept *oc)
 
 enum trees_status Btree_add(struct Btree *tree, void *new_data)
 {
+    assert(tree != NULL && new_data != NULL);
     enum trees_status status = TREES_SYSTEM_ERROR;
     struct btree_buffer stack[BTREE_MAX_HEIGHT]; 
     int stack_ptr = 0;
@@ -276,6 +273,7 @@ static int is_underflowed(struct mway_header *node)
 
 void *Btree_remove(struct Btree *tree, void *data)
 {
+    assert(tree != NULL && data != NULL);
     void *result = NULL; // Renamed to avoid confusion
     struct btree_buffer stack[BTREE_MAX_HEIGHT]; 
     int stack_ptr = 0;
@@ -363,6 +361,7 @@ fail:
 
 void *Btree_search(struct Btree *tree, const void *data)
 {
+    assert(tree != NULL);
     struct mway_header *curr = tree->root;
     size_t i;
     while (curr != NULL) {
@@ -384,6 +383,7 @@ void *Btree_search(struct Btree *tree, const void *data)
  
 void Btree_walk(struct Btree *tree, void *context, void (*handler) (void *data, void *context))
 {
+    assert(tree != NULL && handler != NULL);
     walk_helper(tree->root, context, handler);
 }
 

@@ -44,29 +44,30 @@ struct bst {
 };
 
 /**
- * @name Create & Destroy
+ * @name Initialize & Deinitialize
  * Functions for setting up the tree.
  * @{
  */
 
 /**
- * @brief Creates the bst.
+ * @brief Initializes the bst.
+ * @param[in, out] tree Pointer to bst instance.
  * @param[in] cmp Function pointer to compare keys.
  * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
- * @return Bst, NULL if not successful.
  */
-struct bst *bst_create(int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
+void bst_init(struct bst *tree, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
 
 /**
- * @brief Destroys the bst.
+ * @brief Deinitializes the bst.
  * @param[in] oc object_concept to deinit data references.
+ * @warning Only root is set to NULL after freeing the internal tree.
  */
-void bst_destroy(struct bst *tree, struct object_concept *oc);
+void bst_deinit(struct bst *tree, struct object_concept *oc);
 
 /** @return sizeof(struct bintree) */
 size_t bst_node_sizeof();
 
-/** @} */ // End of Create & Destroy
+/** @} */ // End of Initialize & Deinitialize
 
 /**
  * @name Operations

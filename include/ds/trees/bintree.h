@@ -65,7 +65,8 @@ struct bintree *bintree_create(struct bintree *left, struct bintree *right, void
 /**
  * @brief Destroys the binary tree.
  * @param[in, out] tree Pointer to the binary tree instance.
- * @param[in] oc object_concept to deinit data references.
+ * @param[in] oc object_concept to deinit data references. Might be NULL
+ * .deinit method might be NULL, .init isnt used.
  * @param[in] ac allocator_concept to return memory back, must be non NULL
  * and valid, and same as passed into the @ref bintree_create method.
  */

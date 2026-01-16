@@ -1,4 +1,5 @@
 #include <ds/trees/bintree.h>
+#include <assert.h>
 
 /* =========================================================================
  * Create & Destroy
@@ -6,6 +7,7 @@
 
 struct bintree *bintree_create(struct bintree *left, struct bintree *right, void *data, struct allocator_concept* ac)
 {
+    assert(ac != NULL && ac->alloc != NULL && ac->allocator != NULL);
     struct bintree *bintree = ac->alloc(ac->allocator);
     if (!bintree) {
         LOG(LIB_LVL, CERROR, "Failed to allocate memory for bintree");
@@ -19,6 +21,7 @@ struct bintree *bintree_create(struct bintree *left, struct bintree *right, void
 
 void bintree_destroy(struct bintree *tree, struct object_concept *oc, struct allocator_concept *ac)
 {
+    assert(ac != NULL && ac->free != NULL && ac->allocator != NULL); // Sacrificing performance in debug mode.
     if (!tree)
         return;
     bintree_destroy(tree->left, oc, ac);

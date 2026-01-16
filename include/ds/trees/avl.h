@@ -35,9 +35,6 @@ extern "C" {
  * @{
  */
 
-/** @struct avl_node */
-struct avl_node;
-
 /**
  * @struct avl
  * @brief Aggregation of generic binary tree.
@@ -50,31 +47,31 @@ struct avl {
 };
 
 /**
- * @name Create & Destroy
+ * @name Initialize & Deinitialize
  * Functions for setting up the tree.
  * @{
  */
 
 /**
- * @brief Creates the avl.
+ * @brief Initializes the avl.
+ * @param[in, out] tree Pointer to avl instance to init.
  * @param[in] cmp Function pointer to compare keys.
  * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
- * @return Avl, NULL if not successful.
+ * Use @ref avl_node_sizeof() to pass object size into your allocator that will allocate avl_nodes.
  */
-struct avl *avl_create(int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
+void avl_init(struct avl *tree, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
 
 /**
- * @brief Destroys the avl.
+ * @brief Deinitializes the avl.
  * @param[in] oc object_concept to deinit data references.
+ * @warning Only root is set to NULL after freeing the internal tree.
  */
-void avl_destroy(struct avl *btree, struct object_concept *oc);
+void avl_deinit(struct avl *tree, struct object_concept *oc);
 
-/**
- * @return sizeof(struct avl_node)
- */
+/** @return sizeof(struct avl_node) */
 size_t avl_node_sizeof();
 
-/** @} */ // End of Create & Destroy
+/** @} */ // End of Initialize & Deinitialize
 
 /**
  * @name Operations
@@ -93,7 +90,9 @@ enum trees_status avl_add(struct avl *btree, void *new_data);
 /**
  * @brief Removes data from the avl.
  * @param[in] data Data to be removed.
- * @return Data that was stored in the avl or NULL if doesnt exist.
+ * @return Data that was stored in the avl or NULL if doesnt exist or if stack depth
+ * is exceeded but this is practivcally impossible, since the tree is balanced and the
+ * tree with height 64 would store 2^64 - 1 node.
  * @warning **Lifetime Management**: The tree did NOT take ownership of the memory pointed
  * by `void *new_data` passed in insert functions. It is returned to you back.
  */
@@ -114,10 +113,15 @@ void *avl_search(struct avl *btree, const void *data);
  * @{
  */
 
-/** @return The root of the avl. */
-static inline struct bintree *avl_root(struct avl *tree)
+/** @return The root of the avl.
+ * @warning NEVER remove constness because some bintree functions
+ * might not respect avl invariants. This function useful to reuse
+ * some bintree functions such as traversals. Also keep in mind that
+ * there is risk of confusing actual bintree nodes and casted avl nodes. 
+*/
+static inline const struct bintree *avl_root(const struct avl *tree)
 {
-    return (struct bintree*) tree->root;
+    return (const struct bintree*) tree->root;
 }
 
 /** @return 1 if empty, 0 otherwise. */
@@ -143,11 +147,8 @@ static inline size_t avl_size(const struct avl *tree)
 // Use generic binary tree algorithms, since this is aggregate
 // and technically inherits.
 
-/** @return prev node in inorder traversal. */
-struct avl_node *avl_node_prev(struct avl_node *node);
-
-/** @return next node in inorder traversal. */
-struct avl_node *avl_node_next(struct avl_node *node);
+// Use bintree_left and bintree_right for navigation
+// after obtaining root by avl_root, for example.
 
 /** @} */ // End of Traversal
 

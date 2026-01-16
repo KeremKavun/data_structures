@@ -70,12 +70,13 @@ enum trees_status trie_get(struct trie *tr, const char *key, void **value)
     assert(tr != NULL && key != NULL);
     struct mway_entry *result;
     enum trees_status stat = trie_get_entry(tr, key, &result);
-    if (stat == TREES_OK)
+    if (stat == TREES_OK) {
         if (result->data != NULL) {
             *value = result->data;
         } else {
             return TREES_NOT_FOUND;
         }
+    }
     return stat;
 }
 
@@ -161,7 +162,6 @@ size_t trie_longest_prefix(struct trie *tr, const char *key)
 
 static enum trees_status trie_get_entry(struct trie *tr, const char *key, struct mway_entry **result)
 {
-    const char *orig = key;
     struct mway_entry *curr = &tr->root;
     while (*key) {
         if (curr->child == NULL)

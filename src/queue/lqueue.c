@@ -5,8 +5,6 @@
 #include <assert.h>
 #include <string.h>
 
-const size_t queue_node_size = sizeof(struct slist_item);
-
 struct lqueue {
     struct slist            contents;
     struct slist_item       **rear;
@@ -34,6 +32,11 @@ void lqueue_destroy(struct lqueue *lq, struct object_concept *oc)
     assert(lq != NULL);
     slist_deinit(&lq->contents, oc);
     free(lq);
+}
+
+size_t lqueue_node_sizeof()
+{
+    return sizeof(struct slist_item);
 }
 
 /* =========================================================================
