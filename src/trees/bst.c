@@ -1,111 +1,77 @@
 #include <ds/trees/bst.h>
-#include "gbst.h"
 #include <stdlib.h>
 #include <assert.h>
-
-struct bintree **bintree_findmin(struct bintree **node_ref);
 
 /* =========================================================================
  * Initialize & Deinitialize
  * ========================================================================= */
 
-void bst_init(struct bst *tree, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac)
+void bst_init(struct bst *tree, bst_cmp_cb cmp)
 {   
-    assert(tree != NULL && cmp != NULL && ac != NULL);
+    assert(tree != NULL && cmp != NULL);
     tree->root = NULL;
-    tree->ac = *ac;
     tree->cmp = cmp;
     tree->size = 0;
 }
 
-void bst_deinit(struct bst *tree, struct object_concept *oc)
-{
-    assert(tree != NULL);
-    bintree_destroy(tree->root, oc, &tree->ac);
-    tree->root = NULL;
-}
-
-size_t bst_node_sizeof()
-{
-    return sizeof(struct bintree);
+void bst_deinit(struct bst *tree, struct object_concept *oc) {
+    if (tree->root) {
+        bintree_deinit(tree->root, oc);
+        tree->root = NULL;
+    }
+    tree->size = 0;
 }
 
 /* =========================================================================
  * Operations
  * ========================================================================= */
 
-enum trees_status bst_add(struct bst *tree, void *new_data)
+int bst_add(struct bst *tree, struct bintree *new_node)
 {
     assert(tree != NULL);
-    LOG(LIB_LVL, CINFO, "Adding new data at %p", new_data);
-    struct bintree **curr = gbst_search(&tree->root, new_data, tree->cmp);
-    if (*curr) {
+    struct bintree *parent;
+    struct bintree **link = bintree_search_parent(&tree->root, new_node, &parent, tree->cmp);
+    if (*link) {
         LOG(LIB_LVL, CERROR, "Duplicate key");
-        return TREES_DUPLICATE_KEY;
+        return 1;
     }
-    struct bintree *new_node = bintree_create(NULL, NULL, new_data, &tree->ac);
-    if (!new_node) {
-        LOG(LIB_LVL, CERROR, "Failed to allocate memory for node");
-        return TREES_SYSTEM_ERROR;
-    }
-    *curr = new_node;
+    *link = new_node;
+    bintree_init(new_node, parent, NULL, NULL);
     tree->size++;
-    return TREES_OK;
+    return 0;
 }
 
-void *bst_remove(struct bst *tree, void *data)
+void bst_remove(struct bst *tree, struct bintree *node)
 {
-    assert(tree != NULL);
-    LOG(LIB_LVL, CINFO, "Removing data at %p", data);
-    struct bintree **target = gbst_search(&tree->root, data, tree->cmp);
-    if (!(*target)) {
-        LOG(LIB_LVL, CERROR, "Key not found");
-        return NULL;
+    assert(tree != NULL && node != NULL);
+    if (node->left && node->right) {
+        struct bintree *successor = node->right;
+        while (successor->left)
+            successor = successor->left;
+        bintree_swap(node, successor); 
     }
-    struct bintree *node = *target;
-    if (!node->left) {
-        *target = node->right;
-    } else if (!node->right) {
-        *target = node->left;
+    struct bintree *child = node->left ? node->left : node->right;
+    struct bintree *parent = node->parent;
+    if (child)
+        child->parent = parent;
+    if (!parent) {
+        tree->root = child;
     } else {
-        struct bintree **min = bintree_findmin(&node->right);
-        struct bintree *successor = *min;
-        *min = successor->right;
-        void *tmp = node->data;
-        node->data = successor->data;
-        successor->data = tmp;
-        node = successor;
+        if (parent->left == node)
+            parent->left = child;
+        else
+            parent->right = child;
     }
-    void *removed_data = node->data;
-    tree->ac.free(tree->ac.allocator, node);
+    bintree_init(node, NULL, NULL, NULL);
     tree->size--;
-    return removed_data;
 }
 
-void *bst_search(struct bst* tree, const void *data)
+struct bintree *bst_search(struct bst *tree, const void *data, bintree_cmp_cb cmp)
 {
     assert(tree != NULL);
-    struct bintree **target = gbst_search(&tree->root, data, tree->cmp);
-    if (!(*target)) {
-        LOG(LIB_LVL, CERROR, "Key not found");
-        return NULL;
-    }
-    return (*target)->data;
+    return bintree_search(tree->root, data, cmp);
 }
 
 /* =========================================================================
  * Inspection
  * ========================================================================= */
-
-// *** Helper functions *** //
-
-struct bintree **bintree_findmin(struct bintree **node_ref)
-{
-    if (!node_ref || !*node_ref)
-        return NULL;
-    struct bintree **curr = node_ref;
-    while ((*curr)->left) {
-        curr = &(*curr)->left;
-    }
-    return curr;
-}

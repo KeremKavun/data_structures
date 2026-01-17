@@ -5,6 +5,10 @@ TREES_OBJS    := $(patsubst src/%, $(BIN_DIR)/%, $(TREES_SOURCES:.c=.o))
 ALL_OBJS += $(TREES_OBJS)
 ALL_TESTS += $(BIN_DIR)/tests/test_avl $(BIN_DIR)/tests/test_bst $(BIN_DIR)/tests/test_Btree $(BIN_DIR)/tests/test_heap
 
+$(BIN_DIR)/tests/test_bintree: tests/test_bintree.c $(BIN_DIR)/$(LIB_NAME)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
+
 $(BIN_DIR)/tests/test_avl: tests/test_avl.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
@@ -24,6 +28,11 @@ $(BIN_DIR)/tests/test_heap: tests/test_heap.c $(BIN_DIR)/$(LIB_NAME)
 $(BIN_DIR)/tests/test_trie: tests/test_trie.c $(BIN_DIR)/$(LIB_NAME)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< -L$(BIN_DIR) -lds -o $@
+
+.PHONY: test_bintree
+test_bintree: $(BIN_DIR)/tests/test_bintree
+	@echo "Running Avl Tree Test..."
+	@./$<
 
 .PHONY: test_avl
 test_avl: $(BIN_DIR)/tests/test_avl

@@ -1,40 +1,64 @@
 /**
- * @file avl_map_comparison.cpp
- * @brief Comprehensive comparison tests between AVL tree and std::map
+ * @file avl_map_comparison_intrusive.cpp
+ * @brief Comprehensive comparison tests between intrusive AVL tree and std::map
  * 
  * Compile with:
- * g++ -std=c++17 -O2 avl_map_comparison.cpp -I/path/to/include -L/path/to/lib -lds -o avl_test
+ * g++ -std=c++17 -O2 avl_map_comparison_intrusive.cpp -I/path/to/include -L/path/to/lib -lds -o avl_test
  */
 
 #include "../include/benchmark.hpp"
 #include <ds/trees/avl.h>
-#include <ds/utils/allocator_concept.h>
-#include <ds/utils/object_concept.h>
 #include <map>
 #include <random>
 #include <algorithm>
 #include <cassert>
-#include <cstdlib>
+#include <vector>
+#include <iostream>
 
 // ============================================================================
-// Test Data Structures
+// Test Data Structures with Intrusive Nodes
 // ============================================================================
 
 struct TestData {
+    struct avl_node node;  // Intrusive node (MUST BE FIRST for container_of)
     int key;
     int value;
     
-    TestData(int k = 0, int v = 0) : key(k), value(v) {}
+    TestData(int k = 0, int v = 0) : key(k), value(v) {
+        // Properly zero-initialize for C code
+        node.btree.parent = NULL;
+        node.btree.left = NULL;
+        node.btree.right = NULL;
+    }
+    
+    // Get TestData from avl_node pointer
+    static TestData* from_node(struct avl_node *n) {
+        if (!n) return NULL;
+        return reinterpret_cast<TestData*>(n);
+    }
+    
+    static const TestData* from_node(const struct avl_node *n) {
+        if (!n) return NULL;
+        return reinterpret_cast<const TestData*>(n);
+    }
 };
 
-// Comparison function for AVL tree
-int compare_test_data(const void *a, const void *b) {
-    const TestData *da = static_cast<const TestData*>(a);
-    const TestData *db = static_cast<const TestData*>(b);
+// Comparison function for AVL tree (compares avl_nodes)
+int compare_test_data(const struct bintree *a, const struct bintree *b) {
+    const TestData *da = TestData::from_node((const struct avl_node*)a);
+    const TestData *db = TestData::from_node((const struct avl_node*)b);
     return da->key - db->key;
 }
 
-// Destructor for TestData (used with object_concept)
+// Comparison function for search (compares void* key with bintree node)
+// Note: bintree_cmp_cb signature is (const void *key, const struct bintree *node)
+int compare_test_data_search(const void *key, const struct bintree *node) {
+    const TestData *dk = static_cast<const TestData*>(key);
+    const TestData *dn = TestData::from_node((const struct avl_node*)node);
+    return dk->key - dn->key;
+}
+
+// Destructor for cleanup
 void destroy_test_data(void *data) {
     TestData *td = static_cast<TestData*>(data);
     delete td;
@@ -54,31 +78,27 @@ struct TestDataCmp {
 class AVLMapTest {
 public:
     AVLMapTest() {
-        // Initialize syspool for AVL node allocation
-        pool.obj_size = avl_node_sizeof();
-        
-        // Setup allocator concept with syspool
-        ac.allocator = &pool;
-        ac.alloc = sysalloc;
-        ac.free = sysfree;
-        
-        // Initialize AVL tree
-        avl_init(&avl_tree, compare_test_data, &ac);
+        avl_init(&avl_tree, compare_test_data);
     }
 
     ~AVLMapTest() {
-        // Setup object concept for cleanup
-        struct object_concept oc;
-        oc.init = nullptr;  // Not needed for deinit
-        oc.deinit = destroy_test_data;
+        // Manually cleanup remaining nodes
+        cleanup_tree(avl_tree.root);
+        avl_tree.root = NULL;
+        avl_tree.size = 0;
+    }
+    
+    void cleanup_tree(struct avl_node *node) {
+        if (!node) return;
         
-        // Deinitialize AVL tree (will call deinit on all remaining objects)
-        avl_deinit(&avl_tree, &oc);
+        cleanup_tree(AVL_NODE(node->btree.left));
+        cleanup_tree(AVL_NODE(node->btree.right));
+        
+        TestData *td = TestData::from_node(node);
+        delete td;
     }
 
     struct avl avl_tree;
-    struct syspool pool;
-    struct allocator_concept ac;
 };
 
 // ============================================================================
@@ -99,10 +119,10 @@ void test_basic_operations() {
         TestData *td = new TestData(i, i * 10);
         test_data.push_back(td);
         
-        auto status = avl_add(&fixture.avl_tree, td);
+        int status = avl_add(&fixture.avl_tree, &td->node);
         map[td] = td->value;
         
-        assert(status == TREES_OK);
+        assert(status == 0);  // 0 = success
         assert(avl_size(&fixture.avl_tree) == (size_t)(i + 1));
     }
     
@@ -111,11 +131,17 @@ void test_basic_operations() {
     // Test search
     for (int i = 0; i < N; i++) {
         TestData query(i, 0);
-        TestData *found = static_cast<TestData*>(avl_search(&fixture.avl_tree, &query));
+        struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
+        TestData *found_data = TestData::from_node(found);
         
-        assert(found != nullptr);
-        assert(found->key == i);
-        assert(found->value == i * 10);
+        if (found_data == NULL) {
+            std::cerr << "Failed to find key: " << i << std::endl;
+            std::cerr << "Tree size: " << avl_size(&fixture.avl_tree) << std::endl;
+        }
+        
+        assert(found_data != NULL);
+        assert(found_data->key == i);
+        assert(found_data->value == i * 10);
     }
     
     std::cout << "  ✓ Search: All " << N << " elements found" << std::endl;
@@ -123,24 +149,22 @@ void test_basic_operations() {
     // Test removal
     for (int i = 0; i < N; i += 2) {
         TestData query(i, 0);
-        TestData *removed = static_cast<TestData*>(avl_remove(&fixture.avl_tree, &query));
+        struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
+        assert(found != nullptr);
         
-        assert(removed != nullptr);
-        assert(removed->key == i);
+        avl_remove(&fixture.avl_tree, found);
         
-        map.erase(removed);
-        delete removed;
+        TestData *removed_data = TestData::from_node(found);
+        assert(removed_data->key == i);
+        
+        map.erase(removed_data);
+        delete removed_data;
     }
     
     assert(avl_size(&fixture.avl_tree) == N / 2);
     std::cout << "  ✓ Removal: " << N/2 << " elements removed" << std::endl;
     
-    // Cleanup remaining (will be handled by fixture destructor)
-    for (auto& pair : map) {
-        avl_remove(&fixture.avl_tree, pair.first);
-        // Don't delete here - let avl_deinit handle it via object_concept
-    }
-    
+    // Cleanup will be handled by fixture destructor
     std::cout << "  ✓ Final cleanup: Tree cleared" << std::endl;
 }
 
@@ -152,12 +176,12 @@ void test_duplicate_insertion() {
     TestData *td1 = new TestData(42, 100);
     TestData *td2 = new TestData(42, 200);
     
-    auto status1 = avl_add(&fixture.avl_tree, td1);
-    assert(status1 == TREES_OK);
+    int status1 = avl_add(&fixture.avl_tree, &td1->node);
+    assert(status1 == 0);  // success
     assert(avl_size(&fixture.avl_tree) == 1);
     
-    auto status2 = avl_add(&fixture.avl_tree, td2);
-    assert(status2 == TREES_DUPLICATE_KEY);
+    int status2 = avl_add(&fixture.avl_tree, &td2->node);
+    assert(status2 == 1);  // duplicate
     assert(avl_size(&fixture.avl_tree) == 1);
     
     // td2 was rejected, so we need to delete it manually
@@ -177,11 +201,8 @@ void test_empty_tree_operations() {
     assert(avl_size(&fixture.avl_tree) == 0);
     
     TestData query(42, 0);
-    void *result = avl_search(&fixture.avl_tree, &query);
-    assert(result == nullptr);
-    
-    void *removed = avl_remove(&fixture.avl_tree, &query);
-    assert(removed == nullptr);
+    struct avl_node *result = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
+    assert(result == NULL);
     
     std::cout << "  ✓ Empty tree operations handled correctly" << std::endl;
 }
@@ -207,7 +228,7 @@ BenchmarkResult benchmark_sequential_insertion(size_t n) {
         AVLMapTest fixture;
         timer.start();
         for (auto td : test_data) {
-            avl_add(&fixture.avl_tree, td);
+            avl_add(&fixture.avl_tree, &td->node);
         }
         timer.stop();
         result.avl_time_ms = timer.elapsed_ms();
@@ -261,7 +282,7 @@ BenchmarkResult benchmark_random_insertion(size_t n) {
         AVLMapTest fixture;
         timer.start();
         for (auto td : test_data) {
-            avl_add(&fixture.avl_tree, td);
+            avl_add(&fixture.avl_tree, &td->node);
         }
         timer.stop();
         result.avl_time_ms = timer.elapsed_ms();
@@ -309,7 +330,7 @@ BenchmarkResult benchmark_search(size_t n) {
     // Build AVL tree
     AVLMapTest fixture;
     for (auto td : test_data) {
-        avl_add(&fixture.avl_tree, td);
+        avl_add(&fixture.avl_tree, &td->node);
     }
     
     // Build std::map
@@ -322,13 +343,13 @@ BenchmarkResult benchmark_search(size_t n) {
     timer.start();
     for (size_t i = 0; i < n; i++) {
         TestData query(i, 0);
-        volatile void *found = avl_search(&fixture.avl_tree, &query);
+        volatile struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
         (void)found; // Prevent optimization
     }
     timer.stop();
     result.avl_time_ms = timer.elapsed_ms();
     
-    // Test std::map search (by value comparison, not pointer)
+    // Test std::map search
     timer.start();
     for (auto td : test_data) {
         volatile auto it = map.find(td);
@@ -337,7 +358,7 @@ BenchmarkResult benchmark_search(size_t n) {
     timer.stop();
     result.map_time_ms = timer.elapsed_ms();
     
-    // Don't delete test_data here - let fixture destructor handle it
+    // Cleanup handled by fixture destructor
     
     result.speedup = result.map_time_ms / result.avl_time_ms;
     return result;
@@ -359,13 +380,13 @@ BenchmarkResult benchmark_removal(size_t n) {
     {
         AVLMapTest fixture;
         for (auto td : test_data) {
-            avl_add(&fixture.avl_tree, td);
+            avl_add(&fixture.avl_tree, &td->node);
         }
         
         timer.start();
         for (auto td : test_data) {
-            void *removed = avl_remove(&fixture.avl_tree, td);
-            delete static_cast<TestData*>(removed);
+            avl_remove(&fixture.avl_tree, &td->node);
+            delete td;
         }
         timer.stop();
         result.avl_time_ms = timer.elapsed_ms();
@@ -419,18 +440,19 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
         
         // Insert
         for (auto td : test_data) {
-            avl_add(&fixture.avl_tree, td);
+            avl_add(&fixture.avl_tree, &td->node);
         }
         
         // Search
         for (auto td : test_data) {
-            avl_search(&fixture.avl_tree, td);
+            TestData query(td->key, 0);
+            avl_search(&fixture.avl_tree, &query, compare_test_data_search);
         }
         
         // Remove
         for (auto td : test_data) {
-            void *removed = avl_remove(&fixture.avl_tree, td);
-            delete static_cast<TestData*>(removed);
+            avl_remove(&fixture.avl_tree, &td->node);
+            delete td;
         }
         
         timer.stop();
@@ -483,7 +505,7 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
 int main() {
     std::cout << "\n";
     std::cout << "╔════════════════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║         AVL Tree vs std::map Performance Comparison                    ║\n";
+    std::cout << "║    AVL Tree (Intrusive) vs std::map Performance Comparison            ║\n";
     std::cout << "╚════════════════════════════════════════════════════════════════════════╝\n";
     
     // Run correctness tests

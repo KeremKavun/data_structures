@@ -2,11 +2,10 @@
 #define TREES_BST_H
 
 #include <ds/utils/debug.h>
-#include <ds/utils/allocator_concept.h>
 #include <ds/utils/object_concept.h>
+#include <ds/utils/macros.h>
 #include "bintree.h"
 #include "common/traversals.h"
-#include "common/status.h"
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -26,9 +25,9 @@ extern "C" {
  * @details
  * ### Global Constraints
  * - **NULL Pointers**: All `struct bst *tree` arguments must be non-NULL.
- * - **Ownership**: Internal nodes are owned by allocator_concept given by user, stored in the bst,
- * - void *references to data are entirely owned by user. @ref bst_destroy might be helpful to destruct remaining
- * - objects in the tree.
+ * - **Ownership**: Internal nodes are owned by you, since nodes are intrusive.
+ * - YOU KNOW HOW YOU MANAGE YOUR DATA, so you should what to pass into .deinit method
+ * - @ref bst_deinit might be helpful to destruct remaining objects in the tree.
  * @{
  */
 
@@ -37,10 +36,9 @@ extern "C" {
  * @brief Aggregation of generic binary tree.
  */
 struct bst {
-    struct bintree                  *root;              ///< Root of the tree.
-    struct allocator_concept        ac;                 ///< Used by the tree to allocate new nodes to maintain the tree.
-    int (*cmp) (const void *key, const void *data);     ///< Pointer to function that returns negative if a<b, 0 if a==b, positive if a>b. 
-    size_t                          size;               ///< Count of the objects whose references are stored here.
+    struct bintree      *root;      ///< Root of the tree.
+    size_t              size;       ///< Count of the objects whose references are stored here.
+    bst_cmp_cb          cmp;        ///< Pointer to function that returns negative if a<b, 0 if a==b, positive if a>b.    
 };
 
 /**
@@ -52,20 +50,21 @@ struct bst {
 /**
  * @brief Initializes the bst.
  * @param[in, out] tree Pointer to bst instance.
- * @param[in] cmp Function pointer to compare keys.
- * @param[in] ac allocator_concept to create tree nodes, must be non-NULL and valid.
+ * @param[in] cmp Function pointer to compare nodes.
  */
-void bst_init(struct bst *tree, int (*cmp) (const void *key, const void *data), struct allocator_concept *ac);
+void bst_init(struct bst *tree, bst_cmp_cb cmp);
 
 /**
  * @brief Deinitializes the bst.
  * @param[in] oc object_concept to deinit data references.
- * @warning Only root is set to NULL after freeing the internal tree.
+ * @warning Same warning with bintree module here. Since this
+ * module uses intrusive nodes, you should be aware that this function
+ * passes bintree into .deinit method, which you supllied, it is entirely
+ * up to you how to use that passed node.
+ * @warning Only passed trees root attributes and size are set to NULL.
+ * @see bintree_deinit
  */
 void bst_deinit(struct bst *tree, struct object_concept *oc);
-
-/** @return sizeof(struct bintree) */
-size_t bst_node_sizeof();
 
 /** @} */ // End of Initialize & Deinitialize
 
@@ -76,28 +75,26 @@ size_t bst_node_sizeof();
  */
 
 /**
- * @brief Adds new data into the bst.
- * @param[in] new_data Reference to the new data.
- * @return enum tree_status, which might indicate
- * duplicate or memory allocation failure.
+ * @brief Adds new node into the bst.
+ * @param[in] new_node Hook to the new node.
+ * @return 0 if success, 1 if duplicate.
  */
-enum trees_status bst_add(struct bst *tree, void *new_data);
+int bst_add(struct bst *tree, struct bintree *new_node);
 
 /**
- * @brief Removes data from the bst.
- * @param[in] data Data to be removed.
- * @return Data that was stored in the bst or NULL if doesnt exist.
- * @warning **Lifetime Management**: The tree did NOT take ownership of the memory pointed
- * by `void *new_data` passed in insert functions. It is returned to you back.
+ * @brief Removes node from the bst.
+ * @param[in] node Node to be removed, must be
+ * obtained by the search function or be sure that
+ * this is in the tree.
  */
-void *bst_remove(struct bst *tree, void *data);
+void bst_remove(struct bst *tree, struct bintree *node);
 
 /**
- * @brief Searches a given data in the bst.
+ * @brief Searches a given node in the bst.
  * @param[in] data Data that is going to be searched.
- * @return Data that was stored in the bst or NULL if doesnt exist.
+ * @return struct bintree * (hook to your data) or NULL if it doesnt exist.
  */
-void *bst_search(struct bst *tree, const void *data);
+struct bintree *bst_search(struct bst *tree, const void *data, bintree_cmp_cb cmp);
 
 /** @} */ // End of Operations
 
@@ -116,7 +113,7 @@ static inline struct bintree* bst_root(struct bst *tree)
 /** @return 1 if empty, 0 otherwise. */
 static inline int bst_empty(const struct bst *tree)
 {
-    return tree->root == NULL;
+    return tree->size == 0;
 }
 
 /** @return size of the bst */

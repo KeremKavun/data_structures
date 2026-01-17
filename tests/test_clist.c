@@ -2,13 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
-/* Mock implementations for missing dependencies */
-#define container_of(ptr, type, member) \
-    ((type *)((char *)(ptr) - offsetof(type, member)))
-
 /* Include the header */
 #include <ds/linkedlists/clist.h>
+#include <ds/utils/macros.h>
 
 /* Test data structure */
 struct test_node {
