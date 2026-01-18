@@ -1,6 +1,11 @@
 #ifndef UTILS_MACROS_H
 #define UTILS_MACROS_H
 
+#define XCONCAT(a, b) a##b
+#define CONCAT(a, b) XCONCAT(a, b)
+
+#define UNIQUE_NAME(prefix) CONCAT(prefix, __LINE__)
+
 #ifndef container_of
 // Source - https://stackoverflow.com/q
 // Posted by jaeyong, modified by community. See post 'Timeline' for change history
@@ -10,15 +15,7 @@
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)((char *)__mptr - offsetof(type,member));})
 
-// Source - https://stackoverflow.com/a/30131043
-// Posted by Shafik Yaghmour, modified by community. See post 'Timeline' for change history
-// Retrieved 2026-01-03, License - CC BY-SA 3.0
-
-#define likely(x)       __builtin_expect(!!(x), 1)
-#define unlikely(x)     __builtin_expect(!!(x), 0)
-
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))       
+#define BINTREE_TAG_MASK ((uintptr_t)0x03)
 
 #endif // container_of
 

@@ -1,9 +1,14 @@
 /**
- * @file avl_map_comparison_intrusive.cpp
- * @brief Comprehensive comparison tests between intrusive AVL tree and std::map
+ * @file avl_map_comparison_intrusive_fair.cpp
+ * @brief FAIR comparison tests between intrusive AVL tree and std::map
+ * 
+ * Key changes for fairness:
+ * - Removal benchmarks now include search time for AVL (search + remove)
+ * - Insertion uses insert() for std::map instead of operator[] to match semantics
+ * - Mixed operations properly account for all steps
  * 
  * Compile with:
- * g++ -std=c++17 -O2 avl_map_comparison_intrusive.cpp -I/path/to/include -L/path/to/lib -lds -o avl_test
+ * g++ -std=c++17 -O2 avl_map_comparison_intrusive_fair.cpp -I/path/to/include -L/path/to/lib -lds -o avl_test
  */
 
 #include "../include/benchmark.hpp"
@@ -51,17 +56,10 @@ int compare_test_data(const struct bintree *a, const struct bintree *b) {
 }
 
 // Comparison function for search (compares void* key with bintree node)
-// Note: bintree_cmp_cb signature is (const void *key, const struct bintree *node)
 int compare_test_data_search(const void *key, const struct bintree *node) {
     const TestData *dk = static_cast<const TestData*>(key);
     const TestData *dn = TestData::from_node((const struct avl_node*)node);
     return dk->key - dn->key;
-}
-
-// Destructor for cleanup
-void destroy_test_data(void *data) {
-    TestData *td = static_cast<TestData*>(data);
-    delete td;
 }
 
 // Comparison for std::map
@@ -120,7 +118,7 @@ void test_basic_operations() {
         test_data.push_back(td);
         
         int status = avl_add(&fixture.avl_tree, &td->node);
-        map[td] = td->value;
+        map.insert({td, td->value});
         
         assert(status == 0);  // 0 = success
         assert(avl_size(&fixture.avl_tree) == (size_t)(i + 1));
@@ -134,11 +132,6 @@ void test_basic_operations() {
         struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
         TestData *found_data = TestData::from_node(found);
         
-        if (found_data == NULL) {
-            std::cerr << "Failed to find key: " << i << std::endl;
-            std::cerr << "Tree size: " << avl_size(&fixture.avl_tree) << std::endl;
-        }
-        
         assert(found_data != NULL);
         assert(found_data->key == i);
         assert(found_data->value == i * 10);
@@ -146,7 +139,7 @@ void test_basic_operations() {
     
     std::cout << "  ✓ Search: All " << N << " elements found" << std::endl;
     
-    // Test removal
+    // Test removal (with search first - this is the fair way)
     for (int i = 0; i < N; i += 2) {
         TestData query(i, 0);
         struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
@@ -162,9 +155,8 @@ void test_basic_operations() {
     }
     
     assert(avl_size(&fixture.avl_tree) == N / 2);
-    std::cout << "  ✓ Removal: " << N/2 << " elements removed" << std::endl;
+    std::cout << "  ✓ Removal: " << N/2 << " elements removed (with search)" << std::endl;
     
-    // Cleanup will be handled by fixture destructor
     std::cout << "  ✓ Final cleanup: Tree cleared" << std::endl;
 }
 
@@ -184,12 +176,9 @@ void test_duplicate_insertion() {
     assert(status2 == 1);  // duplicate
     assert(avl_size(&fixture.avl_tree) == 1);
     
-    // td2 was rejected, so we need to delete it manually
     delete td2;
     
     std::cout << "  ✓ Duplicate correctly rejected" << std::endl;
-    
-    // td1 will be cleaned up by fixture destructor
 }
 
 void test_empty_tree_operations() {
@@ -208,7 +197,7 @@ void test_empty_tree_operations() {
 }
 
 // ============================================================================
-// Performance Benchmarks
+// Performance Benchmarks (FAIR VERSIONS)
 // ============================================================================
 
 BenchmarkResult benchmark_sequential_insertion(size_t n) {
@@ -223,7 +212,7 @@ BenchmarkResult benchmark_sequential_insertion(size_t n) {
         test_data.push_back(new TestData(i, i));
     }
     
-    // Test AVL
+    // Test AVL - just insertion (no duplicates in this test)
     {
         AVLMapTest fixture;
         timer.start();
@@ -232,7 +221,6 @@ BenchmarkResult benchmark_sequential_insertion(size_t n) {
         }
         timer.stop();
         result.avl_time_ms = timer.elapsed_ms();
-        // Fixture destructor will clean up
     }
     
     // Recreate test data for std::map test
@@ -241,12 +229,12 @@ BenchmarkResult benchmark_sequential_insertion(size_t n) {
         test_data.push_back(new TestData(i, i));
     }
     
-    // Test std::map
+    // Test std::map - use insert() instead of operator[] for fair comparison
     {
         std::map<TestData*, int, TestDataCmp> map;
         timer.start();
         for (auto td : test_data) {
-            map[td] = td->value;
+            map.insert({td, td->value});  // Changed from map[td] = value
         }
         timer.stop();
         result.map_time_ms = timer.elapsed_ms();
@@ -295,12 +283,12 @@ BenchmarkResult benchmark_random_insertion(size_t n) {
     }
     std::shuffle(test_data.begin(), test_data.end(), g);
     
-    // Test std::map
+    // Test std::map - use insert() for fair comparison
     {
         std::map<TestData*, int, TestDataCmp> map;
         timer.start();
         for (auto td : test_data) {
-            map[td] = td->value;
+            map.insert({td, td->value});  // Changed from map[td] = value
         }
         timer.stop();
         result.map_time_ms = timer.elapsed_ms();
@@ -336,7 +324,7 @@ BenchmarkResult benchmark_search(size_t n) {
     // Build std::map
     std::map<TestData*, int, TestDataCmp> map;
     for (auto td : test_data) {
-        map[td] = td->value;
+        map.insert({td, td->value});
     }
     
     // Test AVL search
@@ -344,7 +332,7 @@ BenchmarkResult benchmark_search(size_t n) {
     for (size_t i = 0; i < n; i++) {
         TestData query(i, 0);
         volatile struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
-        (void)found; // Prevent optimization
+        (void)found;
     }
     timer.stop();
     result.avl_time_ms = timer.elapsed_ms();
@@ -353,12 +341,10 @@ BenchmarkResult benchmark_search(size_t n) {
     timer.start();
     for (auto td : test_data) {
         volatile auto it = map.find(td);
-        (void)it; // Prevent optimization
+        (void)it;
     }
     timer.stop();
     result.map_time_ms = timer.elapsed_ms();
-    
-    // Cleanup handled by fixture destructor
     
     result.speedup = result.map_time_ms / result.avl_time_ms;
     return result;
@@ -376,7 +362,7 @@ BenchmarkResult benchmark_removal(size_t n) {
         test_data.push_back(new TestData(i, i));
     }
     
-    // Test AVL removal
+    // Test AVL removal - NOW INCLUDES SEARCH (FAIR!)
     {
         AVLMapTest fixture;
         for (auto td : test_data) {
@@ -385,7 +371,12 @@ BenchmarkResult benchmark_removal(size_t n) {
         
         timer.start();
         for (auto td : test_data) {
-            avl_remove(&fixture.avl_tree, &td->node);
+            // FAIR: Include search before remove (like std::map::erase does)
+            TestData query(td->key, 0);
+            struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
+            if (found) {
+                avl_remove(&fixture.avl_tree, found);
+            }
             delete td;
         }
         timer.stop();
@@ -398,16 +389,16 @@ BenchmarkResult benchmark_removal(size_t n) {
         test_data.push_back(new TestData(i, i));
     }
     
-    // Test std::map removal
+    // Test std::map removal - erase(key) does search+remove internally
     {
         std::map<TestData*, int, TestDataCmp> map;
         for (auto td : test_data) {
-            map[td] = td->value;
+            map.insert({td, td->value});
         }
         
         timer.start();
         for (auto td : test_data) {
-            map.erase(td);
+            map.erase(td);  // This does search + remove internally
         }
         timer.stop();
         result.map_time_ms = timer.elapsed_ms();
@@ -433,7 +424,7 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
         test_data.push_back(new TestData(i, i));
     }
     
-    // Test AVL
+    // Test AVL - with fair removal (search + remove)
     {
         AVLMapTest fixture;
         timer.start();
@@ -449,9 +440,13 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
             avl_search(&fixture.avl_tree, &query, compare_test_data_search);
         }
         
-        // Remove
+        // Remove - FAIR: includes search
         for (auto td : test_data) {
-            avl_remove(&fixture.avl_tree, &td->node);
+            TestData query(td->key, 0);
+            struct avl_node *found = avl_search(&fixture.avl_tree, &query, compare_test_data_search);
+            if (found) {
+                avl_remove(&fixture.avl_tree, found);
+            }
             delete td;
         }
         
@@ -470,9 +465,9 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
         std::map<TestData*, int, TestDataCmp> map;
         timer.start();
         
-        // Insert
+        // Insert - use insert() for fair comparison
         for (auto td : test_data) {
-            map[td] = td->value;
+            map.insert({td, td->value});
         }
         
         // Search
@@ -480,7 +475,7 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
             map.find(td);
         }
         
-        // Remove
+        // Remove - erase does search+remove
         for (auto td : test_data) {
             map.erase(td);
         }
@@ -505,7 +500,8 @@ BenchmarkResult benchmark_mixed_operations(size_t n) {
 int main() {
     std::cout << "\n";
     std::cout << "╔════════════════════════════════════════════════════════════════════════╗\n";
-    std::cout << "║    AVL Tree (Intrusive) vs std::map Performance Comparison            ║\n";
+    std::cout << "║    AVL Tree vs std::map - FAIR Performance Comparison                 ║\n";
+    std::cout << "║    (AVL removal now includes search cost)                              ║\n";
     std::cout << "╚════════════════════════════════════════════════════════════════════════╝\n";
     
     // Run correctness tests
@@ -516,7 +512,7 @@ int main() {
     // Run performance benchmarks
     BenchmarkSuite suite;
     
-    std::cout << "\n[BENCHMARK] Running performance tests...\n" << std::endl;
+    std::cout << "\n[BENCHMARK] Running FAIR performance tests...\n" << std::endl;
     
     // Small datasets
     suite.add_result(benchmark_sequential_insertion(1000));
@@ -543,6 +539,10 @@ int main() {
     suite.print_summary();
     
     std::cout << "\n✓ All tests completed successfully!\n" << std::endl;
+    std::cout << "\nNote: This version ensures fair comparison by:\n";
+    std::cout << "  - Including search cost in AVL removal benchmarks\n";
+    std::cout << "  - Using map.insert() instead of operator[] for insertion\n";
+    std::cout << "  - Both data structures now perform equivalent operations\n" << std::endl;
     
     return 0;
 }

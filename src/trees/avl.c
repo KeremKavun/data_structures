@@ -3,15 +3,14 @@
 #include <stdbool.h>
 #include <assert.h>
 
-
-#define AVL_MAX_DEPTH 64 // Means 2^64 node max, practically infinity
-
 static void avl_insert_balance_left(struct avl *tree, struct avl_node *root);
 static void avl_insert_balance_right(struct avl *tree, struct avl_node *root);
 static void avl_remove_balance_left(struct avl *tree, struct avl_node *root);
 static void avl_remove_balance_right(struct avl *tree, struct avl_node *root);
-static struct avl_node *avl_rotate_left(struct avl *tree, struct avl_node *root);
-static struct avl_node *avl_rotate_right(struct avl *tree, struct avl_node *root);
+// Recklessly updates root and root->rights parent pointers to avoid some instructions
+static void avl_rotate_left(struct avl *tree, struct avl_node *root);
+// Recklessly updates root and root->lefts parent pointers to avoid some instructions
+static void avl_rotate_right(struct avl *tree, struct avl_node *root);
 static void avl_deinit_helper(struct avl_node *node, struct object_concept *oc);
 
 // https://stackoverflow.com/questions/17288746/red-black-nodes-struct-alignment-in-linux-kernel?rq=1
@@ -23,13 +22,13 @@ enum avl_balance {
     RIGHT_HIGH = 3      ///< represents '11' in our parent pointer.
 };
 
-#define avl_get_parent(node)   ((struct bintree *)((uintptr_t)((node)->btree.parent) & ~3))
-#define avl_set_parent(node, new_parent) do { \
-    (node)->btree.parent = (void *)(((uintptr_t)(new_parent)) | ((uintptr_t)((node)->btree.parent) & 3UL)); \
-} while (0)
-#define avl_get_balance(node)   ((enum avl_balance)((uintptr_t)((node)->btree.parent) & 3UL))
+#define avl_get_balance(node)   ((enum avl_balance)((uintptr_t)((node)->btree.parent) & BINTREE_TAG_MASK))
 #define avl_set_balance(node, bal) do { \
-    (node)->btree.parent = (void *)((((uintptr_t)((node)->btree.parent)) & ~3UL) | (uintptr_t)(bal)); \
+    (node)->btree.parent = (void *)((((uintptr_t)((node)->btree.parent)) & ~BINTREE_TAG_MASK) | (uintptr_t)(bal)); \
+} while (0)
+// Sets without resetting to 00 state.
+#define avl_set_balance_reckless(node, bal) do { \
+    (node)->btree.parent = (void *)(((uintptr_t)((node)->btree.parent)) | (uintptr_t)(bal)); \
 } while (0)
 
 /* =========================================================================
@@ -70,12 +69,11 @@ int avl_add(struct avl *tree, struct avl_node *new_node)
     // Since new_node is uninitialized, old_bits is GARBAGE.
     // We must zero the parent field first!
     bintree_init((struct bintree *) new_node, NULL, NULL, NULL);
-    avl_set_balance(new_node, EVEN);
-    avl_set_parent(new_node, parent);
+    bintree_set_parent((struct bintree *) new_node, parent);
     *link = &new_node->btree;
     tree->size++;
     struct avl_node *curr = new_node;
-    parent = avl_get_parent(curr);
+    parent = bintree_get_parent((struct bintree *) curr);
     while (parent) {
         struct avl_node *parent_node = (struct avl_node*) parent;
         if (parent->left == &curr->btree) {
@@ -112,7 +110,7 @@ int avl_add(struct avl *tree, struct avl_node *new_node)
             }
         }
         curr = parent_node;
-        parent = avl_get_parent(curr);
+        parent = bintree_get_parent((struct bintree *) curr);
     }
     return 0;
 }
@@ -124,68 +122,46 @@ void avl_remove(struct avl *tree, struct avl_node *node)
     // 1. Swap with successor if 2 children
     if (n->left && n->right) {
         struct bintree *s = n->right;
-        while (s->left)
-            s = s->left;
-        struct avl_node *sn = (struct avl_node *)s;
-        // A. Save State (Balances of nodes and their children)
-        enum avl_balance b_n = avl_get_balance(node);
-        enum avl_balance b_s = avl_get_balance(sn);
-        // We must save n's children's balances because bintree_swap will overwrite 
-        // their parent pointers with raw pointers, erasing their tags.
-        enum avl_balance b_n_left = avl_get_balance((struct avl_node*)n->left);
-        // If s is directly n->right, n->right becomes n (whose balance is handled by b_s logic below)
-        enum avl_balance b_n_right = (n->right == s) ? EVEN : avl_get_balance((struct avl_node*)n->right);
-        // B. Sanitize Parents (Strip tags so bintree_swap works safely)
-        n->parent = avl_get_parent(node);
-        s->parent = avl_get_parent(sn);
-        // C. Generic Swap
+        while (s->left) s = s->left;
         bintree_swap(n, s);
-        // D. Fix Tree Root (Crucial Step!)
-        // bintree_swap can't see tree->root. If s moved to the top, we must update it.
-        if (s->parent == NULL) tree->root = sn;
-        // E. Restore Node Balances (Swapped positions)
-        avl_set_balance(node, b_s); // node is now at s's old spot (bottom)
-        avl_set_balance(sn, b_n);   // sn is now at n's old spot (top)
-        // F. Restore Children Balances
-        // sn now has n's old children. We must re-tag them.
-        if (sn->btree.left) avl_set_balance((struct avl_node*)sn->btree.left, b_n_left);
-        if (sn->btree.right && sn->btree.right != n) avl_set_balance((struct avl_node*)sn->btree.right, b_n_right);
+        if (tree->root == node) tree->root = (struct avl_node*)s;
     }
+    // 2. Physical Removal
     struct bintree *child = n->left ? n->left : n->right;
-    struct bintree *parent = avl_get_parent(node);
-    bool from_left = parent ? (parent->left == n) : false;
-    if (child)
-        avl_set_parent((struct avl_node*)child, parent);
+    struct bintree *parent = bintree_get_parent(n);
+    // CRITICAL FIX: Determine direction before unlinking 'n'
+    bool from_left = parent && (parent->left == n);
+    if (child) bintree_set_parent(child, parent);
     if (!parent) {
         tree->root = (struct avl_node*)child;
     } else {
         if (from_left) parent->left = child;
         else parent->right = child;
     }
-    bintree_init(n, NULL, NULL, NULL);
+    // 3. Rebalance
     tree->size--;
+    bintree_init(n, NULL, NULL, NULL); // Safe to clear now
     struct bintree *curr = parent;
     while (curr) {
         struct avl_node *node_curr = (struct avl_node*)curr;
-        struct bintree *next = avl_get_parent(node_curr);
-        // Calculate direction for the NEXT iteration before rotation messes up links
+        struct bintree *next = bintree_get_parent((struct bintree *) node_curr);
+        // Capture next direction before potential rotation changes structure
         bool next_from_left = next ? (next->left == curr) : false;
         bool stop = false;
         if (from_left) { // Left side shortened
             switch (avl_get_balance(node_curr)) {
                 case LEFT_HIGH:  
                     avl_set_balance(node_curr, EVEN); 
-                    break; // Height reduced, continue up
+                    break; 
                 case EVEN:       
                     avl_set_balance(node_curr, RIGHT_HIGH); 
-                    stop = true; // Height unchanged, stop
+                    stop = true; 
                     break; 
                 case RIGHT_HIGH: 
                     avl_remove_balance_left(tree, node_curr);
-                    // Get new root of this subtree
                     {
+                        // Calculate new root of this subtree to check if height changed
                         struct bintree *new_sub = !next ? (struct bintree*)tree->root : (next_from_left ? next->left : next->right);
-                        // FIX: If EVEN, height reduced -> Continue. If NOT EVEN, height same -> Stop.
                         if (avl_get_balance((struct avl_node*)new_sub) != EVEN) stop = true;
                     }
                     break;
@@ -194,16 +170,15 @@ void avl_remove(struct avl *tree, struct avl_node *node)
             switch (avl_get_balance(node_curr)) {
                 case RIGHT_HIGH: 
                     avl_set_balance(node_curr, EVEN); 
-                    break; // Height reduced, continue up
+                    break; 
                 case EVEN:       
                     avl_set_balance(node_curr, LEFT_HIGH); 
-                    stop = true; // Height unchanged, stop
+                    stop = true; 
                     break;
                 case LEFT_HIGH:  
                     avl_remove_balance_right(tree, node_curr);
                     {
                         struct bintree *new_sub = !next ? (struct bintree*)tree->root : (next_from_left ? next->left : next->right);
-                        // FIX: If EVEN, height reduced -> Continue. If NOT EVEN, height same -> Stop.
                         if (avl_get_balance((struct avl_node*)new_sub) != EVEN) stop = true;
                     }
                     break;
@@ -233,39 +208,24 @@ static void avl_insert_balance_left(struct avl *tree, struct avl_node *root)
 {
     struct avl_node *left_node = (struct avl_node *)root->btree.left;
     assert(left_node != NULL);
-    switch (avl_get_balance(left_node)) {
-    case LEFT_HIGH:
-    {
-        avl_set_balance(root, EVEN);
-        avl_set_balance(left_node, EVEN);
+    // EVEN should not occur
+    if (avl_get_balance(left_node) == LEFT_HIGH) {
         avl_rotate_right(tree, root); 
-        break;
-    }
-    case EVEN: // Should not happen during insertion rebalancing
-        break;
-    case RIGHT_HIGH:
-    {
-        struct avl_node *right_of_left = (struct avl_node *)left_node->btree.right;
-        assert(right_of_left != NULL);
-        switch (avl_get_balance(right_of_left)) {
-        case LEFT_HIGH:
-            avl_set_balance(root, RIGHT_HIGH);
-            avl_set_balance(left_node, EVEN);
-            break;
-        case RIGHT_HIGH:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(left_node, LEFT_HIGH);
-            break;
-        case EVEN:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(left_node, EVEN);
-            break;
-        }
-        avl_set_balance(right_of_left, EVEN);
+    } else {
+        // Eliminated EVEN check and set_balance calls, since it is automatically
+        // handled in rotaters. 
+        struct avl_node *sub_right = (struct avl_node *) left_node->btree.right;
+        int sub_right_balance = avl_get_balance(sub_right);
         avl_rotate_left(tree, left_node);
         avl_rotate_right(tree, root);
-        break;
-    }
+        switch (sub_right_balance)
+        {
+        //case LEFT_HIGH: avl_set_balance(root, RIGHT_HIGH); break;
+        //case RIGHT_HIGH: avl_set_balance(left_node, LEFT_HIGH); break;
+        case LEFT_HIGH: avl_set_balance_reckless(root, RIGHT_HIGH); break;
+        case RIGHT_HIGH: avl_set_balance_reckless(left_node, LEFT_HIGH); break;
+        default: break;
+        }
     }
 }
 
@@ -273,41 +233,28 @@ static void avl_insert_balance_right(struct avl *tree, struct avl_node *root)
 {
     struct avl_node *right_node = (struct avl_node *)root->btree.right;
     assert(right_node != NULL);
-    switch (avl_get_balance(right_node)) {
-    case RIGHT_HIGH:
-    {
-        avl_set_balance(root, EVEN);
-        avl_set_balance(right_node, EVEN);
-        avl_rotate_left(tree, root);
-        break;
-    }
-    case EVEN:
-        break;
-    case LEFT_HIGH:
-    {
-        struct avl_node *left_of_right = (struct avl_node *)right_node->btree.left;
-        assert(left_of_right != NULL);
-        switch (avl_get_balance(left_of_right)) {
-        case RIGHT_HIGH:
-            avl_set_balance(root, LEFT_HIGH);
-            avl_set_balance(right_node, EVEN);
-            break;
-        case LEFT_HIGH:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(right_node, RIGHT_HIGH);
-            break;
-        case EVEN:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(right_node, EVEN);
-            break;
-        }
-        avl_set_balance(left_of_right, EVEN);
+    // EVEN should not occur
+    if (avl_get_balance(right_node) == RIGHT_HIGH) {
+        avl_rotate_left(tree, root); 
+    } else {
+        // Eliminated EVEN check and set_balance calls, since it is automatically
+        // handled in rotaters. 
+        struct avl_node *sub_left = (struct avl_node *) right_node->btree.left;
+        int sub_left_balance = avl_get_balance(sub_left);
         avl_rotate_right(tree, right_node);
         avl_rotate_left(tree, root);
-        break;
-    }
+        switch (sub_left_balance)
+        {
+        //case RIGHT_HIGH: avl_set_balance(root, LEFT_HIGH); break;
+        //case LEFT_HIGH: avl_set_balance(right_node, RIGHT_HIGH); break;
+        case RIGHT_HIGH: avl_set_balance_reckless(root, LEFT_HIGH); break;
+        case LEFT_HIGH: avl_set_balance_reckless(right_node, RIGHT_HIGH); break;
+        default: break;
+        }
     }
 }
+
+// See comments in insert balancers above.
 
 static void avl_remove_balance_left(struct avl *tree, struct avl_node *root)
 {
@@ -315,42 +262,30 @@ static void avl_remove_balance_left(struct avl *tree, struct avl_node *root)
     assert(right_node != NULL);
     switch (avl_get_balance(right_node))
     {
-    case RIGHT_HIGH:
-    {
-        avl_set_balance(root, EVEN);
-        avl_set_balance(right_node, EVEN);
-        avl_rotate_left(tree, root);
-        break;
-    }
+    case RIGHT_HIGH: avl_rotate_left(tree, root); break;
     case EVEN:
     {
-        avl_set_balance(root, RIGHT_HIGH);
-        avl_set_balance(right_node, LEFT_HIGH);
         avl_rotate_left(tree, root);
+        //avl_set_balance(root, RIGHT_HIGH);
+        //avl_set_balance(right_node, LEFT_HIGH);
+        avl_set_balance_reckless(root, RIGHT_HIGH);
+        avl_set_balance_reckless(right_node, LEFT_HIGH);
         break;
     }
     case LEFT_HIGH:
     {
-        struct avl_node *left_of_right = (struct avl_node *)right_node->btree.left;
-        switch (avl_get_balance(left_of_right))
-        {
-        case LEFT_HIGH:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(right_node, RIGHT_HIGH);
-            break;
-        case EVEN:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(right_node, EVEN);
-            break;
-        case RIGHT_HIGH:
-            avl_set_balance(root, LEFT_HIGH);
-            avl_set_balance(right_node, EVEN);
-            break;
-        }
-        avl_set_balance(left_of_right, EVEN);
+        struct avl_node *sub_left = (struct avl_node *) right_node->btree.left;
+        int sub_left_balance = avl_get_balance(sub_left);
         avl_rotate_right(tree, right_node);
         avl_rotate_left(tree, root);
-        break;
+        switch (sub_left_balance)
+        {
+        //case RIGHT_HIGH: avl_set_balance(root, LEFT_HIGH); break;
+        //case LEFT_HIGH: avl_set_balance(right_node, RIGHT_HIGH); break;
+        case RIGHT_HIGH: avl_set_balance_reckless(root, LEFT_HIGH); break;
+        case LEFT_HIGH: avl_set_balance_reckless(right_node, RIGHT_HIGH); break;
+        default: break;
+        }
     }
     }
 }
@@ -361,94 +296,86 @@ static void avl_remove_balance_right(struct avl *tree, struct avl_node *root)
     assert(left_node != NULL);
     switch (avl_get_balance(left_node))
     {
-    case LEFT_HIGH:
-    {
-        avl_set_balance(root, EVEN);
-        avl_set_balance(left_node, EVEN);
-        avl_rotate_right(tree, root);
-        break;
-    }
+    case LEFT_HIGH: avl_rotate_right(tree, root); break;
     case EVEN:
     {
-        avl_set_balance(root, LEFT_HIGH);
-        avl_set_balance(left_node, RIGHT_HIGH);
         avl_rotate_right(tree, root);
+        //avl_set_balance(root, LEFT_HIGH);
+        //avl_set_balance(left_node, RIGHT_HIGH);
+        avl_set_balance_reckless(root, LEFT_HIGH);
+        avl_set_balance_reckless(left_node, RIGHT_HIGH);
         break;
     }
     case RIGHT_HIGH:
     {
-        struct avl_node *right_of_left = (struct avl_node *)left_node->btree.right;
-        switch (avl_get_balance(right_of_left))
-        {
-        case RIGHT_HIGH:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(left_node, LEFT_HIGH);
-            break;
-        case EVEN:
-            avl_set_balance(root, EVEN);
-            avl_set_balance(left_node, EVEN);
-            break;
-        case LEFT_HIGH:
-            avl_set_balance(root, RIGHT_HIGH);
-            avl_set_balance(left_node, EVEN);
-            break;
-        }
-        avl_set_balance(right_of_left, EVEN);
+        struct avl_node *sub_right = (struct avl_node *) left_node->btree.right;
+        int sub_right_balance = avl_get_balance(sub_right);
         avl_rotate_left(tree, left_node);
         avl_rotate_right(tree, root);
-        break;
+        switch (sub_right_balance)
+        {
+        //case LEFT_HIGH: avl_set_balance(root, RIGHT_HIGH); break;
+        //case RIGHT_HIGH: avl_set_balance(left_node, LEFT_HIGH); break;
+        case LEFT_HIGH: avl_set_balance_reckless(root, RIGHT_HIGH); break;
+        case RIGHT_HIGH: avl_set_balance_reckless(left_node, LEFT_HIGH); break;
+        default: break;
+        }
     }
     }
 }
 
-static struct avl_node *avl_rotate_left(struct avl *tree, struct avl_node *root)
+static void avl_rotate_left(struct avl *tree, struct avl_node *root)
 {
     struct bintree *root_bt = &root->btree;
     struct bintree *new_root_bt = root_bt->right;
-    struct bintree *grandparent_bt = avl_get_parent(root);
+    struct bintree *grandparent_bt = bintree_get_parent(root_bt);
     struct bintree *transfer_bt = new_root_bt->left;
+    // 1. Move Transfer Node (MUST PRESERVE TAGS - it's an innocent bystander)
     root_bt->right = transfer_bt;
     if (transfer_bt)
-        avl_set_parent((struct avl_node*)transfer_bt, root_bt);
+        bintree_set_parent(transfer_bt, root_bt);
+    // 2. Link Root and New Root (RECKLESS - Wipes tags to EVEN)
+    // root_bt is given by bintree_get_parent, which wipes the tag out.
+    // so new_root_bt->right becomes automatically EVEN
     new_root_bt->left = root_bt;
-    avl_set_parent(root, new_root_bt);
-    avl_set_parent((struct avl_node*)new_root_bt, grandparent_bt);
+    root_bt->parent = new_root_bt; // Since new_root_bt is left of root_bt and left and right childs never tagged, this becomes EVEN
+    // 3. Link to Grandparent (RECKLESS - Wipes tags to EVEN)
+    new_root_bt->parent = grandparent_bt; // bintree_get_parent wiped tag out. Reset new_root to EVEN
     if (grandparent_bt) {
-        if (grandparent_bt->right == root_bt) {
+        if (grandparent_bt->right == root_bt)
             grandparent_bt->right = new_root_bt;
-        } else {
+        else
             grandparent_bt->left = new_root_bt;
-        }
     } else {
         tree->root = (struct avl_node*)new_root_bt;
     }
-    return (struct avl_node*)new_root_bt;
 }
 
-static struct avl_node *avl_rotate_right(struct avl *tree, struct avl_node *root)
+static void avl_rotate_right(struct avl *tree, struct avl_node *root)
 {
     struct bintree *root_bt = &root->btree;
     struct bintree *new_root_bt = root_bt->left;
-    struct bintree *grandparent_bt = avl_get_parent(root);
+    struct bintree *grandparent_bt = bintree_get_parent(root_bt);
     struct bintree *transfer_bt = new_root_bt->right;
-    // Handle transferred node
+    // 1. Move Transfer Node (MUST PRESERVE TAGS)
     root_bt->left = transfer_bt;
     if (transfer_bt)
-        avl_set_parent((struct avl_node*) transfer_bt, root_bt);
-    // Set new node
+        bintree_set_parent(transfer_bt, root_bt);
+    // 2. Link Root and New Root (RECKLESS - Wipes tags to EVEN)
+    // root_bt is given by bintree_get_parent, which wipes the tag out.
+    // so new_root_bt->right becomes automatically EVEN
     new_root_bt->right = root_bt;
-    avl_set_parent(root, new_root_bt);
-    avl_set_parent((struct avl_node*) new_root_bt, grandparent_bt);
+    root_bt->parent = new_root_bt; // Since new_root_bt is left of root_bt and left and right childs never tagged, this becomes EVEN
+    // 3. Link to Grandparent (RECKLESS - Wipes tags to EVEN)
+    new_root_bt->parent = grandparent_bt; // bintree_get_parent wiped tag out. Reset new_root to EVEN
     if (grandparent_bt) {
-        if (grandparent_bt->left == root_bt) {
+        if (grandparent_bt->left == root_bt)
             grandparent_bt->left = new_root_bt;
-        } else {
+        else
             grandparent_bt->right = new_root_bt;
-        }
     } else {
         tree->root = (struct avl_node*) new_root_bt;
     }
-    return (struct avl_node*) new_root_bt;
 }
 
 static void avl_deinit_helper(struct avl_node *node, struct object_concept *oc)

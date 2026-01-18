@@ -80,32 +80,38 @@ void bintree_replace(struct bintree *old_node, struct bintree *new_node)
 
 void bintree_swap(struct bintree *n1, struct bintree *n2) {
     assert(n1 != NULL && n2 != NULL);
-    if (n1 == n2)
-        return;
-    // 1. Swap the pointers of the parents pointing DOWN
-    // We must find who n1 and n2 are in relation to their parents
-    struct bintree **p1_link = (n1->parent) ? (n1->parent->left == n1 ? &n1->parent->left : &n1->parent->right) : NULL;
-    struct bintree **p2_link = (n2->parent) ? (n2->parent->left == n2 ? &n2->parent->left : &n2->parent->right) : NULL;
+    if (n1 == n2) return;
+    // Use MASKED getters to find the pointers residing in the parents
+    struct bintree *p1 = bintree_get_parent(n1);
+    struct bintree *p2 = bintree_get_parent(n2);
+    struct bintree **p1_link = p1 ? (p1->left == n1 ? &p1->left : &p1->right) : NULL;
+    struct bintree **p2_link = p2 ? (p2->left == n2 ? &p2->left : &p2->right) : NULL;
+    // 1. Swap the pointers IN the parents pointing DOWN
     if (p1_link) *p1_link = n2;
     if (p2_link) *p2_link = n1;
-    // 2. Swap the internal state (parent, left, right)
+    // 2. Swap internal state (parent, left, right)
+    // CRITICAL: This copies the pointers AND the tags inside them.
+    // So n1 (now at n2's spot) inherits n2's balance factor. Perfect.
     struct bintree temp = *n1;
     *n1 = *n2;
     *n2 = temp;
-    // 3. FIX ADJACENCY (The only logic-essential 'if')
-    // If they were parent/child, the pointers are now swapped into a loop
-    if (n1->parent == n1) {
-        n1->parent = n2;
+    // 3. Fix Adjacency
+    // We must check against the MASKED parent, because n1->parent now contains tags
+    if (bintree_get_parent(n1) == n1) {
+        // n1 was parent of n2, now n1 contains n2's parent pointer (which was n1)
+        // So n1 points to itself.
+        bintree_set_parent(n1, n2); // Set n1's parent to n2 (preserves n1's new balance tag)
         if (n2->left == n2) n2->left = n1; else n2->right = n1;
-    } else if (n2->parent == n2) {
-        n2->parent = n1;
+    } else if (bintree_get_parent(n2) == n2) {
+        bintree_set_parent(n2, n1);
         if (n1->left == n1) n1->left = n2; else n1->right = n2;
     }
-    // 4. Update the children's parent pointers to point to the new addresses
-    set_parent(n1->left, n1);
-    set_parent(n1->right, n1);
-    set_parent(n2->left, n2);
-    set_parent(n2->right, n2);
+    // 4. Update children's parent pointers
+    // This calls bintree_set_parent, which preserves the children's balance tags!
+    if (n1->left)  bintree_set_parent(n1->left, n1);
+    if (n1->right) bintree_set_parent(n1->right, n1);
+    if (n2->left)  bintree_set_parent(n2->left, n2);
+    if (n2->right) bintree_set_parent(n2->right, n2);
 }
 
 /* =========================================================================

@@ -27,6 +27,9 @@ extern "C" {
  * 
  * @details
  * ### Global Constraints
+ * - **AVL Invariants**: You should promise obtained struct bintree * or even
+ * - struct avl_node * pointers will not update its data and its parent and child
+ * - pointers. These are already managed by the functions here. (this is classic restriction i think)
  * - **NULL Pointers**: All `struct avl *tree` arguments must be non-NULL.
  * - **Ownership**: Internal nodes are owned by you, since nodes are intrusive.
  * - YOU KNOW HOW YOU MANAGE YOUR DATA, so you should what to pass into .deinit method
@@ -34,7 +37,26 @@ extern "C" {
  * @{
  */
 
-/** @struct avl_node */
+/**
+ * @brief Safe cast from avl to bintree.
+ * 
+ * @details
+ * Ensures the resulting pointer is treated as const to prevent invariant breaking.
+ * Typically used on @ref avl_search results.
+ */
+#define AVL_TO_BINTREE_CONST(avl_node_ptr) \
+    ((const struct bintree *)(avl_node_ptr))
+
+/**
+ * @struct avl_node
+ * @brief AVL node inheriting from bintree.
+ * @warning The 'parent' field in the underlying btree struct is TAGGED.
+ * The two least significant bits store the balance factor. 
+ * NEVER modify btree.parent or btree.left/right manually.
+ * @warning You should not update your nodes data as long as the node
+ * is owned and managed by the tree (This was the case in old implementation,
+ * since you owned void * pointers to be able to change data anyways).
+ */
 struct avl_node {
     struct bintree      btree;      ///< Inheriting from bintree, since avl is conceptually a binary tree.
 };
@@ -46,7 +68,7 @@ struct avl_node {
 struct avl {
     struct avl_node     *root;      ///< Root of the tree.
     size_t              size;       ///< Count of the objects whose references are stored here.
-    bst_cmp_cb      cmp;            ///< Pointer to function that returns negative if a<b, 0 if a==b, positive if a>b.
+    bst_cmp_cb          cmp;        ///< Pointer to function that returns negative if a<b, 0 if a==b, positive if a>b.
 };
 
 /**
@@ -113,25 +135,29 @@ struct avl_node *avl_search(struct avl *btree, const void *data, bintree_cmp_cb 
  */
 
 /** @return Pointer to the root of the avl.
- * @warning NEVER remove constness because some bintree functions
- * might not respect avl invariants. This function useful to reuse
- * some bintree functions such as traversals. Also keep in mind that
- * there is risk of confusing actual bintree nodes and casted avl nodes. 
+ * @warning SEE GLOBAL CONTRAINTS first. Returning const
+ * struct bintree * to reuse bintree iterators and traversal
+ * functions. However, they use mutable pointers. So, as a reminder
+ * to myself, i dont return mutable pointers to feel the pain of casting
+ * and remember avl invariants should be respected.
 */
 static inline const struct bintree *avl_root(const struct avl *tree)
 {
+    assert(tree != NULL);
     return (const struct bintree*) tree->root;
 }
 
 /** @return 1 if empty, 0 otherwise. */
 static inline int avl_empty(const struct avl *tree)
 {
+    assert(tree != NULL);
     return tree->size == 0;
 }
 
 /** @return size of the avl */
 static inline size_t avl_size(const struct avl *tree)
 {
+    assert(tree != NULL);
     return tree->size;
 }
 

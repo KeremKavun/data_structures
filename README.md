@@ -47,6 +47,10 @@ This project leverages a hybrid human-AI development workflow to achieve profess
 
 ## 🛠️ Building & Usage
 
+We use GNU makefile. Make sure you installed this. GCC is used in makefiles
+but you can change it if you use different compiler. Please report if the code
+not compiles.
+
 ### Compile the Library
 ```sh
 make
@@ -65,13 +69,18 @@ make test_<module_name>
 ```
 
 ### Documentation
+
+You need to install doxygen and optionally graphviz to run this command. In linux, package managers provides those
+softwares; in windows, you need to update system environment (as far i remember).
+
 ```sh
 make docs
 ```
 
 ## Current Status
 
-I am considering to make trees (bst, avl) to intrusive, by which users embeds tree hook to use their data in the data structure.
+I am considering to remove void * pointer storage in B-trees and implement other B-tree variants (B+tree e.g.).
+M-Way trees need to be reconsidered. All linked lists might be intrusive too.
 
 ## 📧 Contact
 If you have questions or want to discuss the implementations, feel free to reach out:

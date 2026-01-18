@@ -7,6 +7,7 @@
 #include <ds/utils/macros.h>
 #include <stddef.h>
 #include <assert.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -141,25 +142,30 @@ static inline void bintree_set_right(struct bintree* parent, struct bintree* chi
         child->parent = parent;
 }
 
-/** @return Parent. */
+/** @return Parent but note that bintrees last 2 bits ar masked. */
 static inline struct bintree* bintree_get_parent(struct bintree* tree)
 {
     assert(tree != NULL);
-    return tree->parent;
+    // Adding extra instruction sadly, but my justfication is that
+    // this module will be used in red-black tree and avl trees only
+    // both of which uses tagged pointers and this module does not have
+    // real life use case.
+    return (struct bintree *) ((uintptr_t) tree->parent & ~BINTREE_TAG_MASK);
 }
 
-/** @return const parent. */
+/** @return const parent but note that bintrees last 2 bits ar masked. */
 static inline const struct bintree* bintree_get_parent_const(const struct bintree* tree)
 {
     assert(tree != NULL);
-    return tree->parent;
+    return (const struct bintree *) ((uintptr_t) tree->parent & ~BINTREE_TAG_MASK);
 }
 
-/** @brief Sets parent. */
+/** @brief Sets parent while PRESERVING existing low-order bits (tags). */
 static inline void bintree_set_parent(struct bintree* tree, struct bintree* parent)
 {
     assert(tree != NULL);
-    tree->parent = parent;
+    uintptr_t existing_tag = (uintptr_t)tree->parent & BINTREE_TAG_MASK;
+    tree->parent = (struct bintree *)((uintptr_t)parent | existing_tag);
 }
 
 /** @return The root node of the tree containing this node. */
