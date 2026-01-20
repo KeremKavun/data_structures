@@ -99,7 +99,7 @@ void test_lqueue_with_pool() {
     // It only handles the user data lifecycle.
     struct object_concept oc = { .init = NULL, .deinit = int_destruct }; 
     
-    lqueue_destroy(lq, &oc);
+    lqueue_destroy(lq, oc.deinit);
 
     printf("lqueue with pool test passed.\n");
 }

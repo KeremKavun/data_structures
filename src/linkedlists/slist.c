@@ -3,71 +3,58 @@
 
 // *** list_item implementation *** //
 
-void slist_item_init(struct slist_item *item, struct slist_item *next, void *data)
-{
-    assert(item != NULL);
-    item->next = next;
-    item->data = data;
-}
-
 // *** linked_list implementation *** //
 
 /* =========================================================================
  * Initialization & Deinitialization
  * ========================================================================= */
 
-void slist_init(struct slist *sl, struct allocator_concept *ac)
+void slist_init(struct slist *sl)
 {
     assert(sl != NULL);
-    assert(ac != NULL);
-    slist_item_init(&sl->sentinel, NULL, NULL);
+    slist_item_init(&sl->sentinel, NULL);
     sl->size = 0;
-    sl->ac = *ac;
 }
 
-void slist_deinit(struct slist *sl, struct object_concept *oc)
+void slist_deinit(struct slist *sl, deinit_cb deinit)
 {
     assert(sl != NULL);
+    if (!deinit) {
+        sl->sentinel.next = NULL;
+        slist_item_init(&sl->sentinel, NULL);
+        sl->size = 0;
+        return;
+    }
     while (!slist_empty(sl)) {
-        void *data = slist_remove(sl, slist_head(sl));
-        if (oc && oc->deinit)
-            oc->deinit(data);
+        struct slist_item **head_ptr = slist_head(sl);
+        struct slist_item *node_to_free = *head_ptr;
+        slist_remove(sl, head_ptr);
+        deinit(node_to_free);
     }
 }
 
 /* =========================================================================
- * Insertion
+ * Insertion & Removal
  * ========================================================================= */
 
-int slist_insert(struct slist *sl, struct slist_item **pos, void *new_data)
+void slist_insert(struct slist *sl, struct slist_item **pos, struct slist_item *new_item)
 {
-    struct slist_item *new_item = sl->ac.alloc(sl->ac.allocator);
-    if (!new_item) {
-        LOG(LIB_LVL, CERROR, "Allocator failed");
-        return 1;
-    }
+    assert(sl != NULL && pos != NULL && new_item != NULL);
     struct slist_item *curr_item = *pos;
     *pos = new_item;
-    slist_item_init(new_item, curr_item, new_data);
+    slist_item_init(new_item, curr_item);
     sl->size++;
-    return 0;
 }
 
-/* =========================================================================
- * Removal
- * ========================================================================= */
-
-void *slist_remove(struct slist *sl, struct slist_item **item)
+void slist_remove(struct slist *sl, struct slist_item **item)
 {
-    assert(sl != NULL);
+    assert(sl != NULL && item != NULL);
     struct slist_item *del = *item;
     if (del == &sl->sentinel)
-        return NULL; 
+        return; 
     *item = del->next;
-    void *data = del->data;
-    sl->ac.free(sl->ac.allocator, del);
+    slist_item_init(del, NULL);
     sl->size--;
-    return data;
 }
 
 /* =========================================================================

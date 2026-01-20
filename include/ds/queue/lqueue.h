@@ -58,10 +58,11 @@ struct lqueue *lqueue_create(struct allocator_concept* ac);
 /**
  * @brief Destroys the queue ADT.
  * @param[in, out] lq Pointer to the queue instance.
- * @param[in] oc Pointer to an object_concept used to deinit objects.
+ * @param[in] deinit Pointer to func pointer used to deinit objects.
+ * Might be NULL.
  * @see object_concept
  */
-void lqueue_destroy(struct lqueue *lq, struct object_concept* oc);
+void lqueue_destroy(struct lqueue *lq, deinit_cb deinit);
 
 /** @return Size of the node in bytes allocated by allocator_concept */
 size_t lqueue_node_sizeof();
@@ -97,10 +98,10 @@ void *ldequeue(struct lqueue *lq);
  */
 
 /** @return Reference to the data stored at the front. */
-void *lqueue_front(const struct lqueue *lq);
+void *lqueue_front(struct lqueue *lq);
 
 /** @return Reference to the data stored at the rear. */
-void *lqueue_rear(const struct lqueue *lq);
+void *lqueue_rear(struct lqueue *lq);
 
 /** @return 1 if the queue is empty, 0 otherwise. */
 int lqueue_empty(const struct lqueue *lq);

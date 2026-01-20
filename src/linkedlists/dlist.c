@@ -1,14 +1,15 @@
 #include <ds/linkedlists/dlist.h>
 #include <stdlib.h>
 
+static void dlist_insert_between(struct dlist *dl, struct dlist_item *prev_node, struct dlist_item *next_node, struct dlist_item *new_item);
+
 // *** dlist_item implementation *** //
 
-void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dlist_item *next, void *data)
+void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dlist_item *next)
 {
     assert(item != NULL);
     item->prev = prev;
     item->next = next;
-    item->data = data;
 }
 
 // *** dlist implementation *** //
@@ -17,24 +18,24 @@ void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dl
  * Initialization & Deinitialization
  * ========================================================================= */
 
-void dlist_init(struct dlist *dl, struct allocator_concept *ac)
+void dlist_init(struct dlist *dl)
 {
     assert(dl != NULL);
-    assert(ac != NULL);
-    dlist_item_init(&dl->sentinel, &dl->sentinel, &dl->sentinel, NULL);
+    dlist_item_init(&dl->sentinel, &dl->sentinel, &dl->sentinel);
     dl->size = 0;
-    dl->ac = *ac;
 }
 
-void dlist_deinit(struct dlist *dl, struct object_concept *oc)
+void dlist_deinit(struct dlist *dl, deinit_cb deinit)
 {
     assert(dl != NULL);
-    struct dlist_item *curr;
-    struct dlist_item *n;
-    dlist_foreach_fr_safe(curr, n, dlist_head(dl), &dl->sentinel) {
-        void *data = dlist_remove(dl, curr);
-        if (oc && oc->deinit)
-            oc->deinit(data);
+    if (!deinit) {
+        dlist_item_init(&dl->sentinel, &dl->sentinel, &dl->sentinel);
+        dl->size = 0;
+        return;
+    }
+    struct dlist_item *item;
+    while ((item = dlist_remove_front(dl)) != NULL) {
+        deinit(item);
     }
 }
 
@@ -42,64 +43,54 @@ void dlist_deinit(struct dlist *dl, struct object_concept *oc)
  * Insertion
  * ========================================================================= */
 
-int dlist_insert_between(struct dlist *dl, struct dlist_item *prev_node, struct dlist_item *next_node, void *new_data)
+void dlist_insert_after(struct dlist *dl, struct dlist_item *pos, struct dlist_item *new_item)
 {
-    assert(dl != NULL);
-    assert(prev_node != NULL && next_node != NULL);
-    assert(dl->ac.alloc != NULL && dl->ac.allocator != NULL);
-    struct dlist_item *new_item = dl->ac.alloc(dl->ac.allocator);
-    if (!new_item) {
-        LOG(LIB_LVL, CERROR, "Allocator failed");
-        return 1;
-    }
-    dlist_item_init(new_item, prev_node, next_node, new_data);
-    // Sentinel usage assures prev_node->next && next_node->prev are non-NULL.
-    prev_node->next = new_item;
-    next_node->prev = new_item;
-    dl->size++;
-    return 0;
+    assert(pos != NULL);
+    dlist_insert_between(dl, pos, pos->next, new_item);
 }
 
-int dlist_push_front(struct dlist *dl, void *new_data)
+void dlist_insert_before(struct dlist *dl, struct dlist_item *pos, struct dlist_item *new_item)
 {
-    return dlist_insert_between(dl, &dl->sentinel, dl->sentinel.next, new_data);
+    assert(pos != NULL);
+    dlist_insert_between(dl, pos->prev, pos, new_item);
 }
 
-int dlist_push_back(struct dlist *dl, void *new_data)
+void dlist_push_front(struct dlist *dl, struct dlist_item *new_item)
 {
-    return dlist_insert_between(dl, dl->sentinel.prev, &dl->sentinel, new_data);
+    dlist_insert_between(dl, &dl->sentinel, dl->sentinel.next, new_item);
+}
+
+void dlist_push_back(struct dlist *dl, struct dlist_item *new_item)
+{
+    dlist_insert_between(dl, dl->sentinel.prev, &dl->sentinel, new_item);
 }
 
 /* =========================================================================
  * Removal
  * ========================================================================= */
 
-void *dlist_remove(struct dlist *dl, struct dlist_item *item)
+struct dlist_item *dlist_remove(struct dlist *dl, struct dlist_item *item)
 {
     assert(dl != NULL);
     assert(item != NULL);
-    assert(dl->ac.free != NULL && dl->ac.allocator != NULL);
     if (item == &dl->sentinel)
         return NULL; 
     struct dlist_item *prev = item->prev;
     struct dlist_item *next = item->next;
     prev->next = next;
     next->prev = prev;
-    void* data = item->data;
-    dl->ac.free(dl->ac.allocator, item);
+    dlist_item_init(item, NULL, NULL);
     dl->size--;
-    return data;
+    return item;
 }
 
-void *dlist_remove_front(struct dlist *dl)
+struct dlist_item *dlist_remove_front(struct dlist *dl)
 {
-    assert(dl != NULL);
     return dlist_remove(dl, dlist_head(dl));
 }
 
-void *dlist_remove_back(struct dlist *dl)
+struct dlist_item *dlist_remove_back(struct dlist *dl)
 {
-    assert(dl != NULL);
     return dlist_remove(dl, dlist_tail(dl));
 }
 
@@ -114,30 +105,6 @@ void *dlist_remove_back(struct dlist *dl)
 /* =========================================================================
  * Inspection
  * ========================================================================= */
-
-int dlist_empty(const struct dlist *dl)
-{
-    assert(dl != NULL);
-    return (dl->size == 0);
-}
-
-size_t dlist_size(const struct dlist *dl)
-{
-    assert(dl != NULL);
-    return dl->size;
-}
-
-struct dlist_item *dlist_head(struct dlist *dl)
-{
-    assert(dl != NULL);
-    return dl->sentinel.next;
-}
-
-struct dlist_item *dlist_tail(struct dlist *dl)
-{
-    assert(dl != NULL);
-    return dl->sentinel.prev;
-}
 
 // Others
 
@@ -154,4 +121,17 @@ void dlist_reverse(struct dlist *dl)
     struct dlist_item *tmp = dl->sentinel.next;
     dl->sentinel.next = dl->sentinel.prev;
     dl->sentinel.prev = tmp;
+}
+
+// *** Helper functions *** //
+
+static void dlist_insert_between(struct dlist *dl, struct dlist_item *prev_node, struct dlist_item *next_node, struct dlist_item *new_item)
+{
+    assert(dl != NULL);
+    assert(prev_node != NULL && next_node != NULL);
+    dlist_item_init(new_item, prev_node, next_node);
+    // Sentinel usage assures prev_node->next && next_node->prev are non-NULL.
+    prev_node->next = new_item;
+    next_node->prev = new_item;
+    dl->size++;
 }

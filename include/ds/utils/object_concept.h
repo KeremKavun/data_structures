@@ -27,6 +27,24 @@ extern "C" {
  */
 
 /**
+ * @brief Constructor/Copy initializer.
+ * @param object Pointer to the memory slot to initialize.
+ * @param args Pointer to source data or packed arguments.
+ * @return Result code.
+ * @retval 0 Success.
+ * @retval Positive User-defined error code.
+ * @retval Negative Reserved for internal codebase errors.
+ */
+typedef int (*init_cb) (void *object, void *args);
+
+/**
+ * @brief Destructor/Cleanup.
+ * @param object Pointer to the object to deinitialize.
+ * @note May be NULL for POD types or if no specific cleanup is required.
+ */
+typedef void (*deinit_cb) (void *object);
+
+/**
  * @struct object_concept
  * @brief Stores function pointers for object initialization and destruction.
  * @note **Platform Support**: This signature assumes an x86-like environment where 
@@ -35,23 +53,8 @@ extern "C" {
  */
 struct object_concept
 {
-    /**
-     * @brief Constructor/Copy initializer.
-     * @param object Pointer to the memory slot to initialize.
-     * @param args Pointer to source data or packed arguments.
-     * @return Result code.
-     * @retval 0 Success.
-     * @retval Positive User-defined error code.
-     * @retval Negative Reserved for internal codebase errors.
-     */
-    int (*init) (void *object, void *args); 
-
-    /**
-     * @brief Destructor/Cleanup.
-     * @param object Pointer to the object to deinitialize.
-     * @note May be NULL for POD types or if no specific cleanup is required.
-     */
-    void (*deinit) (void *object); 
+    init_cb init; 
+    deinit_cb deinit; 
 };
 
 /** @} */ // End of OBJ_CONCEPT group

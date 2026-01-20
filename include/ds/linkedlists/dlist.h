@@ -1,9 +1,9 @@
 #ifndef LINKEDLISTS_DLIST_H
 #define LINKEDLISTS_DLIST_H
 
-#include <ds/utils/allocator_concept.h>
 #include <ds/utils/object_concept.h>
 #include <ds/utils/debug.h>
+#include <ds/utils/macros.h>
 #include <stddef.h>
 #include <assert.h>
 
@@ -13,40 +13,45 @@ extern "C" {
 
 /**
  * @file dlist.h
- * @brief Defines the interface for doubly linked list.
+ * @brief Defines the interface for intrusive doubly linked list.
  */
 
 /**
  * @defgroup DBLYLIST Doubly Linked List
  * @ingroup LINKEDLISTS
- * @brief Basic operations for the generic double linked list list using a sentinel.
+ * @brief Basic operations for intrusive double linked list list using a sentinel.
  * 
  * @details
  * This is circular linked list but interpreted as doubly linked list. Instead of having two
  * sentinels at both ends, this list has one sentinel by completing a circle.
  * ### Global Constraints
  * - **NULL Pointers**: All `struct dlist *dl` and `struct dlist_item *item` arguments must be non-NULL
- * - **Ownership**: Internal nodes are owned by the list and managed by allocator_concept given by user,
- * - void *references to data are entirely owned by user. dlist_deinit might be helpful to destruct remaining
- * - objects in the list.
+ * - **Ownership**: Internal nodes are owned by the user since this is intrusive list.
+ * - dlist_deinit might be helpful to destruct remaining objects in the list.
  * @{
  */
 
 /**
  * @struct dlist_item
- * @brief nodes that stores void* refs, no need to use this
- * struct generally except allocation.
- * @warning **Null Safety**: All functions taking `struct dlist_item*` 
- * expect a valid, initialized by @ref dlist_item_init, non-NULL pointer. Behavior is undefined otherwise.
+ * @brief This struct is used to link user data
+ * into linked list data structure.
+ * @code
+ * struct mydata {
+ *  int data;
+ *  struct dlist_item *hook;
+ * };
  */
 struct dlist_item {
     struct dlist_item       *prev;      ///< Prev item.
     struct dlist_item       *next;      ///< Next item.
-    void                    *data;      ///< Reference to the object.
 };
 
-/** @brief Init item. */
-void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dlist_item *next, void *data);
+/** @brief Initializes dlist_item. */
+void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dlist_item *next);
+
+/** @brief Recovers the parent structure pointer from an embedded dlist_item. */
+#define dlist_entry(ptr, type, member) \
+    container_of(ptr, type, member)
 
 /**
  * @struct dlist
@@ -55,7 +60,6 @@ void dlist_item_init(struct dlist_item *item, struct dlist_item *prev, struct dl
 struct dlist {
     struct dlist_item               sentinel;       ///< Sentinel node.
     size_t                          size;           ///< Count of the objects whose references are stored here.
-    struct allocator_concept        ac;             ///< Used by dlist to allocate struct dlist_item to maintain dlist.
 };
 
 /**
@@ -66,22 +70,21 @@ struct dlist {
 
 /**
  * @brief Initializes the double linked list.
- * @param[in, out] dl Pointer to the list to be initialized. Must not be NULL or invalid.
- * @param[in] ac Pointer to an allocator_concept used to allocate nodes. Must not be NULL or invalid.
- * @see allocator_concept
+ * @param[in, out] dl Pointer to the list to be initialized.
  */
-void dlist_init(struct dlist *dl, struct allocator_concept *ac);
+void dlist_init(struct dlist *dl);
 
 /**
  * @brief Deinits the double linked list.
- * @param[in, out] dl Pointer to the list to be deinitialized. Must not be NULL or invalid.
- * @param[in] oc Pointer to an object_concept used to init/deinit nodes. Must not be NULL or invalid.
- * @warning **Deiniting**: the list given `dl` isnt freed, its fields are.
- * @warning **Object Fields Cleanup**: THe lists fields arent set to zero. Since you might
- * allocate the list on the heap, that would be silly before freeing it.
+ * @param[in, out] dl Pointer to the list to be deinitialized.
+ * @param[in] deinit Pointer to function pointer that receives
+ * struct slist_item *pointer and performs deallocation. container_of
+ * or slist_entry can be used to recover parent struct inside. Might be
+ * NULL, but then no iteration will be done, only sentinel->next is set to sentinel
+ * and size to 0.
  * @see object_concept
  */
-void dlist_deinit(struct dlist *dl, struct object_concept *oc);
+void dlist_deinit(struct dlist *dl, deinit_cb deinit);
 
 /** @} */ // End of Initialization & Deinitalization
 
@@ -92,30 +95,30 @@ void dlist_deinit(struct dlist *dl, struct object_concept *oc);
  */
 
 /**
- * @brief Inserts a new item between @p prev_item and @p next_item.
- * They must be in @p dl.
- * @param[in,out] dl Pointer to the list instance.
- * @param[in] prev_item Will be prev item of new item.
- * @param[in] next_item Will be next item of new item.
- * @param[in] new_data Pointer to the new data to insert.
- * @return int, 0 indicates success, non-zero indicates failure
- * @warning **Lifetime Management**: The list does NOT take ownership of the
- * * memory containing @p new_data.
- * @note This operation is **O(1)** (constant time).
+ * @brief Inserts a new item after the specified item.
+ * @param[in] pos The item after which the new item will be inserted.
+ * @param[in] new_item The new item to insert.
  */
-int dlist_insert_between(struct dlist *dl, struct dlist_item *prev_item, struct dlist_item *next_item, void *new_data);
+void dlist_insert_after(struct dlist *dl, struct dlist_item *pos, struct dlist_item *new_item);
+
+/**
+ * @brief Inserts a new item before the specified item.
+ * @param[in] pos The item before which the new item will be inserted.
+ * @param[in] new_item The new item to insert.
+ */
+void dlist_insert_before(struct dlist *dl, struct dlist_item *pos, struct dlist_item *new_item);
 
 /**
  * @brief Inserts an item at the front of the list.
  * @see dlist_insert_before
  */
-int dlist_push_front(struct dlist *dl, void *new_data);
+void dlist_push_front(struct dlist *dl, struct dlist_item *new_item);
 
 /**
  * @brief Inserts an item at the back of the list.
  * @see dlist_insert_after
  */
-int dlist_push_back(struct dlist *dl, void *new_data);
+void dlist_push_back(struct dlist *dl, struct dlist_item *new_item);
 
 /** @} */ // End of Insertion
 
@@ -130,26 +133,27 @@ int dlist_push_back(struct dlist *dl, void *new_data);
  * @param[in,out] dl Pointer to the list instance.
  * @param[in] item Iter to be removed from the list.
  * Must be already in a list.
- * @return Data that was stored by `item`, or NULL if list was empty.
- * @warning **Lifetime Management**: The list did NOT take ownership of the memory pointed
- * by `void *new_data` passed in insert functions. It is returned to you back.
+ * @return The parameter `item` or NULL if the list is empty
+ * (The user passed &dl->sentinel after obtaining a pointer
+ * and iterating until the sentinel).
+ * @note Fields of item are set to NULL.
+ * @note If the list is empty, no action is taken.
  * @note This operation is **O(1)** (constant time).
  */
-void *dlist_remove(struct dlist *dl, struct dlist_item *item);
+struct dlist_item *dlist_remove(struct dlist *dl, struct dlist_item *item);
 
 /**
  * @brief Removes current head item.
- * @return Data that was stored by previous head, or NULL if list was empty.
  * @see dlist_remove
  */
-void *dlist_remove_front(struct dlist *dl);
+struct dlist_item *dlist_remove_front(struct dlist *dl);
 
 /**
  * @brief Removes current tail item.
  * @return Data that was stored by previous tail, or NULL if list was empty.
  * @see dlist_remove
  */
-void *dlist_remove_back(struct dlist *dl);
+struct dlist_item *dlist_remove_back(struct dlist *dl);
 
 /** @} */ // End of Removal
 
@@ -173,18 +177,11 @@ static inline struct dlist_item *dlist_item_next(struct dlist_item *item)
     return item->next;
 }
 
-/** @return reference to data kept at item. */
-static inline void *dlist_item_data(struct dlist_item *item)
-{
-    assert(item != NULL);
-    return item->data;
-}
-
 /**
  * @brief Iterate over items by following prev pointers.
- * @param[in] item Iterator `struct dlist_item *` for loop variable.
- * @param[in] begin Iterator to begin (struct dlist_item *).
- * @param[in] end Iterator to end (struct dlist_item *).
+ * @param[in] item: (struct dlist_item *) Iterator for loop variable.
+ * @param[in] begin: (struct dlist_item *) Iterator to begin.
+ * @param[in] end: (struct dlist_item *) Iterator to end.
  * @note The list must not be modified during iteration (no insertions/removals).
  */
 #define dlist_foreach_bk(item, begin, end) \
@@ -192,10 +189,10 @@ static inline void *dlist_item_data(struct dlist_item *item)
 
 /**
  * @brief Iterate backwards safely by storing next pointer in advance.
- * @param[in] item Loop variable (struct dlist_item *).
- * @param[in] n Temporary storage for prev item (struct dlist_item *).
- * @param[in] begin Iterator to begin at (struct dlist_item *).
- * @param[in] end Iterator to stop at (struct dlist_item *, exclusive).
+ * @param[in] item: (struct dlist_item *) Loop variable.
+ * @param[in] n: (struct dlist_item *) Temporary storage for prev item.
+ * @param[in] begin: (struct dlist_item *) Iterator to begin at.
+ * @param[in] end: (struct dlist_item *) Iterator to stop at (exclusive).
  */
 #define dlist_foreach_bk_safe(item, n, begin, end) \
     for (item = begin, n = dlist_item_prev(item); item != end; item = n, n = dlist_item_prev(n))
@@ -233,27 +230,28 @@ static inline void *dlist_item_data(struct dlist_item *item)
  * Iterates through the list starting from @p begin until @p end and returns the first
  * reference for which the @p condition predicate returns true (non-zero).
  * If no match is found, @p result is set to NULL.
- * @param result (struct dlist_item *): Variable to store the result.
+ * @param result: (typeof(parent struct)) Variable to store the result.
  *               Will be set to NULL if no match is found, or to the matching
  *               reference if found. Should be pre-declared.
- * @param begin Iterator to begin (struct dlist_item *).
- * @param end Iterator to end (struct dlist_item *).
- * @param condition Predicate function or macro that takes a pointer to void*
- *                  reference and returns zero (true) for a match, non-zero (false) otherwise.
+ * @param begin: (struct dlist_item *) Iterator to begin.
+ * @param end: (struct dlist_item *) Iterator to end.
+ * @param member Name of parent struct member of type struct dlist_item.
+ * @param condition Predicate function or macro that takes a pointer to parent struct
+ *                  and returns zero for a match, non-zero otherwise.
  * @note This performs a linear search - **O(n)** time complexity.
  * @note Search stops at the first match (does not find all matches).
  */
-#define dlist_find_entry_bk(result, begin, end, condition)  \
-{                                                           \
-    result = NULL;                                          \
-    struct dlist_item *_item;                               \
-    dlist_foreach_bk(_item, begin, end) {                   \
-        void *_ref = dlist_item_data(_item);                 \
-        if (condition(_ref) == 0) {                         \
-            result = _item;                                 \
-            break;                                          \
-        }                                                   \
-    }                                                       \
+#define dlist_find_entry_bk(result, begin, end, member, condition)          \
+{                                                                           \
+    result = NULL;                                                          \
+    struct dlist_item *_item;                                               \
+    dlist_foreach_bk(_item, begin, end) {                                   \
+        typeof(result) _tmp = dlist_entry(_item, typeof(*result), member);  \
+        if (condition(_tmp) == 0) {                                         \
+            result = _tmp;                                                  \
+            break;                                                          \
+        }                                                                   \
+    }                                                                       \
 }
 
 /**
@@ -261,27 +259,28 @@ static inline void *dlist_item_data(struct dlist_item *item)
  * Iterates through the list starting from @p begin until @p end and returns the first
  * item for which the @p condition predicate returns true (non-zero).
  * If no match is found, @p result is set to NULL.
- * @param result (struct dlist_item *): Variable to store the result.
+ * @param result: (typeof(parent struct)) Variable to store the result.
  *               Will be set to NULL if no match is found, or to the matching
  *               reference if found. Should be pre-declared.
- * @param begin Iterator to begin  (struct dlist_item *).
- * @param end Iterator to end  (struct dlist_item *).
- * @param condition Predicate function or macro that takes a pointer to void*
- *                  reference and returns zero (true) for a match, non-zero (false) otherwise.
+ * @param begin: (struct dlist_item *) Iterator to begin.
+ * @param end: (struct dlist_item *) Iterator to end.
+ * @param member Name of parent struct member of type struct dlist_item.
+ * @param condition Predicate function or macro that takes a pointer to parent struct
+ *                  and returns zero for a match, non-zero otherwise.
  * @note This performs a linear search - **O(n)** time complexity.
  * @note Search stops at the first match (does not find all matches).
  */
-#define dlist_find_entry_fr(result, begin, end, condition)  \
-{                                                           \
-    result = NULL;                                          \
-    struct dlist_item *_item;                               \
-    dlist_foreach_fr(_item, begin, end) {                   \
-        void *_ref = dlist_item_data(_item);                 \
-        if (condition(_ref) == 0) {                         \
-            result = _item;                                 \
-            break;                                          \
-        }                                                   \
-    }                                                       \
+#define dlist_find_entry_fr(result, begin, end, member, condition)          \
+{                                                                           \
+    result = NULL;                                                          \
+    struct dlist_item *_item;                                               \
+    dlist_foreach_fr(_item, begin, end) {                                   \
+        typeof(result) _tmp = dlist_entry(_item, typeof(*result), member);  \
+        if (condition(_tmp) == 0) {                                         \
+            result = _tmp;                                                  \
+            break;                                                          \
+        }                                                                   \
+    }                                                                       \
 }
 
 /** @} */ // End of Search
@@ -296,19 +295,35 @@ static inline void *dlist_item_data(struct dlist_item *item)
  * @brief Checks if the list is empty.
  * @return 1 (true) if empty, 0 (false) otherwise.
  */
-int dlist_empty(const struct dlist *dl);
+static inline int dlist_empty(const struct dlist *dl)
+{
+    assert(dl != NULL);
+    return (dl->size == 0);
+}
 
 /**
  * @brief Returns the number of items in the list.
  * @return Size of the list.
  */
-size_t dlist_size(const struct dlist *dl);
+static inline size_t dlist_size(const struct dlist *dl)
+{
+    assert(dl != NULL);
+    return dl->size;
+}
 
 /** @return Iterator to the head of the list. */
-struct dlist_item *dlist_head(struct dlist *dl);
+static inline struct dlist_item *dlist_head(struct dlist *dl)
+{
+    assert(dl != NULL);
+    return dl->sentinel.next;
+}
 
 /** @return Iterator to the tail of the list. */
-struct dlist_item *dlist_tail(struct dlist *dl);
+static inline struct dlist_item *dlist_tail(struct dlist *dl)
+{
+    assert(dl != NULL);
+    return dl->sentinel.prev;
+}
 
 /** @} */ // End of Inspection
 

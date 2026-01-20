@@ -47,7 +47,7 @@ struct lstack;
 /**
  * @brief Creates the stack ADT.
  * @param[in] ac Pointer to an allocator_concept used to allocate nodes.
- * Use @ref lstack_node_sizeof to pass object size into your allocator that will allocate lqueue nodes.
+ * Use @ref lstack_node_sizeof to pass object size into your allocator that will allocate lstack nodes.
  * @return lstack if successfull, NULL otherwise
  * @see allocator_concept
  * @see slist_init
@@ -57,11 +57,11 @@ struct lstack *lstack_create(struct allocator_concept *ac);
 /**
  * @brief Destroys the stack ADT.
  * @param[in, out] ls Pointer to the stack instance.
- * @param[in] oc Pointer to an object_concept used to deinit objects.
- * Might be NULL, .deinit property might be NULL, .init isnt used.
+ * @param[in] deinit Pointer to func pointer used to deinit objects.
+ * Might be NULL.
  * @see object_concept
  */
-void lstack_destroy(struct lstack *ls, struct object_concept *oc);
+void lstack_destroy(struct lstack *ls, deinit_cb deinit);
 
 /** @return Size of the node in bytes allocated by allocator_concept */
 size_t lstack_node_sizeof();

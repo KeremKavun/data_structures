@@ -1,9 +1,9 @@
 #ifndef LINKEDLISTS_SLIST_H
 #define LINKEDLISTS_SLIST_H
 
-#include <ds/utils/allocator_concept.h>
 #include <ds/utils/object_concept.h>
 #include <ds/utils/debug.h>
+#include <ds/utils/macros.h>
 #include <stddef.h>
 #include <assert.h>
 
@@ -13,48 +13,54 @@ extern "C" {
 
 /**
  * @file slist.h
- * @brief Defines the interface for singly linked list.
+ * @brief Defines the interface for intrusive singly linked list.
  */
 
 /**
  * @defgroup SINGLYLIST Singly Linked List
  * @ingroup LINKEDLISTS
- * @brief Basic operations for the generic single linked list list using a sentinel (not circular).
+ * @brief Basic operations for instrusive single linked list list using a sentinel (not circular).
  * 
  * @details
  * ### Global Constraints
  * - **NULL Pointers**: All `struct slist *sl` and `struct slist_item *iter` arguments must be non-NULL
- * - **Ownership**: Internal nodes are owned by the list and managed by allocator_concept given by user,
- * - void *references to data are entirely owned by user. slist_deinit might be helpful to destruct remaining
- * - objects in the list.
+ * - **Ownership**: Internal nodes are owned by the user since this is intrusive list. slist_deinit might
+ * - be helpful to destruct remaining objects in the list.
  * @{
  */
 
 /**
  * @struct slist_item
- * @brief nodes that stores void* refs, no need to use this
- * struct generally except allocation.
- * @warning **Null Safety**: All functions taking `struct slist_item*` (including *(struct slist_item **))
- * expect a valid, initialized by @ref slist_item_init, non-NULL pointer. Behavior is undefined otherwise.
+ * @brief This struct is used to link user data
+ * into linked list data structure.
+ * @code
+ * struct mydata {
+ *  int data;
+ *  struct slist_item *hook;
+ * };
  */
 struct slist_item {
     struct slist_item       *next;      ///< Next item.
-    void                    *data;      /// Reference to the object.
 };
 
-/** @brief Init item. */
-void slist_item_init(struct slist_item *item, struct slist_item *next, void *data);
+/** @brief Initializes slist_item. */
+static inline void slist_item_init(struct slist_item *item, struct slist_item *next)
+{
+    assert(item != NULL);
+    item->next = next;
+}
+
+/** @brief Recovers the parent structure pointer from an embedded slist_item. */
+#define slist_entry(ptr, type, member) \
+    container_of(ptr, type, member)
 
 /**
  * @struct slist
  * @brief Generic single linked list.
- * @warning **Null Safety**: All functions taking `struct slist*` 
- * expect a valid, initialized by @ref slist_init, non-NULL pointer. Behavior is undefined otherwise.
  */
 struct slist {
     struct slist_item               sentinel;       ///< Sentinel node to reduce if checks and NULL safety.
     size_t                          size;           ///< Count of the objects whose references are stored here.
-    struct allocator_concept        ac;             ///< Used by slist to allocate struct slist_item to maintain slist.
 };
 
 /**
@@ -65,28 +71,27 @@ struct slist {
 
 /**
  * @brief Initializes the single linked list
- * @param[in, out] sl Pointer to the list to be initialized. Must not be NULL or invalid.
- * @param[in] ac Pointer to an allocator_concept used to allocate nodes. Must not be NULL or invalid.
- * @see allocator_concept
+ * @param[in, out] sl Pointer to the list to be initialized.
  */
-void slist_init(struct slist *sl, struct allocator_concept *ac);
+void slist_init(struct slist *sl);
 
 /**
  * @brief Deinits the single linked list.
- * @param[in, out] sl Pointer to the list to be deinitialized. Must not be NULL or invalid.
- * @param[in] oc Pointer to an object_concept used to init/deinit nodes.
- * @warning **Deiniting**: the list given `sl` isnt freed, its fields are.
- * @warning **Object Fields Cleanup**: The lists fields arent set to zero. Since you might
- * allocate the list on the heap, that would be silly before freeing it.
+ * @param[in, out] sl Pointer to the list to be deinitialized.
+ * @param[in] deinit Pointer to function pointer that receives
+ * struct slist_item *pointer and performs deallocation. container_of
+ * or slist_entry can be used to recover parent struct inside. Might be
+ * NULL, but then no iteration will be done, only sentinel->next is set to NULL
+ * and size to 0.
  * @see object_concept
  */
-void slist_deinit(struct slist *sl, struct object_concept *oc);
+void slist_deinit(struct slist *sl, deinit_cb deinit);
 
 /** @} */ // End of Initialization & Deinitalization
 
 /**
- * @name Insertion
- * Operations to add items to the list.
+ * @name Insertion & Removal
+ * Operations for insertion and removal.
  * @{
  */
 
@@ -95,35 +100,22 @@ void slist_deinit(struct slist *sl, struct object_concept *oc);
  * @param[in,out] sl Pointer to the list instance.
  * @param[in] pos Pointer to previous nodes next attribute,
  * got by find algorithms at some point.
- * @param[in] new_data Pointer to the new data to insert.
- * @return int, 0 indicates success, non-zero indicates failure
- * @warning **Lifetime Management**: The list does NOT take ownership of the
- * * memory containing @p new_data.
+ * @param[in] new_item Pointer to the new item's hook to insert.
  * @note This operation is **O(1)** (constant time).
  */
-int slist_insert(struct slist *sl, struct slist_item **pos, void *new_data);
-
-/** @} */ // End of Insertion
-
-/**
- * @name Removal
- * Operations to remove items from the list.
- * @{
- */
+void slist_insert(struct slist *sl, struct slist_item **pos, struct slist_item *new_item);
 
 /**
  * @brief Removes item at specific position.
  * @param[in,out] sl Pointer to the list instance.
  * @param[in] item Item to be removed from the list.
- * got by find algorithms at some point. Must not be NULL.
- * @return Data that was stored by `item`, or NULL if list was empty.
- * @warning **Lifetime Management**: The list did NOT take ownership of the memory pointed
- * by `void *new_data` passed in insert functions. It is returned to you back.
+ * got by find algorithms at some point.
+ * @note If the list is empty, no action is taken.
  * @note This operation is **O(1)** (constant time).
  */
-void *slist_remove(struct slist *sl, struct slist_item **item);
+void slist_remove(struct slist *sl, struct slist_item **item);
 
-/** @} */ // End of Removal
+/** @} */ // End of Insertion & Removal
 
 /**
  * @name Iteration
@@ -141,36 +133,27 @@ static inline struct slist_item **slist_item_next(struct slist_item **item)
     return (struct slist_item **) (*item);
 }
 
-/** @return reference to data kept at item. */
-static inline void *slist_item_data(struct slist_item **item)
-{
-    assert(item != NULL);
-    return (*item)->data;
-}
-
 /**
  * @brief Iterate over items maximum to the end.
- * @param[in] sl Pointer to the list instance.
- * @param[in] item Iterator `struct slist_item **` for loop variable.
- * @param[in] begin Iterator to begin (struct slist_item **).
- * @param[in] end Iterator to end (struct slist_item **).
+ * @param[in] item: (struct slist **) Iterator for loop variable.
+ * @param[in] begin: (struct slist_item **) Iterator to begin.
+ * @param end: (struct slist_item **) Iterator to end, NULL to scan all.
  * @note The list must not be modified during iteration (no insertions/removals).
  */
-#define slist_foreach(sl, item, begin, end) \
+#define slist_foreach(item, begin, end) \
     for (item = begin; item != end && *item != NULL; item = slist_item_next(item))
 
 /**
  * @brief Iterate safely (allows removal of current node).
- * @param[in] sl Pointer to the list instance.
- * @param[in] item Loop variable (struct slist_item **).
- * @param[in] n Temporary storage for next item (struct slist_item **).
- * @param[in] begin Iterator to begin at (struct slist_item **).
- * @param[in] end Iterator to stop at (struct slist_item **, exclusive).
+ * @param[in] item: (struct slist_item **) Loop variable.
+ * @param[in] n: (struct slist_item **) Temporary storage for next item.
+ * @param[in] begin: (struct slist_item **) Iterator to begin at.
+ * @param end: (struct slist_item **) Iterator to end, NULL to scan all.
  * @note it does this by storing next pointer, if current item is freed,
  * then remove function should already alter what item points to, which
  * is next pointer, thus we dont call next.
  */
-#define slist_foreach_safe(sl, item, n, begin, end)                        \
+#define slist_foreach_safe(item, n, begin, end)                        \
     for (item = begin;                                                     \
          (item != end && *item != NULL) && ((n = (*item)->next), 1);       \
          item = ((*item) == n ? item : slist_item_next(item)))
@@ -188,27 +171,28 @@ static inline void *slist_item_data(struct slist_item **item)
  * Iterates through the list starting from @p begin until @p end and returns the first
  * item for which the @p condition predicate returns true (non-zero).
  * If no match is found, @p result is set to NULL.
- * @param result (struct slist_item **): Variable to store the result.
+ * @param result: (typeof(parent struct)) Variable to store the result.
  *               Will be set to NULL if no match is found, or to the matching
  *               reference if found. Should be pre-declared.
- * @param begin Iterator to begin  (struct slist_item **).
- * @param end Iterator to end  (struct slist_item **).
- * @param condition Predicate function or macro that takes a pointer to void*
- *                  reference and returns zero (true) for a match, non-zero (false) otherwise.
+ * @param begin: (struct slist_item **) Iterator to begin.
+ * @param end: (struct slist_item **) Iterator to end, NULL to scan all.
+ * @param member Name of parent struct member of type struct slist_item.
+ * @param condition Predicate function or macro that takes a pointer to parent struct
+ *                  and returns zero for a match, non-zero otherwise.
  * @note This performs a linear search - **O(n)** time complexity.
  * @note Search stops at the first match (does not find all matches).
  */
-#define slist_find_entry(result, sl, begin, end, condition) \
-{                                                           \
-    result = NULL;                                          \
-    struct slist_item **_item;                              \
-    slist_foreach(sl, _item, begin, end) {                  \
-        void *_ref = slist_item_data(_item);                \
-        if (condition(_ref) == 0) {                         \
-            result = _item;                                 \
-            break;                                          \
-        }                                                   \
-    }                                                       \
+#define slist_find_entry(result, begin, end, member, condition)             \
+{                                                                           \
+    result = NULL;                                                          \
+    struct slist_item **_item;                                              \
+    slist_foreach(_item, begin, end) {                                      \
+        typeof(result) _tmp = slist_entry(*_item, typeof(*result), member); \
+        if (condition(_tmp) == 0) {                                         \
+            result = _tmp;                                                  \
+            break;                                                          \
+        }                                                                   \
+    }                                                                       \
 }
 
 /** @} */ // End of Search

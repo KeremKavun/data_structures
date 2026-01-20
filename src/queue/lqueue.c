@@ -5,9 +5,15 @@
 #include <assert.h>
 #include <string.h>
 
+struct queue_item {
+    void                    *data;
+    struct slist_item       hook;
+};
+
 struct lqueue {
-    struct slist            contents;
-    struct slist_item       **rear;
+    struct slist                    contents;
+    struct slist_item               **rear;
+    struct allocator_concept        ac;
 };
 
 /* =========================================================================
@@ -22,21 +28,26 @@ struct lqueue *lqueue_create(struct allocator_concept *ac)
         LOG(LIB_LVL, CERROR, "Allocation failure");
         return NULL;
     }
-    slist_init(&lq->contents, ac);
+    slist_init(&lq->contents);
     lq->rear = slist_head(&lq->contents);
+    lq->ac = *ac;
     return lq;
 }
 
-void lqueue_destroy(struct lqueue *lq, struct object_concept *oc)
+void lqueue_destroy(struct lqueue *lq, deinit_cb deinit)
 {
     assert(lq != NULL);
-    slist_deinit(&lq->contents, oc);
+    void *data;
+    while ((data = ldequeue(lq))) {
+        if (deinit)
+            deinit(data);
+    }
     free(lq);
 }
 
 size_t lqueue_node_sizeof()
 {
-    return sizeof(struct slist_item);
+    return sizeof(struct queue_item);
 }
 
 /* =========================================================================
@@ -46,8 +57,11 @@ size_t lqueue_node_sizeof()
 int lenqueue(struct lqueue *lq, void *new_item)
 {
     assert(lq != NULL);
-    if (slist_insert(&lq->contents, lq->rear, new_item) != 0)
+    struct queue_item *qui = lq->ac.alloc(lq->ac.allocator);
+    if (!qui)
         return 1;
+    qui->data = new_item;
+    slist_insert(&lq->contents, lq->rear, &qui->hook);
     lq->rear = slist_item_next(lq->rear);
     return 0;
 }
@@ -58,11 +72,13 @@ void *ldequeue(struct lqueue *lq)
     struct slist_item **head = slist_head(&lq->contents);
     if (*head == NULL)
         return NULL;
-    void *data = slist_remove(&lq->contents, head);
-    // 4. FIX: If the list is now empty, 'rear' is dangling!
-    // We must reset 'rear' to point to the sentinel's next field.
-    if (lqueue_empty(lq))
+    struct slist_item *to_remove = *head;
+    slist_remove(&lq->contents, head);
+    if (*head == NULL)
         lq->rear = slist_head(&lq->contents);
+    struct queue_item *qui = slist_entry(to_remove, struct queue_item, hook);
+    void *data = qui->data;
+    lq->ac.free(lq->ac.allocator, qui);
     return data;
 }
 
@@ -70,18 +86,18 @@ void *ldequeue(struct lqueue *lq)
  * Inspection
  * ========================================================================= */
 
-void *lqueue_front(const struct lqueue *lq)
+void *lqueue_front(struct lqueue *lq)
 {
     assert(lq != NULL);
-    struct slist_item **front = slist_head((struct slist *) &lq->contents);
-    return (*front) ? (*front)->data : NULL;
+    struct slist_item *front = *slist_head(&lq->contents);
+    return (front) ? slist_entry(front, struct queue_item, hook)->data : NULL;
 }
 
-void *lqueue_rear(const struct lqueue *lq)
+void *lqueue_rear(struct lqueue *lq)
 {
     assert(lq != NULL);
     struct slist_item *real_rear = (struct slist_item *) lq->rear;
-    return (real_rear) ? real_rear->data : NULL;
+    return (real_rear) ? slist_entry(real_rear, struct queue_item, hook)->data : NULL;
 }
 
 int lqueue_empty(const struct lqueue *lq)
@@ -104,8 +120,8 @@ void lqueue_walk(struct lqueue *lq, void *context, void (*handler) (void *item, 
 {
     assert(lq);
     struct slist_item **iter;
-    slist_foreach(&lq->contents, iter, slist_head(&lq->contents), NULL) {
-        void *data = slist_item_data(iter);
-        handler(data, context);
+    slist_foreach(iter, slist_head(&lq->contents), NULL) {
+        struct queue_item *parent = slist_entry(*iter, struct queue_item, hook);
+        handler(parent->data, context);
     }
 }

@@ -62,7 +62,7 @@ static void test_create_destroy(void) {
     assert(lstack_size(ls) == 0);
     printf("✓ Stack created successfully\n");
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
     printf("✓ Stack destroyed successfully\n");
 }
 
@@ -117,7 +117,7 @@ static void test_push_pop(void) {
     assert(lstack_size(ls) == 0);
     printf("✓ Stack is empty after all pops\n");
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 3: Top Operation */
@@ -158,7 +158,7 @@ static void test_top(void) {
     popped = (test_data_t*)lpop(ls);
     free(popped);
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 4: Empty Stack Operations */
@@ -184,7 +184,7 @@ static void test_empty_stack(void) {
     assert(lstack_empty(ls) == 1);
     assert(lstack_size(ls) == 0);
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 5: Walk Operation */
@@ -217,7 +217,7 @@ static void test_walk(void) {
         free(data);
     }
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 6: Large Stack Stress Test */
@@ -252,7 +252,7 @@ static void test_stress(void) {
     assert(lstack_empty(ls) == 1);
     printf("✓ Popped all %d items in correct LIFO order\n", NUM_ITEMS);
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 7: Destroy with Remaining Items */
@@ -275,7 +275,7 @@ static void test_destroy_with_items(void) {
     printf("✓ Destroying stack with remaining items\n");
     
     /* Destroy should clean up all remaining items */
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
     printf("✓ Stack destroyed successfully (items cleaned up)\n");
 }
 
@@ -310,7 +310,7 @@ static void test_alternating_ops(void) {
         free(data);
     }
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 9: Multiple Stacks */
@@ -355,9 +355,9 @@ static void test_multiple_stacks(void) {
     while (!lstack_empty(ls2)) free(lpop(ls2));
     while (!lstack_empty(ls3)) free(lpop(ls3));
     
-    lstack_destroy(ls1, &test_oc);
-    lstack_destroy(ls2, &test_oc);
-    lstack_destroy(ls3, &test_oc);
+    lstack_destroy(ls1, test_oc.deinit);
+    lstack_destroy(ls2, test_oc.deinit);
+    lstack_destroy(ls3, test_oc.deinit);
     printf("✓ All stacks cleaned up successfully\n");
 }
 
@@ -396,7 +396,7 @@ static void test_edge_cases(void) {
     free(lpop(ls));
     printf("✓ Push after emptying works correctly\n");
     
-    lstack_destroy(ls, &test_oc);
+    lstack_destroy(ls, test_oc.deinit);
 }
 
 /* Test 11: NULL Allocator Handling */
